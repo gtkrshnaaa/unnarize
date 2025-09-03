@@ -283,7 +283,7 @@ make run-timer-benchmark
 #include <dlfcn.h>
 typedef struct VM VM;
 typedef enum { VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL, VAL_MODULE, VAL_ARRAY, VAL_MAP } ValueType;
-typedef struct { ValueType type; union { int intVal; double floatVal; char* stringVal; int bool_storage; void* moduleVal; void* arrayVal; void* mapVal; }; } Value;
+typedef struct { ValueType type; union { int intVal; double floatVal; char* stringVal; int booleanVal; void* moduleVal; void* arrayVal; void* mapVal; }; } Value;
 typedef Value (*NativeFn)(VM*, Value* args, int argc);
 typedef void (*RegisterFn)(VM*, const char* name, NativeFn fn);
 
