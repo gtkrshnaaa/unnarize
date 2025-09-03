@@ -1,6 +1,11 @@
 # Prerequisites
 *.d
 
+bin
+obj
+
+z_listing
+
 # Object files
 *.o
 *.ko
