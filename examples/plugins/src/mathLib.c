@@ -57,7 +57,7 @@ static Value mathPower(VM* vm, Value* args, int argCount) {
 }
 
 // Mandatory entry point called by the interpreter
-void register_functions(VM* vm) {
+void registerFunctions(VM* vm) {
     // Resolve interpreter's registration API dynamically
     RegisterFn reg_fn = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
     if (!reg_fn) {

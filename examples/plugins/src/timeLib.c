@@ -55,7 +55,7 @@ static Value randInt(VM* vm, Value* args, int argCount) {
     return v;
 }
 
-void register_functions(VM* vm) {
+void registerFunctions(VM* vm) {
     RegisterFn reg_fn = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
     if (!reg_fn) {
         const char* err = dlerror();
