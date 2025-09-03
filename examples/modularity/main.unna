@@ -1,0 +1,35 @@
+import geometry as gmtry;
+import stats as stts;
+
+var radius = 5;
+var area = gmtry.calculateArea(radius);
+var circumference = gmtry.calculateCircumference(radius);
+var numbers = "1,2,3,4,5";
+var mean = stts.calculateMean(numbers);
+var variance = stts.calculateVariance(numbers);
+
+print("=== Geometry and Statistics Calculator ===");
+print("Radius: " + radius);
+print("Area: " + area);
+print("Circumference: " + circumference);
+print("Numbers: " + numbers);
+print("Mean: " + mean);
+print("Variance: " + variance);
+
+// Demonstrate cross-module helpers
+print("");
+print("-- Extra geometry helpers --");
+print("Diameter: " + gmtry.diameter(radius));
+print(gmtry.circleReport(radius));
+
+// Demonstrate chained import: stats uses geometry internally
+print("");
+print("-- Chained stats+geometry --");
+print(stts.describeDataWithCircle(numbers, radius));
+
+// More composed functions
+print("");
+var outer = 6;
+var inner = 3;
+print("Ring area (outer=" + outer + ", inner=" + inner + "): " + stts.ringArea(outer, inner));
+print("Area from diameter 10: " + stts.areaFromDiameter(10));

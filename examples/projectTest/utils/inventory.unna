@@ -1,0 +1,53 @@
+// Inventory utilities module
+
+function createInventory() {
+    return map();
+}
+
+function addItem(inv, name, qty) {
+    if (has(inv, name)) {
+        inv[name] = inv[name] + qty;
+    } else {
+        inv[name] = qty;
+    }
+    return inv[name];
+}
+
+function totalItems(inv) {
+    var ks = keys(inv);
+    var i = 0;
+    var total = 0;
+    while (i < length(ks)) {
+        var k = ks[i];
+        total = total + inv[k];
+        i = i + 1;
+    }
+    return total;
+}
+
+// Predefined item keys to align with shipments in project demo
+function itemKeys() {
+    var arr = array();
+    push(arr, "apple");
+    push(arr, "banana");
+    push(arr, "chocolate");
+    return arr;
+}
+
+// Build frequency map from a numeric array
+function frequency(arr) {
+    var freq = map();
+    var i = 0;
+    while (i < length(arr)) {
+        var v = arr[i];
+        // Store keys as strings to align with keys(map) return values
+        var key = "" + v;
+        if (has(freq, key)) {
+            freq[key] = freq[key] + 1;
+        } else {
+            freq[key] = 1;
+        }
+        i = i + 1;
+    }
+    return freq;
+}

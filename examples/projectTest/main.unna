@@ -1,0 +1,83 @@
+// Real-world style demo project for Unnarize
+// This project showcases: variables, control flow, functions, recursion,
+// arrays, maps, and modularity via imports.
+
+import inventory as inv;
+import report as rpt;
+import math as m;
+
+print("=== PROJECT TEST: STORE INVENTORY DASHBOARD ===");
+print("");
+
+// Basic variables and expressions
+var storeName = "Unnarize Mart";
+var openHour = 9;
+var closeHour = 21;
+print("Store: " + storeName);
+print("Open hours: " + openHour + " to " + closeHour);
+print("");
+
+// Build initial inventory using a map
+var stock = inv.createInventory();
+inv.addItem(stock, "apple", 10);
+inv.addItem(stock, "banana", 5);
+inv.addItem(stock, "chocolate", 12);
+
+// Arrays: incoming shipments
+var shipments = array();
+push(shipments, 3); // apples
+push(shipments, 5); // bananas
+push(shipments, 2); // chocolates
+
+// Update stock from shipments using a loop
+var items = inv.itemKeys(); // ["apple", "banana", "chocolate"]
+var idx = 0;
+while (idx < length(items)) {
+    var name = items[idx];
+    var qty = shipments[idx];
+    inv.addItem(stock, name, qty);
+    idx = idx + 1;
+}
+print("");
+
+// Use functions and conditionals
+var total = inv.totalItems(stock);
+if (total >= 30) {
+    print("Stock level: healthy");
+} else {
+    print("Stock level: low");
+}
+print("");
+
+// Use math module utilities
+var dailySales = array();
+push(dailySales, 7);
+push(dailySales, 11);
+push(dailySales, 5);
+push(dailySales, 9);
+
+print("Sales sum: " + m.sum(dailySales));
+print("Sales avg: " + m.avg(dailySales));
+print("");
+
+// Recursion demo
+print("factorial(5) = " + m.factorial(5));
+print("");
+
+// Reporting via separate module
+rpt.printSummary(storeName, stock);
+print("");
+
+// Small analytics: build a frequency map from a sales array
+print("-- Sales frequency (units sold per value) --");
+var freq = inv.frequency(dailySales);
+var fkeys = keys(freq);
+var i = 0;
+while (i < length(fkeys)) {
+    var k = fkeys[i];
+    print(k + " -> " + freq[k]);
+    i = i + 1;
+}
+print("");
+
+print("=== END OF PROJECT TEST ===");

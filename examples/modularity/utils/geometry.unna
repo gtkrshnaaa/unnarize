@@ -1,0 +1,23 @@
+// Geometry utilities module (no external imports)
+
+var PI = 3.14159;
+
+function calculateArea(radius) {
+    return PI * radius * radius;
+}
+
+function calculateCircumference(radius) {
+    return 2 * PI * radius;
+}
+
+// Additional helpers to showcase modular chaining
+function diameter(radius) {
+    return 2 * radius;
+}
+
+function circleReport(radius) {
+    var d = diameter(radius);
+    var a = calculateArea(radius);
+    var c = calculateCircumference(radius);
+    return "[Circle] r=" + radius + ", d=" + d + ", A=" + a + ", C=" + c;
+}

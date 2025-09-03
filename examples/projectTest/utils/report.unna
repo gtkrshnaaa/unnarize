@@ -1,0 +1,21 @@
+// Reporting utilities module
+
+import inventory as inv;
+
+function printSummary(storeName, stock) {
+    print("=== REPORT: " + storeName + " ===");
+    print("");
+    var total = inv.totalItems(stock);
+    print("Total items in stock: " + total);
+    print("");
+
+    var ks = keys(stock);
+    print("Item breakdown (name -> qty):");
+    var i = 0;
+    while (i < length(ks)) {
+        var k = ks[i];
+        print("- " + k + " -> " + stock[k]);
+        i = i + 1;
+    }
+    print("");
+}

@@ -1,0 +1,144 @@
+// Array and Map demo for Unnarize
+
+print("=== ARRAYS/MAPS MIN TEST ===");
+
+// Arrays (minimal ops, no string+number concatenation)
+var a = array();
+push(a, 1);
+push(a, 2);
+push(a, 3);
+print("array length");
+print(length(a));
+print("a[0] before set");
+print(a[0]);
+a[0] = 42;
+print("a[0] after set");
+print(a[0]);
+print("pop last");
+print(pop(a));
+print("array length after pop");
+print(length(a));
+
+// Mixed types in array (still simple prints)
+push(a, "hello");
+push(a, 314); // avoid float formatting
+print("array length after pushes");
+print(length(a));
+print("a[1]");
+print(a[1]);
+
+// Maps (minimal ops)
+var m = map();
+m["name"] = "Unnarize";
+m[7] = 99;
+print("map size");
+print(length(m));
+print("has name?");
+print(has(m, "name"));
+print('m["name"]');
+print(m["name"]);
+
+// === Advanced arrays/maps demo: while, for, if/else, functions ===
+function sumArray(arr) {
+    var i = 0;
+    var s = 0;
+    while (i < length(arr)) {
+        s = s + arr[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+function filterEven(arr) {
+    var out = array();
+    var i = 0;
+    while (i < length(arr)) {
+        var v = arr[i];
+        if ((v % 2) == 0) {
+            push(out, v);
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+function mapDouble(arr) {
+    var out = array();
+    var i = 0;
+    while (i < length(arr)) {
+        push(out, arr[i] * 2);
+        i = i + 1;
+    }
+    return out;
+}
+
+// Build an array b and iterate with for-loop
+var b = array();
+push(b, 1);
+push(b, 2);
+push(b, 3);
+push(b, 4);
+push(b, 5);
+
+print("sumArray(b)");
+print(sumArray(b));
+
+print("filterEven(b) length");
+var ev = filterEven(b);
+print(length(ev));
+
+print("mapDouble(b) first two");
+var dbl = mapDouble(b);
+if (length(dbl) >= 2) {
+    print(dbl[0]);
+    print(dbl[1]);
+}
+
+// for-loop over indices
+print("for-loop over b (only odds)");
+for (var i = 0; i < length(b); i = i + 1) {
+    var v = b[i];
+    if ((v % 2) == 1) {
+        print(v);
+    }
+}
+
+// Build frequency map from array b
+print("frequency map from b");
+var freq = map();
+for (var j = 0; j < length(b); j = j + 1) {
+    var x = b[j];
+    if (has(freq, x)) {
+        freq[x] = freq[x] + 1;
+    } else {
+        freq[x] = 1;
+    }
+}
+print("freq size");
+print(length(freq));
+
+var fk = keys(freq);
+print("first freq key (if any)");
+if (length(fk) > 0) {
+    print(fk[0]);
+}
+
+// Delete and keys
+print("delete name");
+print(delete(m, "name"));
+print("has name?");
+print(has(m, "name"));
+var ks = keys(m);
+print("keys length");
+print(length(ks));
+if (length(ks) > 0) {
+    print("first key");
+    print(ks[0]);
+}
+
+// Map set via index assignment and get via indexing
+m["answer"] = 42;
+print("answer in map");
+print(m["answer"]);
+
+print("=== END ===");

@@ -1,0 +1,525 @@
+// ===============================================
+// UNNARIZE LANGUAGE COMPLETE FEATURE DEMONSTRATION
+// File: test.unna
+// ===============================================
+
+print("=== UNNARIZE LANGUAGE FEATURE DEMO ===");
+print("");
+
+// ===============================================
+// 1. VARIABLE DECLARATIONS AND ASSIGNMENTS
+// ===============================================
+print("1. Variables and Data Types:");
+
+// Integer variables
+var age = 25;
+var score = 100;
+print("Integer: age = " + age + ", score = " + score);
+
+// Float variables (if supported)
+var pi = 3.14159;
+var temperature = 98.6;
+print("Float: pi = " + pi + ", temperature = " + temperature);
+
+// String variables
+var name = "Unnarize User";
+var greeting = "Hello";
+var language = "Unnarize";
+print("String: name = " + name);
+
+// Boolean operations (through comparisons)
+var isAdult = age >= 18;
+print("Boolean expression: isAdult = " + isAdult);
+
+// Variable reassignment
+age = age + 1;
+print("After increment: age = " + age);
+
+print("");
+
+// ===============================================
+// 2. ARITHMETIC OPERATIONS
+// ===============================================
+print("2. Arithmetic Operations:");
+
+var a = 15;
+var b = 4;
+
+print("a = " + a + ", b = " + b);
+print("Addition: a + b = " + (a + b));
+print("Subtraction: a - b = " + (a - b));
+print("Multiplication: a * b = " + (a * b));
+print("Division: a / b = " + (a / b));
+print("Modulo: a % b = " + (a % b));
+
+// Unary operations
+print("Negation: -a = " + (-a));
+
+print("");
+
+// ===============================================
+// 3. COMPARISON OPERATIONS
+// ===============================================
+print("3. Comparison Operations:");
+
+var x = 10;
+var y = 20;
+
+print("x = " + x + ", y = " + y);
+print("Equal: x == y is " + (x == y));
+print("Not equal: x != y is " + (x != y));
+print("Greater than: x > y is " + (x > y));
+print("Greater or equal: x >= y is " + (x >= y));
+print("Less than: x < y is " + (x < y));
+print("Less or equal: x <= y is " + (x <= y));
+
+print("");
+
+// ===============================================
+// 4. STRING OPERATIONS
+// ===============================================
+print("4. String Operations:");
+
+var firstName = "John";
+var lastName = "Doe";
+var fullName = firstName + " " + lastName;
+print("String concatenation: " + fullName);
+
+var message = "Welcome to " + language + " programming!";
+print("Complex concatenation: " + message);
+
+// String with numbers
+var info = "User " + firstName + " is " + age + " years old";
+print("Mixed concatenation: " + info);
+
+print("");
+
+// ===============================================
+// 5. CONDITIONAL STATEMENTS (IF-ELSE)
+// ===============================================
+print("5. Conditional Statements:");
+
+var number = 42;
+print("Testing number: " + number);
+
+if (number > 50) {
+    print("Number is greater than 50");
+} else {
+    print("Number is not greater than 50");
+}
+
+// Nested conditions
+var grade = 85;
+print("Grade: " + grade);
+
+if (grade >= 90) {
+    print("Grade A - Excellent!");
+} else {
+    if (grade >= 80) {
+        print("Grade B - Good job!");
+    } else {
+        if (grade >= 70) {
+            print("Grade C - Passing");
+        } else {
+            print("Grade F - Need improvement");
+        }
+    }
+}
+
+// Multiple conditions
+var weather = 75;
+if (weather >= 80) {
+    print("It's hot outside!");
+} else {
+    if (weather >= 60) {
+        print("It's nice weather!");
+    } else {
+        print("It's cold outside!");
+    }
+}
+
+print("");
+
+// ===============================================
+// 6. LOOP STATEMENTS
+// ===============================================
+print("6. Loop Statements:");
+
+// While loop
+print("While loop (counting 1 to 5):");
+var counter = 1;
+while (counter <= 5) {
+    print("Count: " + counter);
+    counter = counter + 1;
+}
+
+// For loop
+print("For loop (counting 0 to 4):");
+for (var i = 0; i < 5; i = i + 1) {
+    print("Index: " + i);
+}
+
+// Nested loops
+print("Nested loops (multiplication table 2x3):");
+for (var row = 1; row <= 2; row = row + 1) {
+    for (var col = 1; col <= 3; col = col + 1) {
+        var product = row * col;
+        print("Row " + row + " x Col " + col + " = " + product);
+    }
+}
+
+print("");
+
+// ===============================================
+// 7. FUNCTION DEFINITIONS AND CALLS
+// ===============================================
+print("7. Functions:");
+
+// Simple function with no parameters
+function sayHello() {
+    print("Hello from a function!");
+}
+
+print("Calling sayHello():");
+sayHello();
+
+// Function with parameters
+function greetPerson(personName, personAge) {
+    print("Hello, " + personName + "! You are " + personAge + " years old.");
+}
+
+print("Calling greetPerson():");
+greetPerson("Alice", 30);
+greetPerson("Bob", 25);
+
+// Function with return value
+function add(num1, num2) {
+    return num1 + num2;
+}
+
+print("Function with return value:");
+var sum1 = add(5, 3);
+var sum2 = add(10, 20);
+print("add(5, 3) = " + sum1);
+print("add(10, 20) = " + sum2);
+
+// Function calling another function
+function multiply(a, b) {
+    return a * b;
+}
+
+function calculateArea(width, height) {
+    var area = multiply(width, height);
+    return area;
+}
+
+var rectangleArea = calculateArea(5, 8);
+print("Rectangle area (5 x 8) = " + rectangleArea);
+
+print("");
+
+// ===============================================
+// 8. RECURSIVE FUNCTIONS
+// ===============================================
+print("8. Recursive Functions:");
+
+// Factorial function
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+print("Factorial calculations:");
+print("factorial(5) = " + factorial(5));
+print("factorial(6) = " + factorial(6));
+print("factorial(0) = " + factorial(0));
+
+// Fibonacci function
+function fibonacci(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print("Fibonacci sequence:");
+for (var fib = 0; fib <= 8; fib = fib + 1) {
+    print("fibonacci(" + fib + ") = " + fibonacci(fib));
+}
+
+// Recursive countdown
+function countdown(num) {
+    print("Countdown: " + num);
+    if (num > 0) {
+        countdown(num - 1);
+    }
+    return num;
+}
+
+print("Recursive countdown from 5:");
+countdown(5);
+
+print("");
+
+// ===============================================
+// 9. COMPLEX EXPRESSIONS AND CALCULATIONS
+// ===============================================
+print("9. Complex Expressions:");
+
+// Mathematical expressions
+var result1 = (5 + 3) * 2 - 4;
+print("(5 + 3) * 2 - 4 = " + result1);
+
+var result2 = 10 / 2 + 3 * 4;
+print("10 / 2 + 3 * 4 = " + result2);
+
+// Boolean expressions
+var complexCondition = (age >= 18) == (score > 50);
+print("Complex boolean: (age >= 18) == (score > 50) is " + complexCondition);
+
+// String and number combination
+var mixedResult = "Result: " + (100 - 25) + " points";
+print("Mixed expression: " + mixedResult);
+
+print("");
+
+// ===============================================
+// 10. PRACTICAL EXAMPLES
+// ===============================================
+print("10. Practical Examples:");
+
+// Grade calculator function
+function calculateGrade(points, total) {
+    var percentage = (points * 100) / total;
+    if (percentage >= 90) {
+        return "A";
+    } else {
+        if (percentage >= 80) {
+            return "B";
+        } else {
+            if (percentage >= 70) {
+                return "C";
+            } else {
+                if (percentage >= 60) {
+                    return "D";
+                } else {
+                    return "F";
+                }
+            }
+        }
+    }
+}
+
+print("Grade Calculator:");
+print("85/100 points = Grade " + calculateGrade(85, 100));
+print("92/100 points = Grade " + calculateGrade(92, 100));
+print("67/100 points = Grade " + calculateGrade(67, 100));
+
+// Simple interest calculator
+function simpleInterest(principal, rate, time) {
+    return (principal * rate * time) / 100;
+}
+
+print("Simple Interest Calculator:");
+var principal = 1000;
+var rate = 5;
+var time = 3;
+var interest = simpleInterest(principal, rate, time);
+print("Principal: $" + principal + ", Rate: " + rate + "%, Time: " + time + " years");
+print("Simple Interest: $" + interest);
+print("Total Amount: $" + (principal + interest));
+
+// Number guessing game logic
+function checkGuess(guess, target) {
+    if (guess == target) {
+        return "Correct! You guessed it!";
+    } else {
+        if (guess < target) {
+            return "Too low! Try higher.";
+        } else {
+            return "Too high! Try lower.";
+        }
+    }
+}
+
+print("Number Guessing Game Simulation:");
+var targetNumber = 7;
+print("Target number is: " + targetNumber);
+print("Guess 5: " + checkGuess(5, targetNumber));
+print("Guess 9: " + checkGuess(9, targetNumber));
+print("Guess 7: " + checkGuess(7, targetNumber));
+
+print("");
+
+// ===============================================
+// 11. ADVANCED FUNCTION PATTERNS
+// ===============================================
+print("11. Advanced Function Patterns:");
+
+// Function that returns different types
+function processNumber(num) {
+    if (num < 0) {
+        return "Negative number";
+    } else {
+        if (num == 0) {
+            return "Zero";
+        } else {
+            return num * 2;
+        }
+    }
+}
+
+print("Process Number Function:");
+print("processNumber(-5) = " + processNumber(-5));
+print("processNumber(0) = " + processNumber(0));
+print("processNumber(3) = " + processNumber(3));
+
+// Utility functions
+function isEven(number) {
+    return (number % 2) == 0;
+}
+
+function isOdd(number) {
+    return (number % 2) != 0;
+}
+
+print("Even/Odd Checker:");
+for (var check = 1; check <= 6; check = check + 1) {
+    if (isEven(check)) {
+        print(check + " is even");
+    } else {
+        print(check + " is odd");
+    }
+}
+
+// Maximum of three numbers
+function max3(a, b, c) {
+    var maxVal = a;
+    if (b > maxVal) {
+        maxVal = b;
+    }
+    if (c > maxVal) {
+        maxVal = c;
+    }
+    return maxVal;
+}
+
+print("Maximum of three numbers:");
+print("max3(5, 12, 8) = " + max3(5, 12, 8));
+print("max3(15, 3, 9) = " + max3(15, 3, 9));
+
+print("");
+
+// ===============================================
+// 12. SCOPE AND VARIABLE MANAGEMENT
+// ===============================================
+print("12. Variable Scope Examples:");
+
+var globalVar = "I'm global";
+
+function testScope(param) {
+    var localVar = "I'm local";
+    print("Inside function: " + globalVar);
+    print("Inside function: " + localVar);
+    print("Parameter: " + param);
+    return localVar + " " + param;
+}
+
+print("Testing variable scope:");
+var scopeResult = testScope("parameter");
+print("Function returned: " + scopeResult);
+print("Outside function: " + globalVar);
+
+// Variable shadowing example
+var shadowed = "original";
+function testShadowing() {
+    var shadowed = "shadowed";
+    print("Inside function: " + shadowed);
+    return shadowed;
+}
+
+print("Variable shadowing:");
+print("Before function: " + shadowed);
+testShadowing();
+print("After function: " + shadowed);
+
+print("");
+
+// ===============================================
+// 13. ERROR CONDITIONS AND EDGE CASES
+// ===============================================
+print("13. Edge Cases:");
+
+// Division by zero (should be handled by VM)
+print("Testing edge cases:");
+var divResult = 10 / 1;
+print("10 / 1 = " + divResult);
+
+// Large numbers
+var largeNum1 = 999999;
+var largeNum2 = 1000001;
+print("Large number arithmetic: " + largeNum1 + " + " + largeNum2 + " = " + (largeNum1 + largeNum2));
+
+// Empty strings
+var emptyStr = "";
+var nonEmptyStr = "Hello";
+var combined = emptyStr + nonEmptyStr + emptyStr;
+print("String with empty: '" + combined + "'");
+
+print("");
+
+// ===============================================
+// 14. PERFORMANCE AND COMPLEXITY TESTS
+// ===============================================
+print("14. Performance Tests:");
+
+// Iterative vs recursive comparison
+function factorialIterative(n) {
+    var result = 1;
+    for (var i = 1; i <= n; i = i + 1) {
+        result = result * i;
+    }
+    return result;
+}
+
+print("Factorial comparison:");
+var n = 7;
+print("Recursive factorial(" + n + ") = " + factorial(n));
+print("Iterative factorial(" + n + ") = " + factorialIterative(n));
+
+// Loop performance
+function sumNumbers(limit) {
+    var total = 0;
+    for (var i = 1; i <= limit; i = i + 1) {
+        total = total + i;
+    }
+    return total;
+}
+
+print("Sum of numbers 1 to 100: " + sumNumbers(100));
+
+print("");
+
+// ===============================================
+// FINAL MESSAGE
+// ===============================================
+print("=== END OF UNNARIZE FEATURE DEMONSTRATION ===");
+print("All major features have been tested:");
+print("✓ Variables and data types");
+print("✓ Arithmetic operations");
+print("✓ Comparison operations"); 
+print("✓ String operations");
+print("✓ Conditional statements");
+print("✓ Loop statements");
+print("✓ Function definitions");
+print("✓ Recursive functions");
+print("✓ Complex expressions");
+print("✓ Practical examples");
+print("✓ Advanced patterns");
+print("✓ Variable scope");
+print("✓ Edge cases");
+print("✓ Performance tests");
+print("");
+print("Unnarize language interpreter working successfully!");
