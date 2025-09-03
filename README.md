@@ -214,7 +214,7 @@ static Value add1(VM* vm, Value* args, int argc) {
   return v;
 }
 
-void register_functions(VM* vm) {
+void registerFunctions(VM* vm) {
   RegisterFn reg = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
   if (!reg) return;
   reg(vm, "add1", &add1);
