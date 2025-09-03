@@ -34,12 +34,16 @@ clean:
 
 # Install the unnarize binary to $(DESTDIR)$(PREFIX)/bin
 install: all
-	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m 0755 $(EXECUTABLE) $(DESTDIR)$(PREFIX)/bin/unnarize
+	@echo "Installing unnarize requires root privileges..."
+	sudo install -d $(DESTDIR)$(PREFIX)/bin
+	sudo install -m 0755 $(EXECUTABLE) $(DESTDIR)$(PREFIX)/bin/unnarize
+	@echo "Unnarize installed successfully to $(DESTDIR)$(PREFIX)/bin/unnarize"
 
 # Remove the installed unnarize binary
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/unnarize
+	@echo "Uninstalling unnarize requires root privileges..."
+	sudo rm -f $(DESTDIR)$(PREFIX)/bin/unnarize
+	@echo "Unnarize uninstalled successfully"
 
 run: all
 	./$(EXECUTABLE) examples/test.unna
@@ -57,8 +61,8 @@ project-test-run: all
 async-demo-run: all
 	./$(EXECUTABLE) examples/asyncDemo.unna
 
-# Run all .unna files under examples/
-run-all: all
+# Run all .unna files under examples/ (builds plugins first)
+run-all: all build-plugins-all
 	@echo "Running all examples..."
 	@find examples -type f -name "*.unna" -print0 | sort -z | xargs -0 -I{} sh -c 'echo; echo ">>> Running: {}"; ./$(EXECUTABLE) "{}"'
 
@@ -88,12 +92,20 @@ run-string-lib-demo: build-plugin-strings
 build-plugin-time: all | $(PLUGINS_BUILDDIR)
 	$(CC) -shared -fPIC -o $(PLUGINS_BUILDDIR)/timeLib.so $(PLUGINS_SRCDIR)/timeLib.c -ldl
 
+# Build timer plugin (.so) for benchmarking
+build-plugin-timer: all | $(PLUGINS_BUILDDIR)
+	$(CC) -shared -fPIC -o $(PLUGINS_BUILDDIR)/timerLib.so $(PLUGINS_SRCDIR)/timerLib.c -ldl
+
 # Build all plugins
-build-plugins-all: build-plugin build-plugin-strings build-plugin-time
+build-plugins-all: build-plugin build-plugin-strings build-plugin-time build-plugin-timer
 
 # Run demo for time plugin
 run-time-lib-demo: build-plugin-time
 	./$(EXECUTABLE) examples/plugins/demoTimeLib.unna
+
+# Run timer benchmark demo
+run-timer-benchmark: build-plugin-timer
+	./$(EXECUTABLE) examples/plugins/demoTimerLib.unna
 
 # Build all plugins and run all demos
 plugins-demo-run: build-plugins-all
