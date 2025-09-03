@@ -67,6 +67,22 @@ struct FuncEntry {
 // Hash table size for environments
 #define TABLE_SIZE 256
 
+// String interning pool for performance optimization
+typedef struct StringPool {
+    char** strings;
+    unsigned int* hashes;
+    int count;
+    int capacity;
+} StringPool;
+
+// Value pool for basic types to reduce malloc/free overhead
+typedef struct ValuePool {
+    Value* values;
+    int* free_list;
+    int next_free;
+    int capacity;
+} ValuePool;
+
 // Environment structure (scope)
 struct Environment {
     VarEntry* buckets[TABLE_SIZE];     // Variable hash table
@@ -146,6 +162,8 @@ struct VM {
     ModuleEntry* moduleBuckets[TABLE_SIZE]; // Module cache by name
     void* externHandles[TABLE_SIZE]; // Handles for dlopen() libraries
     int externHandleCount;          // Count of loaded extern libraries
+    StringPool stringPool;          // String interning pool for performance
+    ValuePool valuePool;            // Value pool for basic types
 };
 
 // VM function prototypes
