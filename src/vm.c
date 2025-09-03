@@ -840,11 +840,11 @@ static void execute(VM* vm, Node* node) {
                 error(errorMsg, 0);
                 break;
             }
-            void (*regfn)(VM*) = (void (*)(VM*))dlsym(handle, "register_functions");
+            void (*regfn)(VM*) = (void (*)(VM*))dlsym(handle, "registerFunctions");
             if (!regfn) {
                 char errorMsg[512];
                 snprintf(errorMsg, sizeof(errorMsg),
-                         "Could not find 'register_functions' in '%s': %s", fullPath, dlerror());
+                         "Could not find 'registerFunctions' in '%s': %s", fullPath, dlerror());
                 free(fullPath);
                 dlclose(handle);
                 error(errorMsg, 0);

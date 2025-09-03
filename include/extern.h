@@ -50,7 +50,7 @@ typedef Value (*NativeFn)(VM*, Value* args, int argCount);
 void registerNativeFunction(VM* vm, const char* name, NativeFn function);
 
 // Entry point that each external library must export
-void register_functions(VM* vm);
+void registerFunctions(VM* vm);
 
 #ifdef __cplusplus
 }
