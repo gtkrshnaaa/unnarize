@@ -474,7 +474,7 @@ The Unnarize interpreter follows a classic three-stage pipeline:
 
 ### Project Codebase
 
-`examples/project_test/main.unna`
+`examples/projectTest/main.unna`
 
 ```c
 // Real-world style demo project for Unnarize
@@ -563,7 +563,7 @@ print("=== END OF PROJECT TEST ===");
 
 ```
 
-`examples/project_test/utils/inventory.unna`
+`examples/projectTest/utils/inventory.unna`
 
 ```c
 // Inventory utilities module
@@ -622,7 +622,7 @@ function frequency(arr) {
 
 ```
 
-`examples/project_test/utils/math.unna`
+`examples/projectTest/utils/math.unna`
 
 ```c
 // Math utilities module
@@ -654,7 +654,7 @@ function factorial(n) {
 
 ```
 
-`examples/project_test/utils/report.unna`
+`examples/projectTest/utils/report.unna`
 
 ```c
 // Reporting utilities module
@@ -684,7 +684,7 @@ function printSummary(storeName, stock) {
 ### Project Output
 
 ```sh
-./bin/unnarize examples/project_test/main.unna
+./bin/unnarize examples/projectTest/main.unna
 Tokenized 403 tokens successfully.
 === PROJECT TEST: STORE INVENTORY DASHBOARD ===
 
