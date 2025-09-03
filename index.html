@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unnarize Programming Language Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css" />
+    <!-- Prism.js syntax highlighter -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism-tomorrow.min.css" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind custom theme with dark mode
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5B5BD6', // bluish purple
+                        accent1: '#FFD23F', // yellow
+                        accent2: '#FF6A3D', // orange
+                        alt: '#0B0B0E'     // near-black alternative bg
+                    },
+                    fontFamily: {
+                        display: ['Unbounded', 'system-ui', 'sans-serif'],
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui']
+                    },
+                    boxShadow: {
+                        card: '0 10px 30px rgba(0,0,0,0.08)'
+                    },
+                }
+            },
+            plugins: [],
+        }
+    </script>
+    <style>
+        /* Simple tilt badge utility */
+        .tilt { transform: rotate(-8deg); }
+        .tilt-r { transform: rotate(8deg); }
+        /* Light body pattern */
+        body {
+            background-color: white;
+            background-image:
+                repeating-linear-gradient(0deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 60px),
+                repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 60px);
+        }
+        /* Dark body pattern override */
+        .dark body {
+            background-color: #0b0b0e;
+            background-image:
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 60px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 60px);
+        }
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* Gen Z gradient text utility */
+        .gradient-text {
+            background: linear-gradient(90deg, #a855f7, #22d3ee, #a3e635);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        /* Neon/glass card visuals */
+        .glass {
+            background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.35);
+        }
+        .dark .glass {
+            background: linear-gradient(180deg, rgba(20,20,24,0.6), rgba(20,20,24,0.2));
+            border-color: rgba(255,255,255,0.08);
+        }
+        .neon-border {
+            box-shadow: 0 0 0 1px rgba(168,85,247,0.35), 0 10px 30px rgba(34,211,238,0.18), inset 0 0 40px rgba(163,230,53,0.06);
+        }
+        /* Animated glow blobs */
+        .blob {
+            filter: blur(40px);
+            opacity: 0.6;
+            animation: float 12s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-18px) translateX(8px); }
+        }
+        /* Basic typography polish without plugin */
+        .doc-content h2 { margin-top: 1.75rem; margin-bottom: 0.75rem; font-weight: 800; }
+        .doc-content h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; font-weight: 700; }
+        .doc-content h4 { margin-top: 1rem; margin-bottom: 0.25rem; font-weight: 600; }
+        .doc-content p { margin: 0.75rem 0; line-height: 1.7; }
+        .doc-content ul { list-style: disc; padding-left: 1.25rem; margin: 0.75rem 0; }
+        .doc-content code { 
+            background: rgba(156, 163, 175, 0.1); 
+            color: #1a1a1a; 
+            padding: 0.125rem 0.375rem; 
+            border-radius: 0.375rem; 
+            font-weight: 600; 
+            font-size: 0.875em;
+            border: 1px solid rgba(156, 163, 175, 0.2);
+        }
+        .dark .doc-content code { 
+            background: rgba(55, 65, 81, 0.6); 
+            color: #cccccc; 
+            border-color: rgba(75, 85, 99, 0.4);
+        }
+        .doc-content pre { 
+            background: #0b0b0e; 
+            color: #e5e7eb; 
+            padding: 1rem; 
+            border-radius: 0.75rem; 
+            overflow: auto; 
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .dark .doc-content pre { 
+            background: #1C1C21; 
+            border-color: rgba(75, 85, 99, 0.5);
+        }
+        .doc-content pre code {
+            background: transparent !important;
+            color: inherit !important;
+            padding: 0 !important;
+            border: none !important;
+            font-size: inherit !important;
+        }
+        .code-wrap { position: relative; }
+        .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 1; }
+        /* Mobile tweaks */
+        @media (max-width: 640px) {
+            .doc-content pre { font-size: 0.85rem; padding: 0.75rem; }
+            .doc-content h1 { font-size: 2.25rem; }
+        }
+    </style>
+    <script>
+        // Initialize theme from localStorage or system preference
+        (function(){
+            const t = localStorage.getItem('theme');
+            if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
+    <!-- Prism.js scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-clike.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-c.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+    <script>
+        // Configure Prism Autoloader
+        if (window.Prism && Prism.plugins && Prism.plugins.autoloader) {
+            Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1/components/';
+        }
+        // Simple Unnarize language definition (basic highlighting)
+        (function(){
+            if (!window.Prism) return;
+            Prism.languages.unnarize = Prism.languages.extend('clike', {
+                'comment': /\/\/.*|\/\*[\s\S]*?\*\//,
+                'keyword': /\b(function|var|return|if|else|while|for|async|await|import|as|print|loadextern|delete|push|pop|length|keys|has|array|map)\b/,
+                'number': /\b-?(0x[\da-fA-F]+|\d*\.?\d+)\b/,
+                'string': {
+                    pattern: /(["'])(?:\\.|(?!\1)[^\\\r\n])*\1/,
+                    greedy: true
+                }
+            });
+        })();
+        // Manually highlight on load
+        if (window.Prism && Prism.highlightAll) Prism.highlightAll();
+    </script>
+</head>
+<body class="bg-white text-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 font-sans antialiased">
+    <div class="min-h-screen">
+        <header class="sticky top-0 z-20 bg-white/80 dark:bg-neutral-950/70 backdrop-blur border-b border-neutral-200 dark:border-neutral-800">
+            <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <a href="#" class="flex items-center gap-2 shrink-0">
+                    <span class="font-display font-extrabold tracking-tight text-lg gradient-text">UNNARIZE</span>
+                </a>
+                <div class="hidden md:flex items-center gap-6">
+                    <a class="text-sm hover:text-primary" href="#philosophy">Philosophy</a>
+                    <a class="text-sm hover:text-primary" href="#getting-started">Getting Started</a>
+                    <a class="text-sm hover:text-primary" href="#language-guide">Guide</a>
+                    <a class="text-sm hover:text-primary" href="#examples">Examples</a>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="themeToggle" class="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-500" aria-label="Toggle theme">
+                        <i id="iconMoon" class="uil uil-moon"></i>
+                        <i id="iconSun" class="uil uil-sun hidden"></i>
+                    </button>
+                    <a href="https://github.com/gtkrshnaaa/unnarize" target="_blank" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-alt text-white text-sm font-semibold hover:opacity-90"><i class="uil uil-github"></i> GitHub</a>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Background glow blobs - moved outside main for full viewport coverage -->
+        <div class="pointer-events-none fixed -z-10 inset-0 overflow-hidden">
+            <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-fuchsia-500/40 blob"></div>
+            <div class="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-sky-400/40 blob" style="animation-delay: 2s"></div>
+            <div class="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-lime-400/40 blob" style="animation-delay: 4s"></div>
+            <div class="absolute top-1/4 left-1/4 w-48 h-48 rounded-full bg-purple-500/30 blob" style="animation-delay: 1s"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-56 h-56 rounded-full bg-cyan-400/35 blob" style="animation-delay: 3s"></div>
+            <div class="absolute top-3/4 left-1/6 w-40 h-40 rounded-full bg-pink-500/25 blob" style="animation-delay: 5s"></div>
+            <div class="absolute top-1/6 right-1/3 w-52 h-52 rounded-full bg-emerald-400/30 blob" style="animation-delay: 6s"></div>
+            <div class="absolute bottom-1/3 left-2/3 w-44 h-44 rounded-full bg-orange-400/25 blob" style="animation-delay: 7s"></div>
+            <div class="absolute top-2/3 right-1/6 w-36 h-36 rounded-full bg-violet-400/20 blob" style="animation-delay: 8s"></div>
+            <div class="absolute bottom-1/6 left-1/5 w-60 h-60 rounded-full bg-teal-400/30 blob" style="animation-delay: 9s"></div>
+        </div>
+
+        <main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <div class="doc-content max-w-none">
+                
+                <section class="not-prose mb-16">
+                    <div class="inline-flex items-center gap-2">
+                        <span class="inline-flex items-center rounded-full bg-primary/10 text-primary dark:bg-white/10 dark:text-white px-3 py-1 text-xs font-semibold">Version 0.1.0-beta</span>
+                        <span class="tilt inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 px-3 py-1 text-xs font-semibold">new</span>
+                    </div>
+                    <h1 class="font-display font-extrabold leading-none text-5xl sm:text-6xl lg:text-7xl tracking-tighter mt-3 gradient-text">
+                        Unnarize Programming Language Documentation
+                    </h1>
+                    <p class="mt-4 text-lg text-neutral-600 dark:text-neutral-300 max-w-2xl">
+                        The official guide to Unnarize, a dynamic scripting language for efficient orchestration in harmony with the machine.
+                    </p>
+                    <p class="mt-4 text-lg text-neutral-600 dark:text-neutral-300 max-w-2xl">
+                        Created by <a href="https://github.com/gtkrshnaaa" target="_blank" class="text-primary hover:underline">Gtkrshnaaa</a>. The Polymath Artisans Prince.
+                    </p>
+                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        <a href="https://github.com/gtkrshnaaa/unnarize" target="_blank" class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-fuchsia-500 via-sky-500 to-lime-400 text-white font-semibold shadow-card hover:opacity-95">
+                            <i class="uil uil-github"></i> Go to Repo
+                        </a>
+                        <a href="#language-guide" class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl glass neon-border text-neutral-900 dark:text-neutral-100 font-semibold">
+                            <i class="uil uil-book-open"></i> Explore Guide
+                        </a>
+                    </div>
+                </section>
+                
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+
+                <nav id="navigation" class="not-prose">
+                    <h2 class="font-display font-bold text-2xl tracking-tight">Quick Navigation</h2>
+                    <ul class="mt-4 list-none pl-0 space-y-2">
+                        <li><a href="#philosophy" class="font-semibold text-primary hover:underline">1. Philosophy & Introduction</a></li>
+                        <li><a href="#getting-started" class="font-semibold text-primary hover:underline">2. Getting Started</a></li>
+                        <li>
+                            <a href="#language-guide" class="font-semibold text-primary hover:underline">3. Language Guide</a>
+                            <ul class="list-none pl-4 mt-2 space-y-1 text-sm">
+                                <li><a href="#syntax" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.1 Basic Syntax</a></li>
+                                <li><a href="#variables" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.2 Variables & Data Types</a></li>
+                                <li><a href="#operators" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.3 Operators</a></li>
+                                <li><a href="#control-flow" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.4 Control Flow</a></li>
+                                <li><a href="#functions" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.5 Functions</a></li>
+                                <li><a href="#data-structures" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.6 Data Structures (Arrays & Maps)</a></li>
+                                <li><a href="#built-ins" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">3.7 Built-in Functions</a></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="#advanced-topics" class="font-semibold text-primary hover:underline">4. Advanced Topics</a>
+                            <ul class="list-none pl-4 mt-2 space-y-1 text-sm">
+                                <li><a href="#modularity" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">4.1 Modularity (import)</a></li>
+                                <li><a href="#async" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">4.2 Async/Await</a></li>
+                                <li><a href="#native-extensions" class="text-neutral-600 dark:text-neutral-400 hover:text-primary">4.3 Native C Extensions (loadextern)</a></li>
+                            </ul>
+                        </li>
+                         <li><a href="#examples" class="font-semibold text-primary hover:underline">5. Examples & Usage Patterns</a></li>
+                         <li><a href="#conclusion" class="font-semibold text-primary hover:underline">6. Conclusion & Key Insights</a></li>
+                    </ul>
+                </nav>
+
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+                
+                <section id="philosophy">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">1. Philosophy & Introduction</h2>
+                    <p>
+                        In an era where software complexity often neglects fundamental efficiency, Unnarize emerges as a philosophy. It does not aim to be a multipurpose language, but rather to force the machine to work in the most efficient, repetitive, and predictable manner possible.
+                    </p>
+                    <p>
+                        Inspired by physics and thermodynamics, Unnarize is designed to indulge the <strong>flow of electricity</strong> itself. By directing instructions and data to consistently flow through the "same points over and over again," Unnarize creates an extreme form of <strong>locality of reference</strong>. This allows data and instructions to reside in the CPU's cache, the fastest memory closest to the processing core. Its core principle is: <strong>"Do something with one way, but perfect."</strong>
+                    </p>
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+
+                <section id="getting-started">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">2. Getting Started</h2>
+                    <h3 id="installation" class="font-display font-bold text-2xl tracking-tight">2.1 Installation</h3>
+                    <p>Ensure you have a standard C development environment (<code>gcc</code>, <code>make</code>, and <code>git</code>).</p>
+                    <pre><code class="language-bash"># 1. Clone the repository
+git clone https://github.com/gtkrshnaaa/unnarize.unnat
+cd unnarize
+
+# 2. Compile the project
+make
+
+# 3. (Optional) Install globally
+sudo make install
+</code></pre>
+
+                    <h3 id="your-first-program" class="font-display font-bold text-2xl tracking-tight">2.2 Your First Program</h3>
+                    <p>Create a new file named <code>hello.unna</code> and add the following code:</p>
+                    <pre><code class="language-unnarize">// File: hello.unna
+print("Hello from the Unnarize Language!");
+</code></pre>
+                    <p>Run it from your terminal using the Unnarize binary:</p>
+                    <pre><code class="language-bash">./bin/unnarize hello.unna
+</code></pre>
+                    <p>You will see the output: <code>Hello from the Unnarize Language!</code></p>
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+                
+                <section id="language-guide">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">3. Language Guide</h2>
+                    
+                    <h3 id="syntax" class="font-display font-bold text-2xl tracking-tight">3.1 Basic Syntax</h3>
+                    <p>Unnarize uses a C-inspired syntax, making it easy to pick up.</p>
+                    <h4>Comments</h4>
+                    <p>Single-line comments start with <code>//</code>. All text following it until the end of the line is ignored.</p>
+                    <pre><code class="language-unnarize">// This is a comment.
+var x = 10; // This is also a comment.
+</code></pre>
+                    
+                    <h4>The `print` Statement</h4>
+                    <p>Use <code>print</code> to output values to the console. Each <code>print</code> call automatically adds a new line.</p>
+                    <pre><code class="language-unnarize">print("Hello, World!");
+print(42);
+print(3.14);
+</code></pre>
+
+                    <h3 id="variables" class="font-display font-bold text-2xl tracking-tight">3.2 Variables & Data Types</h3>
+                    <p>Variables are declared using the <code>var</code> keyword. Unnarize uses <strong>dynamic typing</strong>, meaning a variable's type is determined by the value it holds and can change at runtime.</p>
+                    <pre><code class="language-unnarize">var message = "This is a string";
+var number = 100;
+message = 123; // Valid! The type of 'message' is now an integer.
+</code></pre>
+                    <h4>Primitive Data Types</h4>
+                    <ul>
+                        <li><strong>Integer</strong>: Whole numbers, e.g., <code>-10</code>, <code>0</code>, <code>123</code>.</li>
+                        <li><strong>Float</strong>: Decimal numbers, e.g., <code>3.14</code>, <code>-0.5</code>.</li>
+                        <li><strong>String</strong>: Text enclosed in either <code>"</code> or <code>'</code>.</li>
+                        <li><strong>Boolean</strong>: Resulting from comparison operations. There are no literal <code>true</code> or <code>false</code> keywords; they are the result of expressions like <code>5 > 2</code>.</li>
+                        <li><strong>Array</strong>: Dynamic lists created with <code>array()</code> function.</li>
+                        <li><strong>Map</strong>: Key-value collections created with <code>map()</code> function.</li>
+                        <li><strong>Module</strong>: Imported modules that contain variables and functions.</li>
+                        <li><strong>Future</strong>: Asynchronous computation results from <code>async</code> functions.</li>
+                    </ul>
+
+                    <h3 id="operators" class="font-display font-bold text-2xl tracking-tight">3.3 Operators</h3>
+                    <h4>Arithmetic Operators</h4>
+                    <p>Unnarize supports standard arithmetic operators.</p>
+                    <pre><code class="language-unnarize">var a = 15;
+var b = 4;
+print(a + b); // 19
+print(a - b); // 11
+print(a * b); // 60
+print(a / b); // 3 (integer division)
+print(a % b); // 3 (modulo)
+</code></pre>
+                    
+                    <h4>Comparison Operators</h4>
+                    <p>These operators produce a boolean value.</p>
+                    <pre><code class="language-unnarize">var result1 = 10 == 10;
+print(result1); // true
+var result2 = 10 != 5;
+print(result2); // true
+var result3 = 10 > 5;
+print(result3); // true
+var result4 = 10 < 5;
+print(result4); // false
+</code></pre>
+                    
+                    <h4>String Concatenation</h4>
+                    <p>The <code>+</code> operator is used to join strings. Other data types are automatically converted to their string representation.</p>
+                    <pre><code class="language-unnarize">var name = "Unnarize";
+var version = "0.1";
+print("Welcome to " + name + " v" + version);
+// Output: Welcome to Unnarize v0.1
+</code></pre>
+                    
+                    <h3 id="control-flow" class="font-display font-bold text-2xl tracking-tight">3.4 Control Flow</h3>
+                    <h4>`if/else` Conditionals</h4>
+                    <pre><code class="language-unnarize">var score = 85;
+var passed = score >= 80;
+if (passed) {
+    print("Passed with good grades!");
+} else {
+    print("Needs more practice.");
+}
+</code></pre>
+                    
+                    <h4>`while` Loops</h4>
+                    <pre><code class="language-unnarize">var i = 0;
+var condition = i < 3;
+while (condition) {
+    print("Iteration #" + i);
+    i = i + 1;
+    condition = i < 3;
+}
+</code></pre>
+                    
+                    <h4>`for` Loops</h4>
+                    <pre><code class="language-unnarize">for (var i = 0; i < 3; i = i + 1) {
+    print("For count: " + i);
+}
+</code></pre>
+
+                    <h3 id="functions" class="font-display font-bold text-2xl tracking-tight">3.5 Functions</h3>
+                    <p>Functions are reusable blocks of code, defined with the <code>function</code> keyword.</p>
+                    <pre><code class="language-unnarize">function greet(name, age) {
+    return "Hello, " + name + "! You are " + age + " years old.";
+}
+
+var greeting = greet("Kiann", "22");
+print(greeting);
+</code></pre>
+                    
+                    <h4>Recursion</h4>
+                    <p>Functions can call themselves, which is useful for solving problems like factorial calculation.</p>
+                    <pre><code class="language-unnarize">function factorial(n) {
+    var condition = n <= 1;
+    if (condition) {
+        return 1;
+    }
+    var prev = factorial(n - 1);
+    return n * prev;
+}
+
+var result = factorial(5);
+print(result); // 120
+</code></pre>
+
+                    <h3 id="data-structures" class="font-display font-bold text-2xl tracking-tight">3.6 Data Structures (Arrays & Maps)</h3>
+                    <h4>Arrays</h4>
+                    <p>Arrays are ordered, dynamic lists of values.</p>
+                    <pre><code class="language-unnarize">var fruits = array();
+push(fruits, "apple");
+push(fruits, "banana");
+
+var firstFruit = fruits[0];
+print(firstFruit); // apple
+fruits[1] = "mango";
+var arrayLength = length(fruits);
+print("Array length: " + arrayLength); // 2
+
+var lastItem = pop(fruits);
+print("Last item: " + lastItem); // mango
+</code></pre>
+
+                    <h4>Maps</h4>
+                    <p>Maps are collections of key-value pairs. Keys can be Strings or Integers.</p>
+                    <pre><code class="language-unnarize">var user = map();
+user["name"] = "Unnarize";
+user["release"] = 2025;
+user[1] = "One"; // Integer key
+
+var userName = user["name"];
+print(userName); // Unnarize
+var hasRelease = has(user, "release");
+print(hasRelease); // true
+
+var deleted = delete(user, "release");
+var stillHasRelease = has(user, "release");
+print(stillHasRelease); // false
+
+var allKeys = keys(user);
+var firstKey = allKeys[0];
+print("First key: " + firstKey);
+</code></pre>
+                    
+                    <h3 id="built-ins" class="font-display font-bold text-2xl tracking-tight">3.7 Built-in Functions</h3>
+                    <p>Unnarize provides a comprehensive set of built-in functions that are implemented directly in the VM for maximum performance. These functions handle core data structures, async operations, and type conversions:</p>
+                    
+                    <h4>Array Functions</h4>
+                    <pre><code class="language-unnarize">var arr = array();                    // Create new array (no arguments)
+var newLength = push(arr, "item");    // Add item, returns new length
+var item = pop(arr);                  // Remove and return last item
+var size = length(arr);               // Get array length
+
+// Array indexing and assignment
+var firstItem = arr[0];               // Access by index
+arr[1] = "new value";                 // Index assignment
+</code></pre>
+                    
+                    <h4>Map Functions</h4>
+                    <pre><code class="language-unnarize">var m = map();                        // Create new map (no arguments)
+var exists = has(m, "key");           // Check if key exists (string or int)
+var removed = delete(m, "key");       // Remove key, returns true if existed
+var keyList = keys(m);                // Get array of all keys as strings
+var size = length(m);                 // Get number of key-value pairs
+
+// Map access and assignment
+m["name"] = "John";                   // String key assignment
+m[42] = "answer";                     // Integer key assignment
+var value = m["name"];                // Access by key
+</code></pre>
+                    
+                    <h4>Async Functions</h4>
+                    <pre><code class="language-unnarize">// sleepAsync creates a Future that resolves after specified milliseconds
+var future = sleepAsync(1000);        // Sleep for 1000ms, returns Future
+var result = await future;            // Wait for Future to complete (returns 0)
+
+// Async functions automatically wrap return values in Futures
+async function delayedTask() {
+    var delay = sleepAsync(500);
+    await delay;
+    return "Task completed";
+}
+
+var taskFuture = delayedTask();       // Returns Future immediately
+var taskResult = await taskFuture;    // Wait and get result
+</code></pre>
+                    
+                    <h4>String Operations</h4>
+                    <pre><code class="language-unnarize">var text = "Hello";
+var len = length(text);               // Get string length (built-in function)
+var char = text[0];                   // Get character at index (single-char string)
+var textLength = text.length;         // Alternative: property access for length
+
+// String concatenation with + operator
+var greeting = "Hello" + " " + "World";
+var mixed = "Count: " + 42;           // Auto-converts numbers to strings
+</code></pre>
+                    
+                    <h4>Type System & Conversions</h4>
+                    <pre><code class="language-unnarize">// Automatic type conversions
+var result = 3.14 + 2;                // Mixed int/float -> float result
+var charCode = "A" + 0;               // Single-char string -> int (65)
+
+// Type checking in conditionals
+if ("non-empty") { print("truthy"); } // Non-empty strings are truthy
+if (arr) { print("has items"); }      // Non-empty arrays are truthy
+if (m) { print("has entries"); }      // Non-empty maps are truthy
+</code></pre>
+                    
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+                
+                <section id="advanced-topics">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">4. Advanced Topics</h2>
+                    
+                    <h3 id="modularity" class="font-display font-bold text-2xl tracking-tight">4.1 Modularity (import)</h3>
+                    <p>Unnarize's module system uses file-based imports with environment isolation. Each module has its own scope and can export variables and functions to other modules.</p>
+                    
+                    <h4>Module Resolution</h4>
+                    <p>Unnarize searches for modules in this order:</p>
+                    <ul>
+                        <li><strong>UNNARIZE_PATH</strong> environment variable (colon-separated paths)</li>
+                        <li><strong>Project root</strong> recursive search</li>
+                        <li>Module files must have <code>.unna</code> extension</li>
+                    </ul>
+                    
+                    <h4>Example Module</h4>
+                    <p>Create <code>math.unna</code>:</p>
+                    <pre><code class="language-unnarize">// File: math.unna - Module with variables and functions
+var PI = 3.14159;
+var E = 2.71828;
+
+function add(a, b) {
+    return a + b;
+}
+
+function multiply(a, b) {
+    return a * b;
+}
+
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+</code></pre>
+                    
+                    <h4>Using Modules</h4>
+                    <pre><code class="language-unnarize">// File: main.unna - Import and use module
+import math as m;
+
+// Access module variables
+var piValue = m.PI;
+var eValue = m.E;
+print("Constants: PI=" + piValue + ", E=" + eValue);
+
+// Call module functions
+var sum = m.add(10, 5);
+var product = m.multiply(4, 7);
+var fact = m.factorial(5);
+
+print("Results: " + sum + ", " + product + ", " + fact);
+</code></pre>
+                    
+                    <h4>Module Caching</h4>
+                    <p>Modules are cached by their logical name (not alias). Multiple imports of the same module share the same environment, ensuring consistency and performance.</p>
+
+                    <h3 id="async" class="font-display font-bold text-2xl tracking-tight">4.2 Async/Await</h3>
+                    <p>Unnarize implements true asynchronous programming using pthread-based Futures. The VM creates separate threads for async operations while maintaining thread-safe coordination through mutex and condition variables.</p>
+                    
+                    <h4>Future Implementation</h4>
+                    <p>Unnarize's <code>Future</code> is a thread-safe container with:</p>
+                    <ul>
+                        <li><strong>Completion flag</strong> - tracks if operation is done</li>
+                        <li><strong>Result value</strong> - stores the resolved value</li>
+                        <li><strong>Mutex & condition variable</strong> - ensures thread safety</li>
+                        <li><strong>Blocking await</strong> - suspends execution until resolution</li>
+                    </ul>
+                    
+                    <p>Functions declared with <code>async</code> automatically wrap their return values in already-resolved Futures, enabling seamless composition.</p>
+                    <pre><code class="language-unnarize">async function processTask(taskName, duration) {
+    print("Starting task: " + taskName);
+    
+    // Simulate processing time using sleepAsync
+    var delay = sleepAsync(duration);
+    await delay;
+    
+    print("Completed task: " + taskName);
+    return "Result of " + taskName;
+}
+
+async function runSimulation() {
+    print("=== Async Simulation Started ===");
+    
+    // Start multiple async tasks
+    var task1 = processTask("Database Backup", 2000);  // 2 seconds
+    var task2 = processTask("File Processing", 1500);  // 1.5 seconds
+    var task3 = processTask("Report Generation", 1000); // 1 second
+    
+    // Wait for all tasks to complete
+    var result1 = await task1;
+    var result2 = await task2;
+    var result3 = await task3;
+    
+    print("All tasks completed!");
+    print(result1);
+    print(result2);
+    print(result3);
+}
+
+runSimulation();
+</code></pre>
+                    
+                    <h3 id="native-extensions" class="font-display font-bold text-2xl tracking-tight">4.3 Native C Extensions (loadextern)</h3>
+                    <p>Unnarize's <code>loadextern</code> system allows loading compiled C shared libraries (.so files) for high-performance operations. This follows Unnarize's philosophy of delegation: let C handle computation while Unnarize orchestrates.</p>
+                    
+                    <h4>Library Resolution</h4>
+                    <p>Similar to modules, <code>loadextern</code> searches for libraries:</p>
+                    <ul>
+                        <li><strong>Explicit paths</strong> (if argument contains '/')</li>
+                        <li><strong>UNNARIZE_LIB_PATH</strong> environment variable</li>
+                        <li><strong>Project root</strong> recursive search</li>
+                    </ul>
+                    
+                    <p>Libraries must export a <code>registerFunctions(VM* vm)</code> function that registers native functions using the VM's API.</p>
+                    
+                    <h4>Example: Math Library Plugin</h4>
+                    <p>Create <code>math_lib.c</code>:</p>
+                    <pre><code class="language-c">// Example Unnarize external plugin: math_lib (self-contained)
+// Build: gcc -shared -fPIC -o math_lib.so math_lib.c -lm -lpthread
+
+#include <math.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+// Mirror Unnarize's Value system (must match interpreter exactly)
+typedef struct VM VM; // Opaque VM pointer
+
+// Use interpreter's exact types for compatibility
+typedef enum {
+    VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL,
+    VAL_MODULE, VAL_ARRAY, VAL_MAP, VAL_FUTURE
+} ValueType;
+
+typedef struct Value {
+    ValueType type;
+    union {
+        int intVal;
+        double floatVal;
+        char* stringVal;
+        int boolVal;        // Note: bool, not bool_storage
+        void* moduleVal;
+        void* arrayVal;
+        void* mapVal;
+        void* futureVal;
+    };
+} Value;
+
+// Function signature for native functions (must match interpreter exactly)
+typedef Value (*NativeFn)(VM*, Value* args, int argCount);
+
+// VM registration function (dynamically resolved - exact name required)
+void registerNativeFunction(VM* vm, const char* name, Value (*function)(VM*, Value* args, int argCount));
+
+// Native function implementation
+static Value mathPower(VM* vm, Value* args, int argCount) {
+    (void)vm; // VM parameter unused in this function
+    
+    Value result;
+    result.type = VAL_FLOAT;
+    result.floatVal = 0.0;
+    
+    // Validate argument count
+    if (argCount != 2) {
+        return result; // Return 0.0 for invalid args
+    }
+    
+    // Extract numeric values (supports int/float conversion)
+    double base = 0.0, exponent = 0.0;
+    
+    if (args[0].type == VAL_INT) {
+        base = (double)args[0].intVal;
+    } else if (args[0].type == VAL_FLOAT) {
+        base = args[0].floatVal;
+    } else {
+        return result; // Invalid type
+    }
+    
+    if (args[1].type == VAL_INT) {
+        exponent = (double)args[1].intVal;
+    } else if (args[1].type == VAL_FLOAT) {
+        exponent = args[1].floatVal;
+    } else {
+        return result; // Invalid type
+    }
+    
+    result.floatVal = pow(base, exponent);
+    return result;
+}
+
+static Value mathSqrt(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    
+    Value result;
+    result.type = VAL_FLOAT;
+    result.floatVal = 0.0;
+    
+    if (argCount != 1) return result;
+    
+    double value = 0.0;
+    if (args[0].type == VAL_INT) {
+        value = (double)args[0].intVal;
+    } else if (args[0].type == VAL_FLOAT) {
+        value = args[0].floatVal;
+    } else {
+        return result;
+    }
+    
+    if (value < 0.0) return result; // Invalid for sqrt
+    
+    result.floatVal = sqrt(value);
+    return result;
+}
+
+// Required entry point - called by Unnarize when loading library
+void registerFunctions(VM* vm) {
+    // Register multiple math functions
+    registerNativeFunction(vm, "power", mathPower);
+    registerNativeFunction(vm, "sqrt", mathSqrt);
+}
+</code></pre>
+                    
+                    <h4>Build and Usage</h4>
+                    <pre><code class="language-bash"># Compile the plugin
+gcc -shared -fPIC -o math_lib.so math_lib.c -lm -lpthread
+</code></pre>
+                    
+                    <p>Use the library in Unnarize:</p>
+                    <pre><code class="language-unnarize">// Load the compiled library
+loadextern("math_lib.so");
+
+// Use registered native functions
+var powerResult = power(2, 8);        // 256.0
+var sqrtResult = sqrt(16);            // 4.0
+
+print("2^8 = " + powerResult);
+print("√16 = " + sqrtResult);
+
+// Native functions integrate seamlessly with Unnarize types
+var numbers = array();
+push(numbers, 4);
+push(numbers, 9);
+push(numbers, 16);
+
+var i = 0;
+while (i < length(numbers)) {
+    var num = numbers[i];
+    var root = sqrt(num);
+    print("√" + num + " = " + root);
+    i = i + 1;
+}
+</code></pre>
+                    
+                    <h4>Library Loading Process</h4>
+                    <p>When <code>loadextern</code> is called, Unnarize:</p>
+                    <ul>
+                        <li>Resolves the library path using search rules</li>
+                        <li>Loads the shared library with <code>dlopen(RTLD_NOW | RTLD_GLOBAL)</code></li>
+                        <li>Finds and calls the <code>registerFunctions</code> symbol</li>
+                        <li>Stores the library handle for cleanup on VM shutdown</li>
+                        <li>Maximum 256 external libraries can be loaded simultaneously</li>
+                    </ul>
+                    
+                    <h4>Error Handling & Edge Cases</h4>
+                    <p>Unnarize's interpreter includes robust error handling:</p>
+                    <ul>
+                        <li><strong>Division by zero</strong> - Caught for both int and float operations</li>
+                        <li><strong>Array bounds</strong> - Index out of range errors for arrays and strings</li>
+                        <li><strong>Map key errors</strong> - Missing key access throws errors</li>
+                        <li><strong>Type mismatches</strong> - Invalid operations between incompatible types</li>
+                        <li><strong>Call stack overflow</strong> - Maximum call depth protection</li>
+                        <li><strong>Memory allocation</strong> - Graceful handling of allocation failures</li>
+                        <li><strong>Future constraints</strong> - Cannot use Future in conditionals (must await first)</li>
+                    </ul>
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+                
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+
+                <section id="examples">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">5. Examples & Usage Patterns</h2>
+                    
+                    <h3 id="inventory-management" class="font-display font-bold text-2xl tracking-tight">5.1 Case Study: Inventory Management</h3>
+                    <p>This comprehensive example demonstrates how all of Unnarize's core features work together to create a real-world mini-application. It showcases the language's strength in orchestrating data flow, managing state, and organizing code through modularity.</p>
+                    
+                    <div class="bg-neutral-50 dark:bg-neutral-900/50 rounded-xl p-6 my-6 border border-neutral-200 dark:border-neutral-800">
+                        <h4 class="font-semibold text-lg mb-3 text-neutral-800 dark:text-neutral-200">🎯 What This Example Teaches</h4>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="font-medium text-primary mb-2">Core Language Features:</p>
+                                <ul class="space-y-1 text-neutral-600 dark:text-neutral-400">
+                                    <li>• <strong>Maps</strong> for key-value inventory storage</li>
+                                    <li>• <strong>Arrays</strong> for ordered shipment data</li>
+                                    <li>• <strong>Functions</strong> for reusable logic</li>
+                                    <li>• <strong>Control flow</strong> with while loops and conditionals</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-medium text-primary mb-2">Software Architecture:</p>
+                                <ul class="space-y-1 text-neutral-600 dark:text-neutral-400">
+                                    <li>• <strong>Modularity</strong> through import system</li>
+                                    <li>• <strong>Separation of concerns</strong> (data vs reporting)</li>
+                                    <li>• <strong>Clean interfaces</strong> between modules</li>
+                                    <li>• <strong>Error handling</strong> and edge cases</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p>The example simulates a store inventory system where you track items, process incoming shipments, and generate detailed reports. It demonstrates Unnarize's philosophy: <em>simple syntax, powerful composition</em>.</p>
+                    
+                    <p>Main file (<code>main.unna</code>):</p>
+                    <pre><code class="language-unnarize">import inventory as inv;
+import report as rpt;
+
+print("=== STORE INVENTORY DASHBOARD ===");
+
+// Create and populate initial stock
+var stock = inv.createInventory();
+inv.addItem(stock, "apple", 10);
+inv.addItem(stock, "banana", 5);
+inv.addItem(stock, "chocolate", 12);
+
+// Process a new shipment
+var shipments = array();
+push(shipments, 3); // apples
+push(shipments, 5); // bananas
+push(shipments, 2); // chocolates
+
+var items = inv.itemKeys();
+var idx = 0;
+var itemsLength = length(items);
+var condition = idx < itemsLength;
+while (condition) {
+    var currentItem = items[idx];
+    var currentShipment = shipments[idx];
+    inv.addItem(stock, currentItem, currentShipment);
+    idx = idx + 1;
+    condition = idx < itemsLength;
+}
+
+// Print the final report
+rpt.printSummary("Unnarize Mart", stock);
+</code></pre>
+
+                    <p>Inventory module (<code>inventory.unna</code>):</p>
+                    <pre><code class="language-unnarize">// Inventory management module for Unnarize
+// Provides functions to create and manage item stock using maps
+
+// Create a new inventory (returns empty map)
+function createInventory() {
+    return map();
+}
+
+// Add items to inventory (or update existing quantity)
+function addItem(inventory, itemName, quantity) {
+    if (has(inventory, itemName)) {
+        var currentQty = inventory[itemName];
+        inventory[itemName] = currentQty + quantity;
+    } else {
+        inventory[itemName] = quantity;
+    }
+}
+
+// Get quantity of specific item
+function getQuantity(inventory, itemName) {
+    if (has(inventory, itemName)) {
+        return inventory[itemName];
+    }
+    return 0;
+}
+
+// Remove items from inventory
+function removeItem(inventory, itemName, quantity) {
+    if (has(inventory, itemName)) {
+        var currentQty = inventory[itemName];
+        var newQty = currentQty - quantity;
+        if (newQty <= 0) {
+            delete(inventory, itemName);
+            return currentQty; // Return actual removed quantity
+        } else {
+            inventory[itemName] = newQty;
+            return quantity;
+        }
+    }
+    return 0; // Nothing removed
+}
+
+// Get all item names as array
+function itemKeys() {
+    var items = array();
+    push(items, "apple");
+    push(items, "banana");
+    push(items, "chocolate");
+    return items;
+}
+
+// Calculate total items across all types
+function totalItems(inventory) {
+    var total = 0;
+    var itemList = keys(inventory);
+    var i = 0;
+    while (i < length(itemList)) {
+        var itemName = itemList[i];
+        total = total + inventory[itemName];
+        i = i + 1;
+    }
+    return total;
+}
+
+// Check if inventory has sufficient stock
+function hasStock(inventory, itemName, requiredQty) {
+    if (has(inventory, itemName)) {
+        return inventory[itemName] >= requiredQty;
+    }
+    return false;
+}
+</code></pre>
+
+                    <p>Report module (<code>report.unna</code>) - Handles all output formatting and business logic analysis:</p>
+                    <pre><code class="language-unnarize">// Report generation module for inventory system
+// Provides functions to generate and print inventory reports
+
+// Print a detailed summary of the inventory
+function printSummary(storeName, inventory) {
+    print("");
+    print("=== INVENTORY REPORT: " + storeName + " ===");
+    print("");
+    
+    var itemList = keys(inventory);
+    var totalItems = 0;
+    var itemCount = length(itemList);
+    
+    if (itemCount == 0) {
+        print("No items in inventory.");
+        return;
+    }
+    
+    print("Current Stock:");
+    var i = 0;
+    while (i < itemCount) {
+        var itemName = itemList[i];
+        var quantity = inventory[itemName];
+        totalItems = totalItems + quantity;
+        
+        // Format item display
+        var status = "";
+        if (quantity < 5) {
+            status = " (LOW STOCK)";
+        } else if (quantity > 20) {
+            status = " (OVERSTOCKED)";
+        }
+        
+        print("  " + itemName + ": " + quantity + " units" + status);
+        i = i + 1;
+    }
+    
+    print("");
+    print("Summary:");
+    print("  Total item types: " + itemCount);
+    print("  Total units: " + totalItems);
+    
+    // Inventory health assessment
+    var avgStock = totalItems / itemCount;
+    print("  Average stock per item: " + avgStock);
+    
+    if (totalItems < 20) {
+        print("  Status: CRITICAL - Restock needed");
+    } else if (totalItems < 50) {
+        print("  Status: LOW - Monitor closely");
+    } else {
+        print("  Status: HEALTHY - Stock levels good");
+    }
+    
+    print("=== END REPORT ===");
+    print("");
+}
+
+// Generate a simple stock alert
+function checkLowStock(inventory, threshold) {
+    var itemList = keys(inventory);
+    var lowStockItems = array();
+    
+    var i = 0;
+    while (i < length(itemList)) {
+        var itemName = itemList[i];
+        var quantity = inventory[itemName];
+        
+        if (quantity < threshold) {
+            push(lowStockItems, itemName);
+        }
+        i = i + 1;
+    }
+    
+    if (length(lowStockItems) > 0) {
+        print("LOW STOCK ALERT:");
+        var j = 0;
+        while (j < length(lowStockItems)) {
+            var item = lowStockItems[j];
+            print("  - " + item + " (" + inventory[item] + " units)");
+            j = j + 1;
+        }
+    }
+}
+
+// Print top items by quantity
+function printTopItems(inventory, count) {
+    var itemList = keys(inventory);
+    print("Top " + count + " items by stock:");
+    
+    // Simple display of first 'count' items (basic implementation)
+    var i = 0;
+    var displayed = 0;
+    while (i < length(itemList)) {
+        if (displayed >= count) {
+            return;
+        }
+        var itemName = itemList[i];
+        var quantity = inventory[itemName];
+        print("  " + (displayed + 1) + ". " + itemName + ": " + quantity + " units");
+        i = i + 1;
+        displayed = displayed + 1;
+    }
+}
+</code></pre>
+
+                    <h3 id="native-code-pattern" class="font-display font-bold text-2xl tracking-tight">5.2 Pattern: Unnarize as a Glue Language</h3>
+                    <p>Unnarize excels as a <strong>glue language</strong> and <strong>orchestration tool</strong>. Its primary strength lies not in raw computational power, but in efficiently coordinating and connecting different components, especially high-performance C libraries.</p>
+                    
+                    <p>Think of Unnarize as the conductor of an orchestra, it doesn't play every instrument, but it coordinates them perfectly to create harmony. When you need intensive computation, write it in C and let Unnarize orchestrate the workflow.</p>
+                    
+                    <h4>Design Philosophy: Orchestration over Computation</h4>
+                    <p>When facing a performance bottleneck, don't optimize the loop within Unnarize. Instead, delegate the heavy work to C. This pattern leverages Unnarize's strength as an orchestrator and C's strength as a high-performance worker.</p>
+                    
+                    <p><strong>Note:</strong> The functions <code>processOneInC</code> and <code>processBatch</code> in the examples below are conceptual, they represent C functions you would create and register using <code>loadextern</code>.</p>
+                    
+                    <p>The <strong>less optimal</strong> pattern is calling a C function inside a Unnarize loop. This still incurs call overhead on every iteration.</p>
+                    <pre><code class="language-unnarize">// Less Optimal: Unnarize controls the loop
+loadextern("processing_lib.so");
+
+var results = array();
+for (var i = 0; i < 1000000; i = i + 1) {
+    var processed = processOneInC(i);
+    push(results, processed); // 1 million function calls
+}
+</code></pre>
+                    <p>The <strong>most optimal</strong> pattern is to delegate the entire loop to C in a single call.</p>
+                    <pre><code class="language-unnarize">// Most Optimal: C controls the loop, Unnarize orchestrates
+loadextern("processing_lib.so");
+
+// C will perform the 1 million iterations internally
+var results = processBatch(1000000);
+print("Batch processing completed: " + results);
+
+// Now Unnarize orchestrates the workflow
+var reportData = generateReport(results);
+var success = saveToDatabase(reportData);
+if (success) {
+    print("Data saved successfully!");
+}
+</code></pre>
+                    
+                    <h4>Key Insight: Unnarize as Orchestration Language</h4>
+                    <p><strong>Important:</strong> The functions like <code>processOneInC</code>, <code>processBatch</code>, <code>generateReport</code>, and <code>saveToDatabase</code> are conceptual examples. They represent the <em>types</em> of functions you can create as C extensions.</p>
+                    
+                    <p>Unnarize's power lies in its ability to <strong>orchestrate complex workflows</strong> by connecting different specialized components:</p>
+                    <ul>
+                        <li><strong>Data Processing</strong>: Heavy computation in C libraries</li>
+                        <li><strong>I/O Operations</strong>: File reading, network requests, database operations</li>
+                        <li><strong>Business Logic</strong>: Workflow coordination, decision making, error handling</li>
+                        <li><strong>Integration</strong>: Connecting different systems and APIs</li>
+                    </ul>
+                    
+                    <p>This makes Unnarize ideal for:</p>
+                    <ul>
+                        <li>Data pipelines and ETL processes</li>
+                        <li>System automation and scripting</li>
+                        <li>API orchestration and microservice coordination</li>
+                        <li>Scientific computing workflows</li>
+                        <li>DevOps and deployment automation</li>
+                    </ul>
+                    
+                    <h4>Creating Your Own C Extensions</h4>
+                    <p>You can create any C function and make it available to Unnarize. Extensions are <strong>self-contained</strong> and use dynamic linking to interface with the interpreter. Here's how you would implement the conceptual <code>processBatch</code> function:</p>
+                    <pre><code class="language-c">// File: processing_lib.c (self-contained plugin)
+// Build: gcc -shared -fPIC -o processing_lib.so processing_lib.c -ldl
+
+#include <stdlib.h>
+#include <stdio.h>
+
+// Minimal mirror of interpreter public types
+typedef struct VM VM; // opaque
+
+// Use interpreter's exact types for compatibility
+typedef enum {
+    VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL,
+    VAL_MODULE, VAL_ARRAY, VAL_MAP, VAL_FUTURE
+} ValueType;
+
+typedef struct Value {
+    ValueType type;
+    union {
+        int intVal;
+        double floatVal;
+        char* stringVal;
+        int boolVal;
+        void* moduleVal;
+        void* arrayVal;
+        void* mapVal;
+        void* futureVal;    // Future pointer for async operations
+    };
+} Value;
+
+typedef Value (*NativeFn)(VM*, Value* args, int argCount);
+typedef void (*RegisterFn)(VM*, const char* name, NativeFn function);
+
+static Value processBatchInC(VM* vm, Value* args, int argCount) {
+    (void)vm; // unused
+    Value result; result.type = VAL_INT; result.intVal = 0;
+    
+    if (argCount != 1 || args[0].type != VAL_INT) {
+        return result; // Return 0 on error
+    }
+    
+    int count = args[0].intVal;
+    if (count <= 0) return result;
+    
+    // Simulate intensive batch processing
+    int sum = 0;
+    for (int i = 1; i <= count; i++) {
+        // Expensive computation delegated to C
+        sum += i * i; // Example: sum of squares
+    }
+    
+    result.intVal = sum;
+    return result;
+}
+
+void registerFunctions(VM* vm) {
+    RegisterFn regFn = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
+    if (!regFn) {
+        fprintf(stderr, "[plugin processing_lib] Failed to find registerNativeFunction\n");
+        return;
+    }
+    regFn(vm, "processBatch", processBatchInC);
+}
+</code></pre>
+                    
+    <h4>Build and Usage</h4>
+    <pre><code class="language-bash"># Compile the plugin
+gcc -shared -fPIC -o processing_lib.so processing_lib.c -ldl
+</code></pre>
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+                
+                <hr class="my-12 border-neutral-200 dark:border-neutral-800">
+                
+                <section id="conclusion">
+                    <h2 class="font-display font-bold text-3xl tracking-tight">6. Conclusion & Key Insights</h2>
+                    
+                    <h3 class="font-display font-bold text-2xl tracking-tight">The Unnarize Paradigm</h3>
+                    <p>Unnarize represents a fundamental shift in how we think about programming languages. Rather than trying to be everything to everyone, Unnarize embraces <strong>focused excellence</strong>, it excels at orchestration, coordination, and creating harmony between different computational components.</p>
+                    
+                    <h3 class="font-display font-bold text-2xl tracking-tight">When to Choose Unnarize</h3>
+                    <p>Consider Unnarize when you need:</p>
+                    <ul>
+                        <li><strong>Workflow Orchestration</strong>: Coordinating multiple systems, APIs, or processes</li>
+                        <li><strong>Performance-Critical Integration</strong>: Combining high-level logic with low-level C performance</li>
+                        <li><strong>Rapid Prototyping</strong>: Quick iteration on complex system interactions</li>
+                        <li><strong>Data Pipeline Management</strong>: ETL processes, data transformation workflows</li>
+                        <li><strong>System Automation</strong>: DevOps scripts, deployment orchestration</li>
+                    </ul>
+                    
+                    <h3 class="font-display font-bold text-2xl tracking-tight">The Philosophy in Practice</h3>
+                    <p>Unnarize's design philosophy of <em>"Do something with one way, but perfect"</em> manifests in several key principles:</p>
+                    <ul>
+                        <li><strong>Locality of Reference</strong>: Code and data flow through predictable paths, maximizing CPU cache efficiency</li>
+                        <li><strong>Minimal Abstraction</strong>: Direct, transparent operations without hidden complexity</li>
+                        <li><strong>Composability</strong>: Small, focused components that work together seamlessly</li>
+                        <li><strong>Performance Delegation</strong>: Let each tool do what it does best, C for computation, Unnarize for coordination</li>
+                    </ul>
+                    
+                    <h3 class="font-display font-bold text-2xl tracking-tight">Looking Forward</h3>
+                    <p>As software systems become increasingly complex and distributed, the need for effective orchestration languages becomes more critical. Unnarize positions itself not as a replacement for existing languages, but as a <strong>specialized tool for a specific purpose</strong>, creating efficient, maintainable, and performant system orchestration.</p>
+                    
+                    <p>Whether you're building data pipelines, automating infrastructure, or creating hybrid applications that leverage both high-level logic and low-level performance, Unnarize provides the tools to create solutions that are both elegant and efficient.</p>
+                    
+                    <div class="mt-8 p-6 rounded-2xl glass neon-border">
+                        <p class="text-lg font-semibold mb-2">Ready to start orchestrating?</p>
+                        <p class="text-neutral-600 dark:text-neutral-300">Clone the repository, explore the examples, and discover how Unnarize can simplify your complex workflows while maximizing performance where it matters most.</p>
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <a href="https://github.com/gtkrshnaaa/unnarize" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-sky-500 text-white font-semibold hover:opacity-95">
+                                <i class="uil uil-github"></i> Get Started
+                            </a>
+                            <a href="#getting-started" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 hover:border-primary">
+                                <i class="uil uil-rocket"></i> Quick Start
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
+                </section>
+                
+            </div>
+        </main>
+
+        <footer class="border-t border-neutral-200 dark:border-neutral-800 py-8">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-600 dark:text-neutral-300">
+                <span> &copy; <span id="y"></span> Gtkrshnaaa</span>
+                <div class="flex items-center gap-4">
+                    <a href="https://github.com/gtkrshnaaa/unnarize" target="_blank" class="hover:text-primary">GitHub</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Set current year
+        document.getElementById('y').textContent = new Date().getFullYear();
+        
+        // Theme toggler
+        function syncThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const moonIcon = document.getElementById('iconMoon');
+            const sunIcon = document.getElementById('iconSun');
+            if (moonIcon && sunIcon) {
+                sunIcon.classList.toggle('hidden', !isDark);
+                moonIcon.classList.toggle('hidden', isDark);
+            }
+        }
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            syncThemeIcons();
+        }
+        const themeButton = document.getElementById('themeToggle');
+        if (themeButton) themeButton.addEventListener('click', toggleTheme);
+        
+        // Initial icon sync on page load
+        syncThemeIcons();
+
+        // Enhance code blocks with a "Copy" button
+        (function addCopyButtons(){
+            const pres = document.querySelectorAll('pre');
+            pres.forEach((pre) => {
+                // ensure wrapper exists
+                let wrapper = pre.parentElement;
+                if (!wrapper || !wrapper.classList.contains('code-wrap')) {
+                    wrapper = document.createElement('div');
+                    wrapper.className = 'code-wrap';
+                    pre.parentNode.insertBefore(wrapper, pre);
+                    wrapper.appendChild(pre);
+                }
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn inline-flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-800 text-white text-xs opacity-80 hover:opacity-100 dark:bg-neutral-700';
+                btn.innerHTML = '<i class="uil uil-copy"></i> Copy';
+                btn.addEventListener('click', async () => {
+                    const code = pre.querySelector('code');
+                    if (!code) return;
+                    try {
+                        await navigator.clipboard.writeText(code.textContent || '');
+                        btn.innerHTML = '<i class="uil uil-check"></i> Copied';
+                        setTimeout(()=> btn.innerHTML = '<i class="uil uil-copy"></i> Copy', 1200);
+                    } catch(e) { /* ignore */ }
+                });
+                wrapper.appendChild(btn);
+            });
+        })();
+
+        // Scroll reveal animations
+        (function scrollReveal(){
+            const observer = new IntersectionObserver((entries)=>{
+                entries.forEach((e)=>{
+                    if (e.isIntersecting) {
+                        e.target.classList.add('opacity-100','translate-y-0');
+                        observer.unobserve(e.target);
+                    }
+                });
+            }, { threshold: 0.08 });
+            document.querySelectorAll('section, nav#navigation').forEach((el)=>{
+                el.classList.add('opacity-0','translate-y-4','transition-all','duration-700');
+                observer.observe(el);
+            });
+        })();
+
+        // Floating back-to-top button
+        (function backToTop(){
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label','Back to top');
+            btn.className = 'fixed bottom-6 right-6 z-30 hidden md:inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-sky-500 text-white shadow-lg hover:opacity-95';
+            btn.innerHTML = '<i class="uil uil-arrow-up"></i>';
+            btn.addEventListener('click', ()=> window.scrollTo({ top: 0, behavior: 'smooth' }));
+            document.body.appendChild(btn);
+            const toggle = ()=>{
+                if (window.scrollY > 400) btn.classList.remove('hidden');
+                else btn.classList.add('hidden');
+            };
+            window.addEventListener('scroll', toggle);
+            toggle();
+        })();
+
+        // Simple scrollspy for top nav (desktop)
+        (function scrollSpy(){
+            const links = Array.from(document.querySelectorAll('header nav a[href^="#"]'));
+            const sections = links.map(a=> document.querySelector(a.getAttribute('href'))).filter(Boolean);
+            const active = (id)=>{
+                links.forEach(a=>{
+                    const on = a.getAttribute('href') === '#' + id;
+                    a.classList.toggle('text-primary', on);
+                    a.classList.toggle('font-semibold', on);
+                });
+            };
+            const observer = new IntersectionObserver((entries)=>{
+                entries.forEach((e)=>{
+                    if (e.isIntersecting) active(e.target.id);
+                });
+            }, { rootMargin: '-40% 0px -55% 0px' });
+            sections.forEach(s=> s && observer.observe(s));
+        })();
+
+        
+    </script>
+</body>
+</html>
