@@ -113,6 +113,11 @@ plugins-demo-run: build-plugins-all
 	./$(EXECUTABLE) examples/plugins/demoStringLib.unna
 	./$(EXECUTABLE) examples/plugins/demoTimeLib.unna
 
+# Run all documentation-sourced Unnarize examples under examples/docssource/
+run-docssource: all build-plugins-all
+	@echo "Running documentation examples from examples/docssource..."
+	@find examples/docssource -type f -name "*.unna" -print0 | sort -z | xargs -0 -I{} sh -c 'echo; echo ">>> Running: {}"; ./$(EXECUTABLE) "{}"'
+
 list_source:
 	@mkdir -p $(LISTDIR)
 	@echo "Creating source code listing..."
@@ -127,6 +132,6 @@ list_source:
 	done
 	@echo "Source code listing created at $(LISTDIR)/listing.txt"
 
-.PHONY: all clean install uninstall run modularity-run arrays-maps-run project-test-run async-demo-run run-all list_source \
+.PHONY: all clean install uninstall run modularity-run arrays-maps-run project-test-run async-demo-run run-all run-docssource list_source \
     build-plugin run-math-lib-demo build-plugin-strings run-string-lib-demo \
     build-plugin-time run-time-lib-demo build-plugins-all plugins-demo-run
