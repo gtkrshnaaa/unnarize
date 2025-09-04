@@ -1,0 +1,8 @@
+// if/else conditionals
+var score = 85;
+var passed = score >= 80;
+if (passed) {
+    print("Passed with good grades!");
+} else {
+    print("Needs more practice.");
+}

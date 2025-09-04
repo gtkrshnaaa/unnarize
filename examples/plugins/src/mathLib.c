@@ -27,7 +27,7 @@ typedef struct Value {
         int intVal;
         double floatVal;
         char* stringVal;
-        int booleanVal; // keep footprint consistent; not used here
+        int boolVal; // keep footprint consistent; not used here
         void* moduleVal;
         void* arrayVal;
         void* mapVal;

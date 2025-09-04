@@ -1,0 +1,8 @@
+// while loop
+var i = 0;
+var condition = i < 3;
+while (condition) {
+    print("Iteration #" + i);
+    i = i + 1;
+    condition = i < 3;
+}

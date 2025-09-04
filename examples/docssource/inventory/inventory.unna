@@ -1,0 +1,71 @@
+// Inventory management module for Unnarize
+// Provides functions to create and manage item stock using maps
+
+// Create a new inventory (returns empty map)
+function createInventory() {
+    return map();
+}
+
+// Add items to inventory (or update existing quantity)
+function addItem(inventory, itemName, quantity) {
+    if (has(inventory, itemName)) {
+        var currentQty = inventory[itemName];
+        inventory[itemName] = currentQty + quantity;
+    } else {
+        inventory[itemName] = quantity;
+    }
+}
+
+// Get quantity of specific item
+function getQuantity(inventory, itemName) {
+    if (has(inventory, itemName)) {
+        return inventory[itemName];
+    }
+    return 0;
+}
+
+// Remove items from inventory
+function removeItem(inventory, itemName, quantity) {
+    if (has(inventory, itemName)) {
+        var currentQty = inventory[itemName];
+        var newQty = currentQty - quantity;
+        if (newQty <= 0) {
+            delete(inventory, itemName);
+            return currentQty; // Return actual removed quantity
+        } else {
+            inventory[itemName] = newQty;
+            return quantity;
+        }
+    }
+    return 0; // Nothing removed
+}
+
+// Get all item names as array
+function itemKeys() {
+    var items = array();
+    push(items, "apple");
+    push(items, "banana");
+    push(items, "chocolate");
+    return items;
+}
+
+// Calculate total items across all types
+function totalItems(inventory) {
+    var total = 0;
+    var itemList = keys(inventory);
+    var i = 0;
+    while (i < length(itemList)) {
+        var itemName = itemList[i];
+        total = total + inventory[itemName];
+        i = i + 1;
+    }
+    return total;
+}
+
+// Check if inventory has sufficient stock
+function hasStock(inventory, itemName, requiredQty) {
+    if (has(inventory, itemName)) {
+        return inventory[itemName] >= requiredQty;
+    }
+    return false;
+}

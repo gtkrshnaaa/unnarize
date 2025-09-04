@@ -1,0 +1,13 @@
+// Arrays
+var fruits = array();
+push(fruits, "apple");
+push(fruits, "banana");
+
+var firstFruit = fruits[0];
+print(firstFruit); // apple
+fruits[1] = "mango"; // safe: index 1 exists
+var arrayLength = length(fruits);
+print("Array length: " + arrayLength); // 2
+
+var lastItem = pop(fruits);
+print("Last item: " + lastItem); // mango

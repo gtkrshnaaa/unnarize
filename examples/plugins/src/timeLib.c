@@ -26,7 +26,7 @@ typedef struct Value {
         int intVal;
         double floatVal;
         char* stringVal;
-        int booleanVal;
+        int boolVal;
         void* moduleVal;
         void* arrayVal;
         void* mapVal;

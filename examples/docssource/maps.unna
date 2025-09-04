@@ -1,0 +1,18 @@
+// Maps
+var user = map();
+user["name"] = "Unnarize";
+user["release"] = 2025;
+user[1] = "One"; // Integer key
+
+var userName = user["name"];
+print(userName); // Unnarize
+var hasRelease = has(user, "release");
+print(hasRelease); // true
+
+var removed = delete(user, "release");
+var stillHasRelease = has(user, "release");
+print(stillHasRelease); // false
+
+var allKeys = keys(user);
+var firstKey = allKeys[0];
+print("First key: " + firstKey);

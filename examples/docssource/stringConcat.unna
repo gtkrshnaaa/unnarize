@@ -1,0 +1,4 @@
+// String concatenation
+var name = "Unnarize";
+var version = "0.1";
+print("Welcome to " + name + " v" + version); // Welcome to Unnarize v0.1
