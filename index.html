@@ -558,8 +558,8 @@ if (m) { print("has entries"); }      // Non-empty maps are truthy
                     </ul>
                     
                     <h4>Example Module</h4>
-                    <p>Create <code>math.unna</code>:</p>
-                    <pre><code class="language-unnarize">// File: math.unna - Module with variables and functions
+                    <p>Create <code>mathDoc.unna</code>:</p>
+                    <pre><code class="language-unnarize">// File: mathDoc.unna - Module with variables and functions
 var PI = 3.14159;
 var E = 2.71828;
 
@@ -581,7 +581,7 @@ function factorial(n) {
                     
                     <h4>Using Modules</h4>
                     <pre><code class="language-unnarize">// File: main.unna - Import and use module
-import math as m;
+import mathDoc as m;
 
 // Access module variables
 var piValue = m.PI;
@@ -658,22 +658,31 @@ runSimulation();
                     
                     <p>Libraries must export a <code>registerFunctions(VM* vm)</code> function that registers native functions using the VM's API.</p>
                     
-                    <h4>Example: Math Library Plugin</h4>
-                    <p>Create <code>math_lib.c</code>:</p>
-                    <pre><code class="language-c">// Example Unnarize external plugin: math_lib (self-contained)
-// Build: gcc -shared -fPIC -o math_lib.so math_lib.c -lm -lpthread
+                    <h4>Example: Native Library Plugin (Exclusive Demo)</h4>
+                    <p>Create <code>examples/docssource/nativeDemo/mycalcLib.c</code>:</p>
+                    <pre><code class="language-c">// File: mycalcLib.c
+// Self-contained native plugin for Unnarize (exclusive to docssource)
+// Builds into a shared library: mycalcLib.so
+// Functions exported to Unnarize:
+//  - add3(a, b, c) -> int
+//  - hypot2(a, b) -> float (sqrt(a^2 + b^2))
 
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include &lt;math.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;dlfcn.h&gt;
 
-// Mirror Unnarize's Value system (must match interpreter exactly)
-typedef struct VM VM; // Opaque VM pointer
+typedef struct VM VM; // opaque
 
-// Use interpreter's exact types for compatibility
 typedef enum {
-    VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL,
-    VAL_MODULE, VAL_ARRAY, VAL_MAP, VAL_FUTURE
+    VAL_INT,
+    VAL_FLOAT,
+    VAL_STRING,
+    VAL_BOOL,
+    VAL_MODULE,
+    VAL_ARRAY,
+    VAL_MAP,
+    VAL_FUTURE
 } ValueType;
 
 typedef struct Value {
@@ -682,7 +691,7 @@ typedef struct Value {
         int intVal;
         double floatVal;
         char* stringVal;
-        int boolVal;        // Note: bool, not booleanVal
+        int boolVal;
         void* moduleVal;
         void* arrayVal;
         void* mapVal;
@@ -690,109 +699,56 @@ typedef struct Value {
     };
 } Value;
 
-// Function signature for native functions (must match interpreter exactly)
 typedef Value (*NativeFn)(VM*, Value* args, int argCount);
+typedef void (*RegisterFn)(VM*, const char* name, NativeFn function);
 
-// VM registration function (dynamically resolved - exact name required)
-void registerNativeFunction(VM* vm, const char* name, Value (*function)(VM*, Value* args, int argCount));
+static Value makeInt(int v) { Value out; out.type = VAL_INT; out.intVal = v; return out; }
+static Value makeFloat(double v) { Value out; out.type = VAL_FLOAT; out.floatVal = v; return out; }
 
-// Native function implementation
-static Value mathPower(VM* vm, Value* args, int argCount) {
-    (void)vm; // VM parameter unused in this function
-    
-    Value result;
-    result.type = VAL_FLOAT;
-    result.floatVal = 0.0;
-    
-    // Validate argument count
-    if (argCount != 2) {
-        return result; // Return 0.0 for invalid args
-    }
-    
-    // Extract numeric values (supports int/float conversion)
-    double base = 0.0, exponent = 0.0;
-    
-    if (args[0].type == VAL_INT) {
-        base = (double)args[0].intVal;
-    } else if (args[0].type == VAL_FLOAT) {
-        base = args[0].floatVal;
-    } else {
-        return result; // Invalid type
-    }
-    
-    if (args[1].type == VAL_INT) {
-        exponent = (double)args[1].intVal;
-    } else if (args[1].type == VAL_FLOAT) {
-        exponent = args[1].floatVal;
-    } else {
-        return result; // Invalid type
-    }
-    
-    result.floatVal = pow(base, exponent);
-    return result;
-}
-
-static Value mathSqrt(VM* vm, Value* args, int argCount) {
+static Value add3Fn(VM* vm, Value* args, int argCount) {
     (void)vm;
-    
-    Value result;
-    result.type = VAL_FLOAT;
-    result.floatVal = 0.0;
-    
-    if (argCount != 1) return result;
-    
-    double value = 0.0;
-    if (args[0].type == VAL_INT) {
-        value = (double)args[0].intVal;
-    } else if (args[0].type == VAL_FLOAT) {
-        value = args[0].floatVal;
-    } else {
-        return result;
-    }
-    
-    if (value < 0.0) return result; // Invalid for sqrt
-    
-    result.floatVal = sqrt(value);
-    return result;
+    if (argCount != 3) return makeInt(0);
+    int a = 0, b = 0, c = 0;
+    if (args[0].type == VAL_INT) a = args[0].intVal; else if (args[0].type == VAL_FLOAT) a = (int)args[0].floatVal; else return makeInt(0);
+    if (args[1].type == VAL_INT) b = args[1].intVal; else if (args[1].type == VAL_FLOAT) b = (int)args[1].floatVal; else return makeInt(0);
+    if (args[2].type == VAL_INT) c = args[2].intVal; else if (args[2].type == VAL_FLOAT) c = (int)args[2].floatVal; else return makeInt(0);
+    return makeInt(a + b + c);
 }
 
-// Required entry point - called by Unnarize when loading library
+static Value hypot2Fn(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 2) return makeFloat(0.0);
+    double a = 0.0, b = 0.0;
+    if (args[0].type == VAL_INT) a = (double)args[0].intVal; else if (args[0].type == VAL_FLOAT) a = args[0].floatVal; else return makeFloat(0.0);
+    if (args[1].type == VAL_INT) b = (double)args[1].intVal; else if (args[1].type == VAL_FLOAT) b = args[1].floatVal; else return makeFloat(0.0);
+    return makeFloat(sqrt(a*a + b*b));
+}
+
 void registerFunctions(VM* vm) {
-    // Register multiple math functions
-    registerNativeFunction(vm, "power", mathPower);
-    registerNativeFunction(vm, "sqrt", mathSqrt);
+    RegisterFn reg = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
+    if (!reg) { fprintf(stderr, "[plugin mycalcLib] registerNativeFunction not found\n"); return; }
+    reg(vm, "add3", add3Fn);
+    reg(vm, "hypot2", hypot2Fn);
 }
 </code></pre>
                     
                     <h4>Build and Usage</h4>
-                    <pre><code class="language-bash"># Compile the plugin
-gcc -shared -fPIC -o math_lib.so math_lib.c -lm -lpthread
+                    <pre><code class="language-bash"># Compile the plugin (from project root)
+gcc -shared -fPIC -o examples/docssource/nativeDemo/mycalcLib.so \
+  examples/docssource/nativeDemo/mycalcLib.c -ldl -lm
 </code></pre>
                     
                     <p>Use the library in Unnarize:</p>
-                    <pre><code class="language-unnarize">// Load the compiled library
-loadextern("math_lib.so");
+                    <pre><code class="language-unnarize">// File: demo.unna
+// Load the compiled library with explicit path
+loadextern("examples/docssource/nativeDemo/mycalcLib.so");
 
-// Use registered native functions
-var powerResult = power(2, 8);        // 256.0
-var sqrtResult = sqrt(16);            // 4.0
+// Call registered native functions
+var s = add3(10, 20, 30);
+print("add3(10,20,30) = " + s); // 60
 
-print("2^8 = " + powerResult);
-print("√16 = " + sqrtResult);
-
-// Native functions integrate seamlessly with Unnarize types
-var numbers = array();
-push(numbers, 4);
-push(numbers, 9);
-push(numbers, 16);
-
-var i = 0;
-while (i < length(numbers)) {
-    var num = numbers[i];
-    var root = sqrt(num);
-    print("√" + num + " = " + root);
-    i = i + 1;
-}
+var h = hypot2(3, 4);
+print("hypot2(3,4) = " + h); // 5.0
 </code></pre>
                     
                     <h4>Library Loading Process</h4>
