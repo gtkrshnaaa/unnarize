@@ -2,7 +2,7 @@
 // Demonstration of loading a self-contained native plugin (.so)
 // The shared library is built from mycalc_lib.c in the same directory.
 
-loadextern("examples/docssource/nativeDemo/mycalcLib.so");
+loadextern("mycalcLib.so");
 
 var s = add3(10, 20, 30);
 print("add3(10,20,30) = " + s); // 60
