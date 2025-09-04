@@ -23,6 +23,7 @@
   * [Project Structure](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#project-structure)
   * [Complex Code Demonstration](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#complex-code-unnarize-language-interpreter-can-run)
   * [Author](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#author)
+  * [Documentation](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#documentation)
 
 -----
 
@@ -34,6 +35,10 @@ Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (
 
 ### Core Philosophy
 **"Do something with one way, but perfect"** - Focus on efficiency, predictability, and elegant simplicity.
+
+## Documentation
+
+Official documentation: https://gtkrshnaaa.github.io/unnarize/
 
 ## Features
 
@@ -283,7 +288,7 @@ make run-timer-benchmark
 #include <dlfcn.h>
 typedef struct VM VM;
 typedef enum { VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL, VAL_MODULE, VAL_ARRAY, VAL_MAP } ValueType;
-typedef struct { ValueType type; union { int intVal; double floatVal; char* stringVal; int booleanVal; void* moduleVal; void* arrayVal; void* mapVal; }; } Value;
+typedef struct { ValueType type; union { int intVal; double floatVal; char* stringVal; int boolVal; void* moduleVal; void* arrayVal; void* mapVal; }; } Value;
 typedef Value (*NativeFn)(VM*, Value* args, int argc);
 typedef void (*RegisterFn)(VM*, const char* name, NativeFn fn);
 
