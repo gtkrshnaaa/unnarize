@@ -132,6 +132,42 @@ list_source:
 	done
 	@echo "Source code listing created at $(LISTDIR)/listing.txt"
 
-.PHONY: all clean install uninstall run modularity-run arrays-maps-run project-test-run async-demo-run run-all run-docssource list_source \
+core_list:
+	@mkdir -p $(LISTDIR)
+	@echo "Creating core source listing..."
+	@> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "UNNARIZE CORE SOURCE LISTING" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "This document lists the core of the Unnarize programming language: design philosophy, public headers (include/)," >> $(LISTDIR)/corelist.txt
+	@echo "interpreter sources (src/), language examples (examples/), and the build system (Makefile)." >> $(LISTDIR)/corelist.txt
+	@echo "" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: CORE PHILOSOPHY (COREPHILOSOPHY.md)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "FILE: COREPHILOSOPHY.md" >> $(LISTDIR)/corelist.txt
+	@cat COREPHILOSOPHY.md >> $(LISTDIR)/corelist.txt || true
+	@echo "" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: include/ (Public Headers)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@find include -type f \( -name "*.h" -o -name "*.c" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: src/ (Interpreter Sources)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@find $(SRCDIR) -type f \( -name "*.c" -o -name "*.h" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: examples/ (Language Examples)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@find examples -type d \( -name .unnat -o -name bin -o -name obj -o -name .vscode -o -name $(LISTDIR) \) -prune -o -type f \( -name "*.unna" -o -name "*.c" -o -name "*.h" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: Makefile (Build System)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "FILE: Makefile" >> $(LISTDIR)/corelist.txt
+	@cat Makefile >> $(LISTDIR)/corelist.txt
+	@echo "" >> $(LISTDIR)/corelist.txt
+	@echo "Core source listing created at $(LISTDIR)/corelist.txt"
+
+.PHONY: all clean install uninstall run modularity-run arrays-maps-run project-test-run async-demo-run run-all run-docssource list_source core_list \
     build-plugin run-math-lib-demo build-plugin-strings run-string-lib-demo \
     build-plugin-time run-time-lib-demo build-plugins-all plugins-demo-run
