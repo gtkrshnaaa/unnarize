@@ -734,14 +734,14 @@ void registerFunctions(VM* vm) {
                     
                     <h4>Build and Usage</h4>
                     <pre><code class="language-bash"># Compile the plugin (from project root)
-gcc -shared -fPIC -o examples/docssource/nativeDemo/mycalcLib.so \
+gcc -shared -fPIC -o mycalcLib.so \
   examples/docssource/nativeDemo/mycalcLib.c -ldl -lm
 </code></pre>
                     
                     <p>Use the library in Unnarize:</p>
                     <pre><code class="language-unnarize">// File: demo.unna
 // Load the compiled library with explicit path
-loadextern("examples/docssource/nativeDemo/mycalcLib.so");
+loadextern("mycalcLib.so");
 
 // Call registered native functions
 var s = add3(10, 20, 30);
