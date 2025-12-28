@@ -29,23 +29,33 @@
 
 ## About The Project
 
-Unnarize is a high-performance tree-walk interpreter for a# Unnarize
+Unnarize is a high-performance tree-walk interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), value pooling, and string interning infrastructure for maximum performance.
 
-A powerful, efficient, and modern scripting language built for performance and simplicity.
+Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **~17.8 million operations per second** on simple loops while maintaining clean architecture and comprehensive feature support.
 
 ## Features
 
-- **Clean Syntax**: Familiar C-like syntax with modern touches.
-- **High Performance**: Optimized Bytecode VM.
-- **Built-in Async**: First-class `async`/`await` support with `ucoreTimer`.
-- **Structural Typing**: Flexible Structs and UON (Unnarize Object Notation) data format.
-- **Native Modules**: Includes HTTP Server, File I/O (Database), and more.
+- **Clean Syntax**: Familiar C-like syntax with modern touches
+- **High Performance**: ~17.8M ops/sec with stack-based local variable resolution
+- **Built-in Async**: First-class `async`/`await` support with `ucoreTimer`
+- **Structural Typing**: Flexible Structs and UON (Unnarize Object Notation) data format
+- **Native Modules**: Includes HTTP Server, File I/O (Database), Timer, and System modules
+- **Zero Dependencies**: Built using only the C standard library
+- **Plugin System**: Dynamic loading of native C libraries at runtime
 
 ## Installation
 
 ```bash
 git clone https://github.com/gtkrshnaaa/unnarize.git
 cd unnarize
+make
+```
+
+Optional system-wide installation:
+```bash
+sudo make install
+```
+
 ## Quick Start
 
 ```javascript
