@@ -1,0 +1,15 @@
+print("Testing ucoreSystem...");
+
+var args = ucoreSystem.args();
+print("Args count: " + args.count);
+for (var arg : args) {
+    print("Arg: " + arg);
+}
+
+var home = ucoreSystem.getenv("HOME");
+print("HOME: " + home);
+
+var exists = ucoreSystem.fileExists("Makefile");
+print("Makefile exists: " + exists);
+
+print("Done.");
