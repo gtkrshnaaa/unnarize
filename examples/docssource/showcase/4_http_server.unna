@@ -1,0 +1,11 @@
+// 4. Built-in HTTP Server
+// 4. Built-in HTTP Server
+// ucoreHttp is globally available
+
+function handleRequest(req) {
+    print("Received " + req.method + " " + req.path);
+    return "Hello from Unnarize Server!";
+}
+
+print("Starting server on port 8080...");
+ucoreHttp.listen(8080, "handleRequest");

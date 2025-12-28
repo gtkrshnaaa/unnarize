@@ -29,6 +29,98 @@
 
 ## About The Project
 
+Unnarize is a high-performance tree-walk interpreter for a# Unnarize
+
+A powerful, efficient, and modern scripting language built for performance and simplicity.
+
+## Features
+
+- **Clean Syntax**: Familiar C-like syntax with modern touches.
+- **High Performance**: Optimized Bytecode VM.
+- **Built-in Async**: First-class `async`/`await` support with `ucoreTimer`.
+- **Structural Typing**: Flexible Structs and UON (Unnarize Object Notation) data format.
+- **Native Modules**: Includes HTTP Server, File I/O (Database), and more.
+
+## Installation
+
+```bash
+git clone https://github.com/gtkrshnaaa/unnarize.git
+cd unnarize
+make
+./bin/unnarize examples/docssource/showcase/1_hello.unna
+```
+
+## Examples
+
+### 1. Hello World
+```javascript
+// 1. Simple, Clean Syntax
+print("Hello, Unnarize!");
+
+// Variables
+var name = "Developer";
+print("Welcome, " + name);
+
+// Functions
+function greet(who) {
+    return "Hi, " + who + "!";
+}
+
+print(greet("World"));
+```
+
+### 2. Powerful Structures
+```javascript
+struct User {
+    id;
+    name;
+    roles;
+}
+
+// Create instance
+var admin = User(1, "Admin", ["admin", "editor"]);
+
+// Print whole object
+print(admin); 
+
+// Access
+print("User ID: " + admin.id);
+print("Role: " + admin.roles[0]);
+```
+
+### 3. Async & Timer
+```javascript
+// 3. Asynchronous Programming
+// ucoreTimer is globally available
+
+async function fetchData() {
+    print("Fetching data...");
+    ucoreTimer.sleep(1000); // Simulate network delay
+    return "Data loaded!";
+}
+
+print("Start");
+var result = await fetchData();
+print(result);
+print("End");
+```
+
+### 4. HTTP Server
+```javascript
+// 4. Built-in HTTP Server
+// ucoreHttp is globally available
+
+function handleRequest(req) {
+    print("Received " + req.method + " " + req.path);
+    return "Hello from Unnarize Server!";
+}
+
+print("Starting server on port 8080...");
+ucoreHttp.listen(8080, "handleRequest");
+```
+
+## About The Project
+
 Unnarize is a high-performance tree-walk interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), value pooling, and string interning infrastructure for maximum performance.
 
 Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **4+ million operations per second** while maintaining clean architecture and comprehensive feature support.

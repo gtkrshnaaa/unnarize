@@ -1,0 +1,15 @@
+struct User {
+    id;
+    name;
+    roles;
+}
+
+// Create instance
+var admin = User(1, "Admin", ["admin", "editor"]);
+
+// Print whole object
+print(admin); 
+
+// Access
+print("User ID: " + admin.id);
+print("Role: " + admin.roles[0]);

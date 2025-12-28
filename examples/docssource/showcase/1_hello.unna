@@ -1,0 +1,13 @@
+// 1. Simple, Clean Syntax
+print("Hello, Unnarize!");
+
+// Variables
+var name = "Developer";
+print("Welcome, " + name);
+
+// Functions
+function greet(who) {
+    return "Hi, " + who + "!";
+}
+
+print(greet("World"));

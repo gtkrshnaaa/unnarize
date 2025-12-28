@@ -1,0 +1,20 @@
+// 5. Easy File I/O
+// Define Schema
+ucoreUon.parse("@schema {\n    settings: [key, val]\n}");
+
+// Insert Data
+ucoreUon.insert("settings", ["theme", "dark"]);
+ucoreUon.insert("settings", ["retries", 3]);
+
+// Save Database
+ucoreUon.save("app_data.uon");
+print("Saved app_data.uon");
+
+// Clear and Load
+ucoreUon.parse("@flow { settings: [] }"); // Clear data
+ucoreUon.load("app_data.uon");
+
+// Query
+var rows = ucoreUon.get("settings");
+print("Loaded Theme: " + rows[0].val);
+print("Loaded Retries: " + rows[1].val);
