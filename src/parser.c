@@ -1,3 +1,4 @@
+
 #include "parser.h"
 
 // Helper to advance parser
@@ -220,18 +221,62 @@ static Node* equality(Parser* parser) {
     return expr;
 }
 
+// Logical AND (&&)
+static Node* logicAnd(Parser* parser) {
+    Node* expr = equality(parser);
+    while (match(parser, TOKEN_AND)) {
+        Token op = parser->tokens[parser->current - 1];
+        Node* right = equality(parser);
+        Node* node = malloc(sizeof(Node));
+        node->next = NULL;
+        node->type = NODE_EXPR_BINARY;
+        node->binary.left = expr;
+        node->binary.op = op;
+        node->binary.right = right;
+        expr = node;
+    }
+    return expr;
+}
+
+// Logical OR (||)
+static Node* logicOr(Parser* parser) {
+    Node* expr = logicAnd(parser);
+    while (match(parser, TOKEN_OR)) {
+        Token op = parser->tokens[parser->current - 1];
+        Node* right = logicAnd(parser);
+        Node* node = malloc(sizeof(Node));
+        node->next = NULL;
+        node->type = NODE_EXPR_BINARY;
+        node->binary.left = expr;
+        node->binary.op = op;
+        node->binary.right = right;
+        expr = node;
+    }
+    return expr;
+}
+
 // Assignment (for var = expr)
 static Node* assignment(Parser* parser) {
-    Node* expr = equality(parser);
-    if (match(parser, TOKEN_EQUAL)) {
-        Token equals = parser->tokens[parser->current - 1];
+    Node* expr = logicOr(parser);
+    
+    if (match(parser, TOKEN_EQUAL) || 
+        match(parser, TOKEN_PLUS_EQUAL) ||
+        match(parser, TOKEN_MINUS_EQUAL) ||
+        match(parser, TOKEN_STAR_EQUAL) ||
+        match(parser, TOKEN_SLASH_EQUAL)) {
+        
+        Token op = parser->tokens[parser->current - 1];
         Node* value = assignment(parser); // Right-assoc
+        
         if (expr->type == NODE_EXPR_VAR) {
             Node* node = malloc(sizeof(Node));
             node->next = NULL;
             node->type = NODE_STMT_ASSIGN;
             node->assign.name = expr->var.name;
+            node->assign.operator = op;
             node->assign.value = value;
+            // Free the variable node as it's being converted to assignment target
+            free(expr); 
             return node;
         } else if (expr->type == NODE_EXPR_INDEX) {
             Node* node = malloc(sizeof(Node));
@@ -239,10 +284,24 @@ static Node* assignment(Parser* parser) {
             node->type = NODE_STMT_INDEX_ASSIGN;
             node->indexAssign.target = expr->index.target;
             node->indexAssign.index = expr->index.index;
+            node->indexAssign.operator = op;
             node->indexAssign.value = value;
+            node->indexAssign.value = value;
+            // Free the index node structure (but keep children which are moved)
+            free(expr);
+            return node;
+        } else if (expr->type == NODE_EXPR_GET) {
+            Node* node = malloc(sizeof(Node));
+            node->next = NULL;
+            node->type = NODE_STMT_PROP_ASSIGN;
+            node->propAssign.object = expr->get.object;
+            node->propAssign.name = expr->get.name;
+            node->propAssign.operator = op;
+            node->propAssign.value = value;
+            free(expr);
             return node;
         }
-        error("Invalid assignment target.", equals.line);
+        error("Invalid assignment target.", op.line);
     }
     return expr;
 }
@@ -394,7 +453,37 @@ static Node* forStatement(Parser* parser) {
     if (match(parser, TOKEN_SEMICOLON)) {
         // No initializer
     } else if (match(parser, TOKEN_VAR)) {
-        initializer = varDeclaration(parser);
+        Token name = consume(parser, TOKEN_IDENTIFIER, "Expect variable name.");
+        
+        // Check for 'foreach' syntax: var name : collection
+        if (match(parser, TOKEN_COLON)) {
+            Node* collection = expression(parser);
+            consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after foreach collection.");
+            Node* body = statement(parser);
+            
+            Node* node = malloc(sizeof(Node));
+            node->next = NULL;
+            node->type = NODE_STMT_FOREACH;
+            node->foreachStmt.iterator = name;
+            node->foreachStmt.collection = collection;
+            node->foreachStmt.body = body;
+            return node;
+        }
+
+        // Standard var declaration
+        Node* initExpr = NULL;
+        if (match(parser, TOKEN_EQUAL)) {
+            initExpr = expression(parser);
+        }
+        consume(parser, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+        Node* varNode = malloc(sizeof(Node));
+        varNode->next = NULL;
+        varNode->type = NODE_STMT_VAR_DECL;
+        varNode->varDecl.name = name;
+        varNode->varDecl.initializer = initExpr;
+        
+        initializer = varNode;
     } else {
         initializer = expression(parser);
         consume(parser, TOKEN_SEMICOLON, "Expect ';' after loop start.");
@@ -451,8 +540,37 @@ static Node* statement(Parser* parser) {
     return exprStmt;
 }
 
+// Struct declaration
+static Node* structDeclaration(Parser* parser) {
+    Token name = consume(parser, TOKEN_IDENTIFIER, "Expect struct name.");
+    consume(parser, TOKEN_LEFT_BRACE, "Expect '{' before struct body.");
+
+    Token* fields = malloc(8 * sizeof(Token));
+    int count = 0;
+    int capacity = 8;
+    
+    while (!check(parser, TOKEN_RIGHT_BRACE) && !check(parser, TOKEN_EOF)) {
+        if (count == capacity) {
+            capacity *= 2;
+            fields = realloc(fields, capacity * sizeof(Token));
+        }
+        fields[count++] = consume(parser, TOKEN_IDENTIFIER, "Expect field name.");
+        consume(parser, TOKEN_SEMICOLON, "Expect ';' after field name.");
+    }
+    consume(parser, TOKEN_RIGHT_BRACE, "Expect '}' after struct body.");
+    
+    Node* node = malloc(sizeof(Node));
+    node->next = NULL;
+    node->type = NODE_STMT_STRUCT_DECL;
+    node->structDecl.name = name;
+    node->structDecl.fields = fields;
+    node->structDecl.fieldCount = count;
+    return node;
+}
+
 // Declaration (var or stmt or function)
 static Node* declaration(Parser* parser) {
+    if (match(parser, TOKEN_STRUCT)) return structDeclaration(parser);
     if (match(parser, TOKEN_VAR)) return varDeclaration(parser);
     if (match(parser, TOKEN_IMPORT)) {
         Token module = consume(parser, TOKEN_IDENTIFIER, "Expect module name after 'import'.");
