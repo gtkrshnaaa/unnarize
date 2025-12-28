@@ -79,16 +79,18 @@
         .neon-border {
             box-shadow: 0 0 0 1px rgba(168,85,247,0.35), 0 10px 30px rgba(34,211,238,0.18), inset 0 0 40px rgba(163,230,53,0.06);
         }
-        /* Animated glow blobs */
+        /* Animated glow blobs - DISABLED */
         .blob {
             filter: blur(40px);
             opacity: 0.6;
-            animation: float 12s ease-in-out infinite;
+            animation: none !important;
         }
+        /* Animation disabled per user request */
+        /*
         @keyframes float {
             0%, 100% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-18px) translateX(8px); }
         }
+        */
         /* Basic typography polish without plugin */
         .doc-content h2 { margin-top: 1.75rem; margin-bottom: 0.75rem; font-weight: 800; }
         .doc-content h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; font-weight: 700; }
@@ -302,14 +304,25 @@ sudo make install
 </code></pre>
 
                     <h3 id="your-first-program" class="font-display font-bold text-2xl tracking-tight">2.2 Your First Program</h3>
-                    <p>Create a new file named <code>hello.unna</code> and add the following code:</p>
-                    <pre><code class="language-unnarize">// File: hello.unna
-print("Hello from the Unnarize Language!");
+                    <p>Create a new file (e.g., <code>1_hello.unna</code>) with the following code:</p>
+                    <pre><code class="language-unnarize">// 1. Simple, Clean Syntax
+print("Hello, Unnarize!");
+
+// Variables
+var name = "Developer";
+print("Welcome, " + name);
+
+// Functions
+function greet(who) {
+    return "Hi, " + who + "!";
+}
+
+print(greet("World"));
 </code></pre>
-                    <p>Run it from your terminal using the Unnarize binary:</p>
-                    <pre><code class="language-bash">./bin/unnarize hello.unna
+                    <p>Run it from your terminal:</p>
+                    <pre><code class="language-bash">./bin/unnarize 1_hello.unna
 </code></pre>
-                    <p>You will see the output: <code>Hello from the Unnarize Language!</code></p>
+                    <p>You will see output like:<br><code>Hello, Unnarize!<br>Welcome, Developer<br>Hi, World!</code></p>
                     <a href="#navigation" class="not-prose text-sm font-semibold text-primary hover:underline">Back to Top ↑</a>
                 </section>
 
@@ -328,33 +341,51 @@ var x = 10; // This is also a comment.
                     
                     <h4>The `print` Statement</h4>
                     <p>Use <code>print</code> to output values to the console. Each <code>print</code> call automatically adds a new line.</p>
+        <h4>Structures</h4>
+        <p>Define custom data structures for clean, type-like organization:</p>
         <div class="code-block">
-            <pre><code>// 1. Simple, Clean Syntax
-print("Hello, Unnarize!");
-
-// Async/Await
-async function fetchData() {
-    print("Fetching...");
-    ucoreTimer.sleep(500); 
-    return "Done!";
+            <pre><code class="language-unnarize">struct User {
+    id;
+    name;
+    roles;
 }
-await fetchData();</code></pre>
+
+// Create instance
+var admin = User(1, "Admin", ["admin", "editor"]);
+
+// Print whole object
+print(admin); 
+
+// Access
+print("User ID: " + admin.id);
+print("Role: " + admin.roles[0]);
+</code></pre>
         </div>
 
-        <h4>UON (Native Database)</h4>
-        <p>Unnarize includes a built-in structural database format called UON, perfect for configuration and lightweight data storage.</p>
+        <h4>Streaming File I/O (UON)</h4>
+        <p>Unnarize includes a built-in structural database format called UON, perfect for lazy-loading configuration and data files:</p>
         <div class="code-block">
-            <pre><code>// Define Schema
-ucoreUon.parse("@schema { users: [id, name] }");
+            <pre><code class="language-unnarize">print("Loading UON file (Streaming)...");
+var success = ucoreUon.load("app_data.uon");
+if (!success) {
+    print("Failed to load app_data.uon");
+}
 
-// Insert & Save
-ucoreUon.insert("users", [1, "Admin"]);
-ucoreUon.save("db.uon");
-
-// Load & Query
-ucoreUon.load("db.uon");
-var users = ucoreUon.get("users");
-print(users[0].name); // Admin</code></pre>
+print("Querying settings table...");
+var cursor = ucoreUon.get("settings");
+if (cursor) {
+    print("Iterating rows:");
+    var row;
+    row = ucoreUon.next(cursor);
+    while (row) {
+        print("  Row: " + row.key + " = " + row.val);
+        row = ucoreUon.next(cursor);
+    }
+    print("Done.");
+} else {
+    print("Table not found or error.");
+}
+</code></pre>
         </div>             <h3 id="variables" class="font-display font-bold text-2xl tracking-tight">3.2 Variables & Data Types</h3>
                     <p>Variables are declared using the <code>var</code> keyword. Unnarize uses <strong>dynamic typing</strong>, meaning a variable's type is determined by the value it holds and can change at runtime.</p>
                     <pre><code class="language-unnarize">var message = "This is a string";
