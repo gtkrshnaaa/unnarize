@@ -4,6 +4,7 @@
 #include "vm.h"
 
 const char* g_source = NULL;
+const char* g_filename = NULL;
 
 // Helper to print error line with context
 static void printErrorLine(int line, const char* highlightStart, int highlightLen) {
@@ -25,37 +26,45 @@ static void printErrorLine(int line, const char* highlightStart, int highlightLe
         end++;
     }
 
-    // Print the line
+    // Print the code frame
+    // Line number margin
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   %4d | ", line);
+    
+    // Print the line content
     fprintf(stderr, "%.*s\n", (int)(end - start), start);
 
-    // Print highlight if applicable
+    // Print highlight arrow
     if (highlightStart && highlightLen > 0) {
+        fprintf(stderr, "          "); // Match "   %4d | " length (approximately 10 chars: 3+4+3)
+        // Adjust for indentation to match the code line
         // Calculate offset from line start
         int offset = (int)(highlightStart - start);
         if (offset >= 0 && offset < (end - start)) {
             for (int i = 0; i < offset; i++) {
-                // Handle tabs if necessary, but for now assuming spaces/visible chars
-                // If source has tabs, caret alignment might be off unless we handle it.
-                // Simple approach: copy whitespace from source?
                 if (start[i] == '\t') fprintf(stderr, "\t");
                 else fprintf(stderr, " ");
             }
+            // Print caret(s)
             for (int i = 0; i < highlightLen; i++) fprintf(stderr, "^");
             fprintf(stderr, "\n");
         }
     }
+    fprintf(stderr, "\n");
 }
 
 // Generic error
 void error(const char* message, int line) {
-    fprintf(stderr, "[line %d] Error: %s\n", line, message);
+    fprintf(stderr, "Error in %s at line %d:\n", g_filename ? g_filename : "<unknown>", line);
+    fprintf(stderr, "  %s\n", message);
     printErrorLine(line, NULL, 0);
     exit(1);
 }
 
 // Error at specific token
 void errorAtToken(Token token, const char* message) {
-    fprintf(stderr, "[line %d] Error: %s\n", token.line, message);
+    fprintf(stderr, "Error in %s at line %d:\n", g_filename ? g_filename : "<unknown>", token.line);
+    fprintf(stderr, "  %s\n", message);
     printErrorLine(token.line, token.start, token.length);
     exit(1);
 }
@@ -257,6 +266,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    g_filename = argv[1];
     char* source = readFile(argv[1]);
     g_source = source;
 
