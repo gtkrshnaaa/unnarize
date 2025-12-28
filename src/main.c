@@ -305,7 +305,9 @@ int main(int argc, char** argv) {
     if (projectRoot) {
         strncpy(vm.projectRoot, projectRoot, 1023);
     } else {
-        getcwd(vm.projectRoot, 1024);
+        if (getcwd(vm.projectRoot, 1024) == NULL) {
+            fprintf(stderr, "Check for getcwd failed.");
+        }
     }
 
     registerUCoreUON(&vm); // Register built-in core libraries

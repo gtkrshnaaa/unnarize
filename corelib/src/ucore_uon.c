@@ -41,19 +41,7 @@ static void fskipSpace(FILE* f) {
         }
     }
 }
-static bool fmatchStr(FILE* f, const char* kw) {
-    long pos = ftell(f);
-    const char* p = kw;
-    while (*p) {
-        int c = fgetc(f);
-        if (c != *p) {
-            fseek(f, pos, SEEK_SET);
-            return false;
-        }
-        p++;
-    }
-    return true;
-}
+
 
 // Helper to read identifier from file
 static char* fparseIdentifier(FILE* f) {
@@ -323,6 +311,7 @@ static Value fparseValue(FILE* f) {
 }
 
 static Value uon_next(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount != 1 || args[0].type != VAL_RESOURCE) return (Value){VAL_INT, .intVal=0}; // null
     
     UonCursor* cursor = (UonCursor*)args[0].resourceVal;
