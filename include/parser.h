@@ -56,6 +56,7 @@ struct Node {
         // Var reference
         struct {
             Token name;
+            int slot; // Stack slot index, -1 if global
         } var;
         // Function call: callee(arguments)
         struct {
@@ -77,12 +78,14 @@ struct Node {
         struct {
             Token name;
             Node* initializer;
+            int slot; // Stack slot index, -1 if global
         } varDecl;
         // Assign
         struct {
             Token name;
             Token operator; // = or += or -= etc.
             Node* value;
+            int slot; // Stack slot index, -1 if global
         } assign;
         // Index assignment: target[index] = value
         struct {
@@ -150,6 +153,7 @@ struct Node {
             Token iterator;
             Node* collection;
             Node* body;
+            int slot; // Stack slot index for iterator
         } foreachStmt;
         // Struct Declaration
         struct {
