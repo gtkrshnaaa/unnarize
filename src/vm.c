@@ -200,6 +200,27 @@ static FuncEntry* findFuncEntry(Environment* env, Token name, bool insert) {
     return entry;
 }
 
+
+Function* findFunctionByName(VM* vm, const char* name) {
+    Token t;
+    t.start = name;
+    t.length = strlen(name);
+    // Reuse existing static helper if possible or duplicate logic. 
+    // Since findFunction is static, we can't call it easily unless we remove static or duplicate.
+    // Let's duplicate logic for now to be safe and avoid header reshuffling for Token.
+    // ACTUALLY, Token is in parser.h which is included.
+    // But findFunction is static. I'll just copy the simple lookup logic.
+    unsigned int h = hash(name, strlen(name));
+    FuncEntry* entry = vm->globalEnv->funcBuckets[h];
+    while (entry) {
+        if (strncmp(entry->key, name, strlen(name)) == 0 && strlen(entry->key) == strlen(name)) {
+            return entry->function;
+        }
+        entry = entry->next;
+    }
+    return NULL;
+}
+
 // Find function in global environment (for function calls)
 static Function* findFunction(VM* vm, Token name) {
     unsigned int h = hash(name.start, name.length);
@@ -458,13 +479,12 @@ void registerNativeFunction(VM* vm, const char* name, Value (*function)(VM*, Val
     func->paramCount = 0; // not enforced for native
     func->body = NULL;
     func->closure = NULL;
-    func->isNative = true;
-    func->native = function;
+        func->native = function;
     entry->function = func;
 }
 
-// Execute function call
-static Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
+// Helper to call a function
+Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     if (func->isNative) {
         // Direct call to native C function
         return func->native(vm, args, argCount);
@@ -1783,11 +1803,15 @@ static Value evaluate(VM* vm, Node* node) {
                 if (strncmp(node->get.name.start, "length", node->get.name.length) == 0 && strlen("length") == (size_t)node->get.name.length) {
                     Value v; v.type = VAL_INT; v.intVal = obj.arrayVal->count; return v;
                 }
-                // error("Unknown array property.", node->get.name.line); // Or allow fallthrough for method calls?
-                // Method calls like `arr.push()` are handled in NODE_EXPR_CALL, accessing the method itself as property on array object isn't fully robust yet unless we return a BoundMethod. 
-                // But for now Unnarize handles method calls separately in CALL.
-                // So if we are here in GET, it's a property.
                 error("Unknown array property.", node->get.name.line);
+            }
+            if (obj.type == VAL_MAP) {
+                MapEntry* e = mapFindEntry(obj.mapVal, node->get.name.start, node->get.name.length, NULL);
+                if (e) return e->value;
+                // Return null if not found? Or error? Standard JS returns undefined (Val null in our case? 0?)
+                // Let's error to be safe or return 0.
+                // Returning 0 allows checking if (req.body) ...
+                Value nullV; nullV.type = VAL_INT; nullV.intVal = 0; return nullV;
             }
             else if (obj.type == VAL_MODULE) {
                 // module constant/variable or function name as value isn't supported; only variables returned.

@@ -215,6 +215,9 @@ void mapSetStr(Map* m, const char* key, int len, Value v);
 void mapSetInt(Map* m, int ikey, Value v);
 MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut);
 void arrayPush(Array* a, Value v);
+void arrayPush(Array* a, Value v);
 char* readFileAll(const char* path);
+Value callFunction(VM* vm, Function* func, Value* args, int argCount);
+Function* findFunctionByName(VM* vm, const char* name);
 
 #endif // VM_H
