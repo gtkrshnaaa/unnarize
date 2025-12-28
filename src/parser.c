@@ -27,7 +27,7 @@ static bool match(Parser* parser, TokenType type) {
 // Consume token or error
 static Token consume(Parser* parser, TokenType type, const char* message) {
     if (check(parser, type)) return advance(parser);
-    error(message, parser->tokens[parser->current].line);
+    errorAtToken(parser->tokens[parser->current], message);
     return (Token){TOKEN_EOF, NULL, 0, 0};
 }
 
