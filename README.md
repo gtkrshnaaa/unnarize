@@ -39,9 +39,8 @@ Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (
 - **High Performance**: ~17.8M ops/sec with stack-based local variable resolution
 - **Built-in Async**: First-class `async`/`await` support with `ucoreTimer`
 - **Structural Typing**: Flexible Structs and UON (Unnarize Object Notation) data format
-- **Native Modules**: Includes HTTP Server, File I/O (Database), Timer, and System modules
+- **Core Libraries**: Built-in modules for HTTP, Timer, System operations, and UON database
 - **Zero Dependencies**: Built using only the C standard library
-- **Plugin System**: Dynamic loading of native C libraries at runtime
 
 ## Installation
 
