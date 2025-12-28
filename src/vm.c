@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <time.h>
 #include <math.h>
+#include <stdint.h>
 
 // TABLE_SIZE and CALL_STACK_MAX are in vm.h
 
@@ -95,12 +96,178 @@ static unsigned int hashIntKey(int k) {
     return x % TABLE_SIZE;
 }
 
+// Pointer hash for fast lookups (O(1))
+static unsigned int hashPointer(const void* ptr) {
+    uintptr_t x = (uintptr_t)ptr;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x % TABLE_SIZE;
+}
+
+char* internString(VM* vm, const char* str, int length) {
+    if (!str) return NULL;
+    // Special handling for empty string
+    if (length <= 0) length = 0;
+    
+    unsigned int h = hash(str, length);
+    
+    // Check pool
+    for (int i = 0; i < vm->stringPool.count; i++) {
+        if (vm->stringPool.hashes[i] == h) {
+             const char* s = vm->stringPool.strings[i];
+             // Compare content
+             if (strncmp(s, str, length) == 0 && s[length] == '\0') {
+                 return vm->stringPool.strings[i];
+             }
+        }
+    }
+    
+    // Grow pool if needed
+    if (vm->stringPool.count >= vm->stringPool.capacity) {
+        vm->stringPool.capacity *= 2;
+        vm->stringPool.strings = realloc(vm->stringPool.strings, vm->stringPool.capacity * sizeof(char*));
+        vm->stringPool.hashes = realloc(vm->stringPool.hashes, vm->stringPool.capacity * sizeof(unsigned int));
+        if (!vm->stringPool.strings || !vm->stringPool.hashes) error("Memory allocation failed for string pool.", 0);
+    }
+    
+    char* newStr = malloc(length + 1);
+    memcpy(newStr, str, length);
+    newStr[length] = '\0';
+    
+    vm->stringPool.strings[vm->stringPool.count] = newStr;
+    vm->stringPool.hashes[vm->stringPool.count] = h;
+    vm->stringPool.count++;
+    
+    return newStr;
+}
+
+// Basic helper to intern a token's valid string range
+static void internToken(VM* vm, Token* token) {
+    if (token->length > 0) {
+        char* interned = internString(vm, token->start, token->length);
+        // DANGEROUS CAST: We are modifying the AST in place.
+        // This is safe because we own the AST and it's read-only execution after parsing.
+        ((Token*)token)->start = interned;
+    }
+}
+
+// Recursively intern all identifiers and string literals in AST
+static void internAST(VM* vm, Node* node) {
+    if (!node) return;
+    
+    switch (node->type) {
+        case NODE_EXPR_LITERAL:
+            if (node->literal.token.type == TOKEN_STRING) internToken(vm, &node->literal.token);
+            break;
+        case NODE_EXPR_BINARY:
+            internAST(vm, node->binary.left);
+            internAST(vm, node->binary.right);
+            break;
+        case NODE_EXPR_UNARY:
+            internAST(vm, node->unary.expr);
+            break;
+        case NODE_EXPR_VAR:
+            internToken(vm, &node->var.name);
+            break;
+        case NODE_EXPR_CALL:
+            internAST(vm, node->call.callee);
+            internAST(vm, node->call.arguments);
+            break;
+        case NODE_EXPR_GET:
+            internAST(vm, node->get.object);
+            internToken(vm, &node->get.name);
+            break;
+        case NODE_EXPR_INDEX:
+            internAST(vm, node->index.target);
+            internAST(vm, node->index.index);
+            break;
+        case NODE_STMT_VAR_DECL:
+            internToken(vm, &node->varDecl.name);
+            internAST(vm, node->varDecl.initializer);
+            break;
+        case NODE_STMT_ASSIGN:
+            internToken(vm, &node->assign.name);
+            internAST(vm, node->assign.value);
+            break;
+        case NODE_STMT_INDEX_ASSIGN:
+            internAST(vm, node->indexAssign.target);
+            internAST(vm, node->indexAssign.index);
+            internAST(vm, node->indexAssign.value);
+            break;
+        case NODE_STMT_PRINT:
+            internAST(vm, node->print.expr);
+            break;
+        case NODE_STMT_IF:
+            internAST(vm, node->ifStmt.condition);
+            internAST(vm, node->ifStmt.thenBranch);
+            internAST(vm, node->ifStmt.elseBranch);
+            break;
+        case NODE_STMT_WHILE:
+            internAST(vm, node->whileStmt.condition);
+            internAST(vm, node->whileStmt.body);
+            break;
+        case NODE_STMT_FOR:
+            internAST(vm, node->forStmt.initializer);
+            internAST(vm, node->forStmt.condition);
+            internAST(vm, node->forStmt.increment);
+            internAST(vm, node->forStmt.body);
+            break;
+        case NODE_STMT_BLOCK:
+            for (int i = 0; i < node->block.count; i++) {
+                internAST(vm, node->block.statements[i]);
+            }
+            break;
+        case NODE_STMT_FUNCTION:
+            internToken(vm, &node->function.name);
+            for (int i = 0; i < node->function.paramCount; i++) {
+                internToken(vm, &node->function.params[i]);
+            }
+            internAST(vm, node->function.body);
+            break;
+        case NODE_STMT_RETURN:
+            internAST(vm, node->returnStmt.value);
+            break;
+        case NODE_STMT_IMPORT:
+            internToken(vm, &node->importStmt.module);
+            internToken(vm, &node->importStmt.alias);
+            break;
+        case NODE_STMT_LOADEXTERN:
+            internAST(vm, node->loadexternStmt.pathExpr);
+            break;
+        case NODE_EXPR_ARRAY_LITERAL:
+            internAST(vm, node->arrayLiteral.elements);
+            break;
+        case NODE_STMT_FOREACH:
+            internToken(vm, &node->foreachStmt.iterator);
+            internAST(vm, node->foreachStmt.collection);
+            internAST(vm, node->foreachStmt.body);
+            break;
+        case NODE_STMT_STRUCT_DECL:
+            internToken(vm, &node->structDecl.name);
+            for (int i = 0; i < node->structDecl.fieldCount; i++) {
+                internToken(vm, &node->structDecl.fields[i]);
+            }
+            break;
+        case NODE_STMT_PROP_ASSIGN:
+            internAST(vm, node->propAssign.object);
+            internToken(vm, &node->propAssign.name);
+            internAST(vm, node->propAssign.value);
+            break;
+        default:
+            break;
+    }
+    internAST(vm, node->next);
+}
+
 // Module cache lookup/insert by logical module name
 static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool insert) {
-    unsigned int h = hash(name, length);
+    // For ModuleEntry, we intern the key first
+    char* key = internString(vm, name, length);
+    unsigned int h = hashPointer(key);
     ModuleEntry* e = vm->moduleBuckets[h];
     while (e) {
-        if (strncmp(e->key, name, length) == 0 && strlen(e->key) == (size_t)length) {
+        if (e->key == key) {
             return e;
         }
         e = e->next;
@@ -108,8 +275,7 @@ static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool i
     if (!insert) return NULL;
     e = (ModuleEntry*)malloc(sizeof(ModuleEntry));
     if (!e) error("Memory allocation failed.", 0);
-    e->key = strndup(name, length);
-    if (!e->key) error("Memory allocation failed.", 0);
+    e->key = key; // Already interned
     e->module = NULL;
     e->next = vm->moduleBuckets[h];
     vm->moduleBuckets[h] = e;
@@ -124,37 +290,31 @@ static bool fileExists(const char* path) {
 
 // Find or insert variable with proper scope resolution
 static VarEntry* findEntry(VM* vm, Token name, bool insert) {
-    unsigned int h = hash(name.start, name.length);
+    // Assumption: name.start IS interned via internAST
+    unsigned int h = hashPointer(name.start);
     
-    // First, search in current environment
+    // If not inserting, search up the chain
+    if (!insert) {
+        Environment* env = vm->env;
+        while (env) {
+            VarEntry* entry = env->buckets[h];
+            while (entry) {
+                if (entry->key == name.start) return entry;
+                entry = entry->next;
+            }
+            env = env->enclosing;
+        }
+        return NULL;
+    }
+    
+    // If inserting, search only current environment (already done above? No, checked buckets[h] for return?)
+    // Wait, insert logic below assumes we want to return existing if found? 
+    // Usually defineVar checks exists.
+    // Let's stick to: if insert, we check current env.
     VarEntry* entry = vm->env->buckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && entry->keyLength == name.length) {
-            return entry;
-        }
+        if (entry->key == name.start) return entry;
         entry = entry->next;
-    }
-    
-    // Next, if reading (not inserting), try definition environment (e.g., module env of the function)
-    if (!insert && vm->defEnv && vm->defEnv != vm->env) {
-        entry = vm->defEnv->buckets[h];
-        while (entry) {
-            if (strncmp(entry->key, name.start, name.length) == 0 && entry->keyLength == name.length) {
-                return entry;
-            }
-            entry = entry->next;
-        }
-    }
-    
-    // If not found and not inserting, search in global environment (if different from current)
-    if (!insert && vm->env != vm->globalEnv) {
-        entry = vm->globalEnv->buckets[h];
-        while (entry) {
-            if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
-                return entry;
-            }
-            entry = entry->next;
-        }
     }
     
     // If inserting, create new entry in current environment
@@ -164,15 +324,9 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
             error("Memory allocation failed.", name.line);
         }
         
-        // Ensure name.start is null-terminated or safer copy handling
-        // For VAR_DECL, we usually want to own the key.
-        entry->key = strndup(name.start, name.length); 
-        if (!entry->key) {
-            free(entry);
-            error("Memory allocation failed.", name.line);
-        }
+        entry->key = (char*)name.start; // Already interned
         entry->keyLength = name.length;
-        entry->ownsKey = true; 
+        entry->ownsKey = false; // Owned by StringPool
         
         entry->value.type = VAL_INT; // Default init
         entry->value.intVal = 0;
@@ -185,10 +339,11 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
 
 // Find or insert function in specific environment
 static FuncEntry* findFuncEntry(Environment* env, Token name, bool insert) {
-    unsigned int h = hash(name.start, name.length);
+    // Assumption: name.start is interned
+    unsigned int h = hashPointer(name.start);
     FuncEntry* entry = env->funcBuckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+        if (entry->key == name.start) {
             return entry;
         }
         entry = entry->next;
@@ -198,29 +353,24 @@ static FuncEntry* findFuncEntry(Environment* env, Token name, bool insert) {
         if (!entry) {
             error("Memory allocation failed.", name.line);
         }
-        entry->key = strndup(name.start, name.length);
-        if (!entry->key) {
-            free(entry);
-            error("Memory allocation failed.", name.line);
-        }
+        entry->key = (char*)name.start; // Already interned
         entry->function = NULL;
         entry->next = env->funcBuckets[h];
         env->funcBuckets[h] = entry;
+        return entry;
     }
-    return entry;
+    return NULL; // Not found
 }
 
 
+
 Function* findFunctionByName(VM* vm, const char* name) {
-    // Reuse existing static helper if possible or duplicate logic. 
-    // Since findFunction is static, we can't call it easily unless we remove static or duplicate.
-    // Let's duplicate logic for now to be safe and avoid header reshuffling for Token.
-    // ACTUALLY, Token is in parser.h which is included.
-    // But findFunction is static. I'll just copy the simple lookup logic.
-    unsigned int h = hash(name, strlen(name));
+    // Intern key first to enable pointer lookup
+    char* key = internString(vm, name, (int)strlen(name));
+    unsigned int h = hashPointer(key);
     FuncEntry* entry = vm->globalEnv->funcBuckets[h];
     while (entry) {
-        if (strncmp(entry->key, name, strlen(name)) == 0 && strlen(entry->key) == strlen(name)) {
+        if (entry->key == key) {
             return entry->function;
         }
         entry = entry->next;
@@ -228,12 +378,12 @@ Function* findFunctionByName(VM* vm, const char* name) {
     return NULL;
 }
 
-// Find function in global environment (for function calls)
 static Function* findFunction(VM* vm, Token name) {
-    unsigned int h = hash(name.start, name.length);
+    // name.start is interned
+    unsigned int h = hashPointer(name.start);
     FuncEntry* entry = vm->globalEnv->funcBuckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+        if (entry->key == name.start) {
             return entry->function;
         }
         entry = entry->next;
@@ -242,10 +392,10 @@ static Function* findFunction(VM* vm, Token name) {
 }
 
 static Function* findFunctionInEnv(Environment* env, Token name) {
-    unsigned int h = hash(name.start, name.length);
+    unsigned int h = hashPointer(name.start);
     FuncEntry* entry = env->funcBuckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+        if (entry->key == name.start) {
             return entry->function;
         }
         entry = entry->next;
@@ -255,10 +405,10 @@ static Function* findFunctionInEnv(Environment* env, Token name) {
 
 // Find variable in a specific environment
 static VarEntry* findVarInEnv(Environment* env, Token name) {
-    unsigned int h = hash(name.start, name.length);
+    unsigned int h = hashPointer(name.start);
     VarEntry* entry = env->buckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+        if (entry->key == name.start) {
             return entry;
         }
         entry = entry->next;
@@ -385,19 +535,6 @@ void mapSetInt(Map* m, int ikey, Value v) {
     e = (MapEntry*)malloc(sizeof(MapEntry)); if (!e) error("Memory allocation failed.", 0);
     e->isIntKey = true; e->intKey = ikey; e->key = NULL; e->value = v; e->next = m->buckets[b]; m->buckets[b] = e;
 }
-static bool mapDeleteStr(Map* m, const char* key, int len) {
-    unsigned int b = hash(key, len);
-    MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
-    while (e) {
-        if (!e->isIntKey && e->key && (int)strlen(e->key) == len && strncmp(e->key, key, len) == 0) {
-            if (prev) prev->next = e->next; else m->buckets[b] = e->next;
-            free(e->key); free(e);
-            return true;
-        }
-        prev = e; e = e->next;
-    }
-    return false;
-}
 static bool mapDeleteInt(Map* m, int ikey) {
     unsigned int b = hashIntKey(ikey);
     MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
@@ -412,51 +549,20 @@ static bool mapDeleteInt(Map* m, int ikey) {
     return false;
 }
 
-// String interning functions for performance optimization
-// Currently unused but kept for future optimization implementation
-__attribute__((unused)) static char* internString(VM* vm, const char* str, int length) {
-    if (!str) return NULL;
-    if (length <= 0) {
-        // Handle empty string case
-        char* empty = malloc(1);
-        if (!empty) return NULL;
-        empty[0] = '\0';
-        return empty;
-    }
-    
-    unsigned int h = hash(str, length);
-    
-    // Check if string already exists in pool
-    for (int i = 0; i < vm->stringPool.count; i++) {
-        if (vm->stringPool.hashes[i] == h && 
-            strlen(vm->stringPool.strings[i]) == (size_t)length &&
-            strncmp(vm->stringPool.strings[i], str, length) == 0) {
-            return vm->stringPool.strings[i];
+static bool mapDeleteStr(Map* m, const char* key, int len) {
+    unsigned int b = hash(key, len);
+    MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
+    while (e) {
+        if (!e->isIntKey && e->key && (int)strlen(e->key) == len && strncmp(e->key, key, len) == 0) {
+            if (prev) prev->next = e->next; else m->buckets[b] = e->next;
+            free(e->key); free(e);
+            return true;
         }
+        prev = e; e = e->next;
     }
-    
-    // Grow pool if needed
-    if (vm->stringPool.count >= vm->stringPool.capacity) {
-        vm->stringPool.capacity *= 2;
-        vm->stringPool.strings = realloc(vm->stringPool.strings, 
-                                        vm->stringPool.capacity * sizeof(char*));
-        vm->stringPool.hashes = realloc(vm->stringPool.hashes, 
-                                       vm->stringPool.capacity * sizeof(unsigned int));
-        if (!vm->stringPool.strings || !vm->stringPool.hashes) {
-            error("Memory allocation failed for string pool expansion.", 0);
-        }
-    }
-    
-    // Add new string to pool
-    char* interned = strndup(str, length);
-    if (!interned) error("Memory allocation failed for string interning.", 0);
-    
-    vm->stringPool.strings[vm->stringPool.count] = interned;
-    vm->stringPool.hashes[vm->stringPool.count] = h;
-    vm->stringPool.count++;
-    
-    return interned;
+    return false;
 }
+
 
 // Forward declarations
 static Value evaluate(VM* vm, Node* node);
@@ -467,7 +573,10 @@ void registerNativeFunction(VM* vm, const char* name, Value (*function)(VM*, Val
     if (!vm || !name || !*name || !function) {
         error("registerNativeFunction: invalid arguments.", 0);
     }
-    Token t; t.type = TOKEN_IDENTIFIER; t.start = name; t.length = (int)strlen(name); t.line = 0;
+    // Phase 2: Intern key for pointer lookup
+    char* key = internString(vm, name, (int)strlen(name));
+    
+    Token t; t.type = TOKEN_IDENTIFIER; t.start = key; t.length = (int)strlen(key); t.line = 0;
     FuncEntry* entry = findFuncEntry(vm->globalEnv, t, true);
     if (!entry) error("registerNativeFunction: failed to allocate function entry.", 0);
     // Allocate or replace function
@@ -522,17 +631,13 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
         VarEntry* paramEntry = malloc(sizeof(VarEntry));
         if (!paramEntry) error("Memory allocation failed for param.", func->name.line); // Changed error message and line
 
-        // Revert optimization: duplicate key to ensure safety for now.
-        paramEntry->key = strndup(func->params[i].start, func->params[i].length);
-        if (!paramEntry->key) {
-            free(paramEntry);
-            error("Memory allocation failed.", func->name.line);
-        }
+        // Use interned pointer directly
+        paramEntry->key = (char*)func->params[i].start;
         paramEntry->keyLength = func->params[i].length;
-        paramEntry->ownsKey = true;
+        paramEntry->ownsKey = false; // Owned by StringPool
         
         paramEntry->value = args[i];
-        unsigned int hashVal = hash(paramEntry->key, func->params[i].length); // Use length from token
+        unsigned int hashVal = hashPointer(paramEntry->key);
         paramEntry->next = funcEnv->buckets[hashVal];
         funcEnv->buckets[hashVal] = paramEntry;
     }
@@ -1554,42 +1659,29 @@ static Value evaluate(VM* vm, Node* node) {
                 result.type = VAL_INT;
                 switch (node->binary.op.type) {
                     case TOKEN_PLUS: 
-                        result.intVal = left.intVal + right.intVal; 
-                        break;
+                        return (Value){VAL_INT, .intVal = left.intVal + right.intVal};
                     case TOKEN_MINUS: 
-                        result.intVal = left.intVal - right.intVal; 
-                        break;
+                        return (Value){VAL_INT, .intVal = left.intVal - right.intVal};
                     case TOKEN_STAR: 
-                        result.intVal = left.intVal * right.intVal; 
-                        break;
+                        return (Value){VAL_INT, .intVal = left.intVal * right.intVal};
                     case TOKEN_SLASH: 
                         if (right.intVal == 0) {
                             errorAtToken(node->binary.op, "Division by zero.");
                         }
-                        result.intVal = left.intVal / right.intVal; 
-                        break;
+                        return (Value){VAL_INT, .intVal = left.intVal / right.intVal};
                     case TOKEN_PERCENT: 
                         if (right.intVal == 0) {
                             errorAtToken(node->binary.op, "Modulo by zero.");
                         }
-                        result.intVal = left.intVal % right.intVal; 
-                        break;
+                        return (Value){VAL_INT, .intVal = left.intVal % right.intVal};
                     case TOKEN_GREATER: 
-                        result.type = VAL_BOOL;
-                        result.boolVal = left.intVal > right.intVal; 
-                        break;
+                        return (Value){VAL_BOOL, .boolVal = left.intVal > right.intVal};
                     case TOKEN_GREATER_EQUAL: 
-                        result.type = VAL_BOOL;
-                        result.boolVal = left.intVal >= right.intVal; 
-                        break;
+                        return (Value){VAL_BOOL, .boolVal = left.intVal >= right.intVal};
                     case TOKEN_LESS: 
-                        result.type = VAL_BOOL;
-                        result.boolVal = left.intVal < right.intVal; 
-                        break;
+                        return (Value){VAL_BOOL, .boolVal = left.intVal < right.intVal};
                     case TOKEN_LESS_EQUAL: 
-                        result.type = VAL_BOOL;
-                        result.boolVal = left.intVal <= right.intVal; 
-                        break;
+                        return (Value){VAL_BOOL, .boolVal = left.intVal <= right.intVal};
                     default: 
                         error("Invalid binary operator for integers.", node->binary.op.line);
                 }
@@ -2047,5 +2139,52 @@ void freeVM(VM* vm) {
 
 // Interpret AST
 void interpret(VM* vm, Node* ast) {
+    // Intern all identifiers in the AST to enable O(1) lookups
+    internAST(vm, ast);
     execute(vm, ast);
+}// Define a global variable with interning
+void defineGlobal(VM* vm, const char* name, Value value) {
+    char* key = internString(vm, name, (int)strlen(name));
+    unsigned int h = hashPointer(key);
+    
+    // Check if exists
+    VarEntry* entry = vm->globalEnv->buckets[h];
+    while (entry) {
+        if (entry->key == key) {
+            entry->value = value;
+            return;
+        }
+        entry = entry->next;
+    }
+    
+    // Create new
+    entry = malloc(sizeof(VarEntry));
+    if (!entry) error("Memory allocation failed.", 0);
+    entry->key = key;
+    entry->keyLength = (int)strlen(key);
+    entry->ownsKey = false;
+    entry->value = value;
+    entry->next = vm->globalEnv->buckets[h];
+    vm->globalEnv->buckets[h] = entry;
+}
+
+// Define a native function in a specific environment with interning
+void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int arity) {
+    char* key = internString(vm, name, (int)strlen(name));
+    unsigned int h = hashPointer(key);
+    
+    FuncEntry* fe = malloc(sizeof(FuncEntry));
+    fe->key = key;
+    fe->next = env->funcBuckets[h];
+    env->funcBuckets[h] = fe;
+    
+    Function* func = malloc(sizeof(Function));
+    func->isNative = true;
+    func->native = fn;
+    func->paramCount = arity;
+    func->name = (Token){TOKEN_IDENTIFIER, key, (int)strlen(key), 0};
+    func->body = NULL;
+    func->closure = NULL;
+    
+    fe->function = func;
 }

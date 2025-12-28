@@ -96,6 +96,7 @@ typedef struct ValuePool {
 
 // Environment structure (scope)
 struct Environment {
+    struct Environment* enclosing;     // Parent environment
     VarEntry* buckets[TABLE_SIZE];     // Variable hash table
     FuncEntry* funcBuckets[TABLE_SIZE]; // Function hash table
 };
@@ -227,5 +228,8 @@ void arrayPush(Array* a, Value v);
 char* readFileAll(const char* path);
 Value callFunction(VM* vm, Function* func, Value* args, int argCount);
 Function* findFunctionByName(VM* vm, const char* name);
+void defineGlobal(VM* vm, const char* name, Value value);
+void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int arity);
+char* internString(VM* vm, const char* str, int length);
 
 #endif // VM_H

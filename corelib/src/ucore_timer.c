@@ -38,36 +38,18 @@ static Value utimer_sleep(VM* vm, Value* args, int argCount) {
 }
 
 void registerUCoreTimer(VM* vm) {
-    // Create Module
+    char* modName = internString(vm, "ucoreTimer", 10);
     Module* mod = malloc(sizeof(Module));
     if (!mod) return;
-    mod->name = strdup("ucoreTimer");
+    mod->name = modName;
     mod->env = malloc(sizeof(Environment));
-    if (!mod->env) return; // Should free mod
+    if (!mod->env) return; 
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
 
-    // Register now()
-    unsigned int hNow = hash("now", 3);
-    FuncEntry* feNow = malloc(sizeof(FuncEntry)); feNow->key = strdup("now");
-    feNow->next = mod->env->funcBuckets[hNow]; mod->env->funcBuckets[hNow] = feNow;
-    Function* fnNow = malloc(sizeof(Function)); fnNow->isNative = true; fnNow->native = utimer_now; fnNow->paramCount = 0;
-    fnNow->name = (Token){TOKEN_IDENTIFIER, feNow->key, 3, 0}; feNow->function = fnNow;
+    defineNative(vm, mod->env, "now", utimer_now, 0);
+    defineNative(vm, mod->env, "sleep", utimer_sleep, 1);
 
-    // Register sleep(ms)
-    unsigned int hSleep = hash("sleep", 5);
-    FuncEntry* feSleep = malloc(sizeof(FuncEntry)); feSleep->key = strdup("sleep");
-    feSleep->next = mod->env->funcBuckets[hSleep]; mod->env->funcBuckets[hSleep] = feSleep;
-    Function* fnSleep = malloc(sizeof(Function)); fnSleep->isNative = true; fnSleep->native = utimer_sleep; fnSleep->paramCount = 1;
-    fnSleep->name = (Token){TOKEN_IDENTIFIER, feSleep->key, 5, 0}; feSleep->function = fnSleep;
-
-    // Add ucoreTimer to global environment
-    VarEntry* ve = malloc(sizeof(VarEntry));
-    ve->key = strdup("ucoreTimer");
-    ve->keyLength = 10;
-    ve->ownsKey = true;
-    ve->value.type = VAL_MODULE; ve->value.moduleVal = mod;
-    unsigned int h = hash("ucoreTimer", 10);
-    ve->next = vm->globalEnv->buckets[h];
-    vm->globalEnv->buckets[h] = ve;
+    Value vMod; vMod.type = VAL_MODULE; vMod.moduleVal = mod;
+    defineGlobal(vm, "ucoreTimer", vMod);
 }

@@ -428,54 +428,21 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
 
 
 void registerUCoreHttp(VM* vm) {
+    char* modName = internString(vm, "ucoreHttp", 9);
     Module* mod = malloc(sizeof(Module));
-    mod->name = strdup("ucoreHttp");
+    mod->name = modName;
     mod->env = malloc(sizeof(Environment));
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
     
-    // get
-    unsigned int hGet = hash("get", 3);
-    FuncEntry* feGet = malloc(sizeof(FuncEntry)); feGet->key = strdup("get");
-    feGet->next = mod->env->funcBuckets[hGet]; mod->env->funcBuckets[hGet] = feGet;
-    Function* fnGet = malloc(sizeof(Function)); fnGet->isNative = true; fnGet->native = uhttp_get; fnGet->paramCount = 1;
-    fnGet->name = (Token){TOKEN_IDENTIFIER, feGet->key, 3, 0}; feGet->function = fnGet;
-
-    // post
-    unsigned int hPost = hash("post", 4);
-    FuncEntry* fePost = malloc(sizeof(FuncEntry)); fePost->key = strdup("post");
-    fePost->next = mod->env->funcBuckets[hPost]; mod->env->funcBuckets[hPost] = fePost;
-    Function* fnPost = malloc(sizeof(Function)); fnPost->isNative = true; fnPost->native = uhttp_post; fnPost->paramCount = 2;
-    fnPost->name = (Token){TOKEN_IDENTIFIER, fePost->key, 4, 0}; fePost->function = fnPost;
-
-    // listen
-    unsigned int hListen = hash("listen", 6);
-    FuncEntry* feListen = malloc(sizeof(FuncEntry)); feListen->key = strdup("listen");
-    feListen->next = mod->env->funcBuckets[hListen]; mod->env->funcBuckets[hListen] = feListen;
-    Function* fnListen = malloc(sizeof(Function)); fnListen->isNative = true; fnListen->native = uhttp_listen; fnListen->paramCount = 2;
-    fnListen->name = (Token){TOKEN_IDENTIFIER, feListen->key, 6, 0}; feListen->function = fnListen;
-
-    // json
-    unsigned int hJson = hash("json", 4);
-    FuncEntry* feJson = malloc(sizeof(FuncEntry)); feJson->key = strdup("json");
-    feJson->next = mod->env->funcBuckets[hJson]; mod->env->funcBuckets[hJson] = feJson;
-    Function* fnJson = malloc(sizeof(Function)); fnJson->isNative = true; fnJson->native = uhttp_json; fnJson->paramCount = 1;
-    fnJson->name = (Token){TOKEN_IDENTIFIER, feJson->key, 4, 0}; feJson->function = fnJson;
-
-    // route
-    unsigned int hRoute = hash("route", 5);
-    FuncEntry* feRoute = malloc(sizeof(FuncEntry)); feRoute->key = strdup("route");
-    feRoute->next = mod->env->funcBuckets[hRoute]; mod->env->funcBuckets[hRoute] = feRoute;
-    Function* fnRoute = malloc(sizeof(Function)); fnRoute->isNative = true; fnRoute->native = uhttp_route; fnRoute->paramCount = 3;
-    fnRoute->name = (Token){TOKEN_IDENTIFIER, feRoute->key, 5, 0}; feRoute->function = fnRoute;
-
-    // Add to global
-    VarEntry* ve = malloc(sizeof(VarEntry));
-    ve->key = strdup("ucoreHttp");
-    ve->keyLength = 9;
-    ve->ownsKey = true;
-    ve->value.type = VAL_MODULE; ve->value.moduleVal = mod;
-    unsigned int h = hash("ucoreHttp", 9);
-    ve->next = vm->globalEnv->buckets[h];
-    vm->globalEnv->buckets[h] = ve;
+    // Register native functions using defineNative helper
+    defineNative(vm, mod->env, "get", uhttp_get, 1);
+    defineNative(vm, mod->env, "post", uhttp_post, 2);
+    defineNative(vm, mod->env, "listen", uhttp_listen, 2);
+    defineNative(vm, mod->env, "json", uhttp_json, 1);
+    defineNative(vm, mod->env, "route", uhttp_route, 3);
+    
+    // Add module to global scope
+    Value vMod; vMod.type = VAL_MODULE; vMod.moduleVal = mod;
+    defineGlobal(vm, "ucoreHttp", vMod);
 }

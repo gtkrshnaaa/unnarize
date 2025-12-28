@@ -179,6 +179,7 @@ static Node* term(Parser* parser) {
         Token op = parser->tokens[parser->current - 1];
         Node* right = factor(parser);
         Node* node = malloc(sizeof(Node));
+        node->next = NULL;
         node->type = NODE_EXPR_BINARY;
         node->binary.left = expr;
         node->binary.op = op;
@@ -196,6 +197,7 @@ static Node* comparison(Parser* parser) {
         Token op = parser->tokens[parser->current - 1];
         Node* right = term(parser);
         Node* node = malloc(sizeof(Node));
+        node->next = NULL;
         node->type = NODE_EXPR_BINARY;
         node->binary.left = expr;
         node->binary.op = op;
@@ -212,6 +214,7 @@ static Node* equality(Parser* parser) {
         Token op = parser->tokens[parser->current - 1];
         Node* right = comparison(parser);
         Node* node = malloc(sizeof(Node));
+        node->next = NULL;
         node->type = NODE_EXPR_BINARY;
         node->binary.left = expr;
         node->binary.op = op;

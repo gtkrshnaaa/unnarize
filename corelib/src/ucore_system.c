@@ -71,51 +71,19 @@ static Value sys_fileExists(VM* vm, Value* args, int argCount) {
 
 
 void registerUCoreSystem(VM* vm) {
+    char* modName = internString(vm, "ucoreSystem", 11);
     Module* mod = malloc(sizeof(Module));
-    mod->name = strdup("ucoreSystem");
+    mod->name = modName;
     mod->source = NULL;
     mod->env = malloc(sizeof(Environment));
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
 
-    // Register natives
-    {
-        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("args");
-        unsigned int h = hash("args", 4);
-        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
-        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = sys_args; fn->paramCount=0;
-        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 4, 0}; fe->function = fn;
-    }
-    {
-        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("input");
-        unsigned int h = hash("input", 5);
-        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
-        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = sys_input; fn->paramCount=1;
-        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 5, 0}; fe->function = fn;
-    }
-    {
-        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("getenv");
-        unsigned int h = hash("getenv", 6);
-        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
-        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = sys_getenv; fn->paramCount=1;
-        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 6, 0}; fe->function = fn;
-    }
-    {
-        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("fileExists");
-        unsigned int h = hash("fileExists", 10);
-        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
-        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = sys_fileExists; fn->paramCount=1;
-        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 10, 0}; fe->function = fn;
-    }
+    defineNative(vm, mod->env, "args", sys_args, 0);
+    defineNative(vm, mod->env, "input", sys_input, 1);
+    defineNative(vm, mod->env, "getenv", sys_getenv, 1);
+    defineNative(vm, mod->env, "fileExists", sys_fileExists, 1);
 
-    // Add to global
-    VarEntry* ve = malloc(sizeof(VarEntry));
-    ve->key = strdup("ucoreSystem");
-    ve->keyLength = 11;
-    ve->ownsKey = true;
-    ve->value.type = VAL_MODULE;
-    ve->value.moduleVal = mod;
-    unsigned int h = hash("ucoreSystem", 11);
-    ve->next = vm->globalEnv->buckets[h];
-    vm->globalEnv->buckets[h] = ve;
+    Value vMod; vMod.type = VAL_MODULE; vMod.moduleVal = mod;
+    defineGlobal(vm, "ucoreSystem", vMod);
 }
