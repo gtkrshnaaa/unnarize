@@ -7,14 +7,16 @@
 
 // Value types for VM
 typedef enum {
+    VAL_BOOL,
     VAL_INT,
     VAL_FLOAT,
     VAL_STRING,
-    VAL_BOOL,
     VAL_MODULE,
     VAL_ARRAY,
     VAL_MAP,
-    VAL_FUTURE
+    VAL_FUTURE,
+    VAL_STRUCT_DEF,
+    VAL_STRUCT_INSTANCE
 } ValueType;
 
 // Value structure for runtime values
@@ -22,19 +24,23 @@ typedef struct Module Module;
 typedef struct Array Array;
 typedef struct Map Map;
 typedef struct Future Future;
+typedef struct StructDef StructDef;
+typedef struct StructInstance StructInstance;
 
 // Value structure for runtime values
 typedef struct {
     ValueType type;
     union {
+        bool boolVal;
         int intVal;
         double floatVal;
         char* stringVal;
-        bool boolVal;
-        Module* moduleVal;
+        Module* moduleVal; // This should remain Module* as per the original code, not ModuleEntry*
         Array* arrayVal;
         Map* mapVal;
         Future* futureVal;
+        StructDef* structDef;
+        StructInstance* structInstance;
     };
 } Value;
 
@@ -117,6 +123,17 @@ struct MapEntry {
 
 struct Map {
     MapEntry* buckets[TABLE_SIZE];
+};
+
+struct StructDef {
+    char* name;
+    char** fields; // Array of field names
+    int fieldCount;
+};
+
+struct StructInstance {
+    StructDef* def;
+    Value* fields; // Array of values
 };
 
 // Module cache entry structure
