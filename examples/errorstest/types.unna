@@ -1,0 +1,2 @@
+// Runtime Error: Division by zero
+print(10 / 0);

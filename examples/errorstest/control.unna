@@ -1,0 +1,2 @@
+// Control Flow: Return outside function
+return 10;

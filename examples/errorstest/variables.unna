@@ -1,0 +1,2 @@
+// Variable Error: Undefined variable
+print(unknownVar);
