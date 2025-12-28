@@ -585,14 +585,54 @@ static void execute(VM* vm, Node* node) {
             break;
         }
         case NODE_STMT_ASSIGN: {
-            Value value = evaluate(vm, node->assign.value);
-            VarEntry* entry = findEntry(vm, node->assign.name, false);
+            Value val = evaluate(vm, node->assign.value);
+            VarEntry* entry = findEntry(vm, node->assign.name, true);
             if (entry) {
-                // Free old string value if exists
-                if (entry->value.type == VAL_STRING && entry->value.stringVal) {
-                    free(entry->value.stringVal);
+                if (node->assign.operator.type != TOKEN_EQUAL) {
+                    // Compound assignment
+                    Value current = entry->value;
+                    if ((current.type == VAL_INT || current.type == VAL_FLOAT) && 
+                        (val.type == VAL_INT || val.type == VAL_FLOAT)) {
+                        double l = current.type==VAL_INT ? (double)current.intVal : current.floatVal;
+                        double r = val.type==VAL_INT ? (double)val.intVal : val.floatVal;
+                        bool isInt = current.type==VAL_INT && val.type==VAL_INT;
+                        
+                        double res = 0;
+                        switch (node->assign.operator.type) {
+                            case TOKEN_PLUS_EQUAL: res = l + r; break;
+                            case TOKEN_MINUS_EQUAL: res = l - r; break;
+                            case TOKEN_STAR_EQUAL: res = l * r; break;
+                            case TOKEN_SLASH_EQUAL: res = l / r; break;
+                            default: break;
+                        }
+                        
+                        if (isInt && node->assign.operator.type != TOKEN_SLASH_EQUAL) {
+                            // Keep int if both are int and not division (div is usually float or int div? Unnarize div: 10/3 = 3. 10.0/3.0 = 3.33)
+                            // Existing VM: int/int -> int.
+                            if (node->assign.operator.type == TOKEN_SLASH_EQUAL) {
+                                if (val.intVal == 0) error("Division by zero.", 0);
+                                entry->value.intVal /= val.intVal;
+                            } else {
+                                entry->value.intVal = (int)res;
+                            }
+                        } else {
+                           entry->value.type = VAL_FLOAT;
+                           entry->value.floatVal = res;
+                        }
+                    } else if (node->assign.operator.type == TOKEN_PLUS_EQUAL && current.type == VAL_STRING && val.type == VAL_STRING) {
+                        // String concat
+                        char* s = malloc(strlen(current.stringVal) + strlen(val.stringVal) + 1);
+                        strcpy(s, current.stringVal);
+                        strcat(s, val.stringVal);
+                        // free(entry->value.stringVal); // Maybe? ownership
+                        entry->value.stringVal = s;
+                        entry->value.type = VAL_STRING;
+                    } else {
+                        error("Invalid types for compound assignment.", 0);
+                    }
+                } else {
+                    entry->value = val;
                 }
-                entry->value = value;
             } else {
                 error("Undefined variable.", node->assign.name.line);
             }
@@ -637,13 +677,42 @@ static void execute(VM* vm, Node* node) {
             Value target = evaluate(vm, node->indexAssign.target);
             Value idx = evaluate(vm, node->indexAssign.index);
             Value val = evaluate(vm, node->indexAssign.value);
+            
             if (target.type == VAL_ARRAY) {
                 if (idx.type != VAL_INT) error("Array index must be int.", 0);
                 if (idx.intVal < 0 || idx.intVal >= (target.arrayVal ? target.arrayVal->count : 0)) {
                     error("Array index out of range.", 0);
                 }
-                target.arrayVal->items[idx.intVal] = val;
+                
+                Value* slot = &target.arrayVal->items[idx.intVal];
+                if (node->indexAssign.operator.type != TOKEN_EQUAL) {
+                     Value current = *slot;
+                     if (current.type == VAL_INT && val.type == VAL_INT) {
+                         switch (node->indexAssign.operator.type) {
+                             case TOKEN_PLUS_EQUAL: slot->intVal += val.intVal; break;
+                             case TOKEN_MINUS_EQUAL: slot->intVal -= val.intVal; break;
+                             case TOKEN_STAR_EQUAL: slot->intVal *= val.intVal; break;
+                             case TOKEN_SLASH_EQUAL: slot->intVal /= val.intVal; break;
+                         }
+                     } else {
+                         // Simple float fallback
+                         double l = current.type==VAL_INT?(double)current.intVal:current.floatVal;
+                         double r = val.type==VAL_INT?(double)val.intVal:val.floatVal;
+                         slot->type = VAL_FLOAT;
+                         switch (node->indexAssign.operator.type) {
+                             case TOKEN_PLUS_EQUAL: slot->floatVal = l + r; break;
+                             case TOKEN_MINUS_EQUAL: slot->floatVal = l - r; break;
+                             case TOKEN_STAR_EQUAL: slot->floatVal = l * r; break;
+                             case TOKEN_SLASH_EQUAL: slot->floatVal = l / r; break;
+                         }
+                     }
+                } else {
+                    *slot = val;
+                }
             } else if (target.type == VAL_MAP) {
+                // Map compound assignment not implemented for MVP (needs Read-Modify-Write which is expensive in current map impl)
+                if (node->indexAssign.operator.type != TOKEN_EQUAL) error("Compound assignment not supported for maps.", 0);
+
                 if (idx.type == VAL_INT) {
                     mapSetInt(target.mapVal, idx.intVal, val);
                 } else if (idx.type == VAL_STRING) {
@@ -792,9 +861,29 @@ static void execute(VM* vm, Node* node) {
                 
                 execute(vm, node->forStmt.body);
                 
+                // Check return
+                if (vm->callStackTop > 0 && vm->callStack[vm->callStackTop - 1].hasReturned) break;
+                
                 if (node->forStmt.increment) {
                     execute(vm, node->forStmt.increment);
                 }
+            }
+            break;
+        }
+        case NODE_STMT_FOREACH: {
+            Value collection = evaluate(vm, node->foreachStmt.collection);
+            VarEntry* iterator = findEntry(vm, node->foreachStmt.iterator, true);
+            
+            if (collection.type == VAL_ARRAY) {
+                if (collection.arrayVal) {
+                    for (int i = 0; i < collection.arrayVal->count; i++) {
+                        iterator->value = collection.arrayVal->items[i];
+                        execute(vm, node->foreachStmt.body);
+                        if (vm->callStackTop > 0 && vm->callStack[vm->callStackTop - 1].hasReturned) break;
+                    }
+                }
+            } else {
+                error("Foreach expects array.", node->foreachStmt.iterator.line);
             }
             break;
         }
@@ -829,6 +918,72 @@ static void execute(VM* vm, Node* node) {
                 entry->function = func;
             } else {
                 error("Function already defined.", node->function.name.line);
+            }
+            break;
+        }
+        case NODE_STMT_STRUCT_DECL: {
+            StructDef* def = malloc(sizeof(StructDef));
+            if (!def) error("Memory allocation failed for struct.", node->structDecl.name.line);
+            
+            int len = node->structDecl.name.length;
+            def->name = strndup(node->structDecl.name.start, len);
+            def->fieldCount = node->structDecl.fieldCount;
+            def->fields = malloc(def->fieldCount * sizeof(char*));
+            
+            for (int i = 0; i < def->fieldCount; i++) {
+                Token ft = node->structDecl.fields[i];
+                def->fields[i] = strndup(ft.start, ft.length);
+            }
+            
+            VarEntry* entry = findEntry(vm, node->structDecl.name, true);
+            entry->value.type = VAL_STRUCT_DEF;
+            entry->value.structDef = def;
+            break;
+        }
+        case NODE_STMT_PROP_ASSIGN: {
+            Value obj = evaluate(vm, node->propAssign.object);
+            Value val = evaluate(vm, node->propAssign.value);
+            
+            if (obj.type == VAL_STRUCT_INSTANCE) {
+                StructInstance* inst = obj.structInstance;
+                int idx = -1;
+                for (int i = 0; i < inst->def->fieldCount; i++) {
+                     if (strncmp(inst->def->fields[i], node->propAssign.name.start, node->propAssign.name.length) == 0 &&
+                         strlen(inst->def->fields[i]) == (size_t)node->propAssign.name.length) {
+                         idx = i;
+                         break;
+                     }
+                }
+                
+                if (idx == -1) error("Unknown struct field.", node->propAssign.name.line);
+                
+                Value* slot = &inst->fields[idx];
+                
+                if (node->propAssign.operator.type != TOKEN_EQUAL) {
+                     Value current = *slot;
+                     if (current.type == VAL_INT && val.type == VAL_INT) {
+                         switch (node->propAssign.operator.type) {
+                             case TOKEN_PLUS_EQUAL: slot->intVal += val.intVal; break;
+                             case TOKEN_MINUS_EQUAL: slot->intVal -= val.intVal; break;
+                             case TOKEN_STAR_EQUAL: slot->intVal *= val.intVal; break;
+                             case TOKEN_SLASH_EQUAL: slot->intVal /= val.intVal; break;
+                         }
+                     } else {
+                         double l = current.type==VAL_INT?(double)current.intVal:current.floatVal;
+                         double r = val.type==VAL_INT?(double)val.intVal:val.floatVal;
+                         slot->type = VAL_FLOAT;
+                         switch (node->propAssign.operator.type) {
+                             case TOKEN_PLUS_EQUAL: slot->floatVal = l + r; break;
+                             case TOKEN_MINUS_EQUAL: slot->floatVal = l - r; break;
+                             case TOKEN_STAR_EQUAL: slot->floatVal = l * r; break;
+                             case TOKEN_SLASH_EQUAL: slot->floatVal = l / r; break;
+                         }
+                     }
+                } else {
+                    *slot = val;
+                }
+            } else {
+                error("Only struct instances support property assignment.", node->propAssign.name.line);
             }
             break;
         }
@@ -1103,6 +1258,52 @@ static Value evaluate(VM* vm, Node* node) {
         }
         
         case NODE_EXPR_BINARY: {
+            // Short-circuit logical operators
+            if (node->binary.op.type == TOKEN_AND) {
+                Value left = evaluate(vm, node->binary.left);
+                bool leftTruth = false;
+                if (left.type == VAL_BOOL) leftTruth = left.boolVal;
+                else if (left.type == VAL_INT) leftTruth = left.intVal != 0;
+                else if (left.type == VAL_FLOAT) leftTruth = left.floatVal != 0;
+                else if (left.type == VAL_STRING) leftTruth = left.stringVal && *left.stringVal;
+                else leftTruth = true; // Arrays, maps etc are true
+                
+                if (!leftTruth) {
+                    Value v; v.type = VAL_BOOL; v.boolVal = false; return v;
+                }
+                Value right = evaluate(vm, node->binary.right);
+                bool rightTruth = false;
+                if (right.type == VAL_BOOL) rightTruth = right.boolVal;
+                else if (right.type == VAL_INT) rightTruth = right.intVal != 0;
+                else if (right.type == VAL_FLOAT) rightTruth = right.floatVal != 0;
+                else if (right.type == VAL_STRING) rightTruth = right.stringVal && *right.stringVal;
+                else rightTruth = true;
+                
+                Value v; v.type = VAL_BOOL; v.boolVal = rightTruth; return v;
+            }
+            if (node->binary.op.type == TOKEN_OR) {
+                Value left = evaluate(vm, node->binary.left);
+                bool leftTruth = false;
+                if (left.type == VAL_BOOL) leftTruth = left.boolVal;
+                else if (left.type == VAL_INT) leftTruth = left.intVal != 0;
+                else if (left.type == VAL_FLOAT) leftTruth = left.floatVal != 0;
+                else if (left.type == VAL_STRING) leftTruth = left.stringVal && *left.stringVal;
+                else leftTruth = true;
+                
+                if (leftTruth) {
+                    Value v; v.type = VAL_BOOL; v.boolVal = true; return v;
+                }
+                Value right = evaluate(vm, node->binary.right);
+                bool rightTruth = false;
+                if (right.type == VAL_BOOL) rightTruth = right.boolVal;
+                else if (right.type == VAL_INT) rightTruth = right.intVal != 0;
+                else if (right.type == VAL_FLOAT) rightTruth = right.floatVal != 0;
+                else if (right.type == VAL_STRING) rightTruth = right.stringVal && *right.stringVal;
+                else rightTruth = true;
+                
+                Value v; v.type = VAL_BOOL; v.boolVal = rightTruth; return v;
+            }
+
             Value left = evaluate(vm, node->binary.left);
             Value right = evaluate(vm, node->binary.right);
             Value result;
@@ -1394,6 +1595,35 @@ static Value evaluate(VM* vm, Node* node) {
             // Resolve function from callee expression
             Function* func = NULL;
             int errLine = 0;
+            
+            if (node->call.callee->type == NODE_EXPR_VAR) {
+                // Check Struct
+                VarEntry* ve = findEntry(vm, node->call.callee->var.name, false);
+                if (ve && ve->value.type == VAL_STRUCT_DEF) {
+                    StructDef* def = ve->value.structDef;
+                    
+                    Value args[16];
+                    int argCount = 0;
+                    Node* arg = node->call.arguments;
+                    while (arg && argCount < 16) {
+                        args[argCount++] = evaluate(vm, arg);
+                        arg = arg->next;
+                    }
+                    if (argCount != def->fieldCount) {
+                        error("Struct argument count mismatch.", node->call.callee->var.name.line);
+                    }
+                    
+                    StructInstance* inst = malloc(sizeof(StructInstance));
+                    inst->def = def;
+                    inst->fields = malloc(def->fieldCount * sizeof(Value));
+                    for (int i = 0; i < def->fieldCount; i++) {
+                        inst->fields[i] = args[i];
+                    }
+                    Value v; v.type = VAL_STRUCT_INSTANCE; v.structInstance = inst;
+                    return v;
+                }
+            }
+            
             if (node->call.callee->type == NODE_EXPR_VAR) {
                 // Try global functions first
                 func = findFunction(vm, node->call.callee->var.name);
@@ -1554,6 +1784,15 @@ static Value evaluate(VM* vm, Node* node) {
                 if (ve) return ve->value;
                 // If not a variable, allow chained call to resolve function. Here return int 0 to keep flow if used wrongly.
                 error("Unknown module member.", node->get.name.line);
+            } else if (obj.type == VAL_STRUCT_INSTANCE) {
+                StructInstance* inst = obj.structInstance;
+                for (int i = 0; i < inst->def->fieldCount; i++) {
+                     if (strncmp(inst->def->fields[i], node->get.name.start, node->get.name.length) == 0 && 
+                         strlen(inst->def->fields[i]) == (size_t)node->get.name.length) {
+                         return inst->fields[i];
+                     }
+                }
+                error("Unknown struct field.", node->get.name.line);
             } else {
                 error("Property access not supported on this type.", node->get.name.line);
             }
