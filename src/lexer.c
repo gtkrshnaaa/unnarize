@@ -115,6 +115,7 @@ static TokenType identifierType(Lexer* lexer) {
             }
             break;
         case 'r': return checkKeyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
+        case 's': return checkKeyword(lexer, 1, 5, "truct", TOKEN_STRUCT);
         case 't': return checkKeyword(lexer, 1, 3, "rue", TOKEN_TRUE);
     }
     return TOKEN_IDENTIFIER;
@@ -173,14 +174,25 @@ Token scanToken(Lexer* lexer) {
         case '}': return makeToken(lexer, TOKEN_RIGHT_BRACE);
         case '[': return makeToken(lexer, TOKEN_LEFT_BRACKET);
         case ']': return makeToken(lexer, TOKEN_RIGHT_BRACKET);
+        case ':': return makeToken(lexer, TOKEN_COLON);
         case ';': return makeToken(lexer, TOKEN_SEMICOLON);
         case ',': return makeToken(lexer, TOKEN_COMMA);
         case '.': return makeToken(lexer, TOKEN_DOT);
-        case '+': return makeToken(lexer, TOKEN_PLUS);
-        case '-': return makeToken(lexer, TOKEN_MINUS);
-        case '*': return makeToken(lexer, TOKEN_STAR);
-        case '/': return makeToken(lexer, TOKEN_SLASH);
+        case '+': 
+            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_PLUS_EQUAL) : TOKEN_PLUS);
+        case '-': 
+            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_MINUS_EQUAL) : TOKEN_MINUS);
+        case '*': 
+            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_STAR_EQUAL) : TOKEN_STAR);
+        case '/': 
+            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_SLASH_EQUAL) : TOKEN_SLASH);
         case '%': return makeToken(lexer, TOKEN_PERCENT);
+        case '&':
+            if (*lexer->current == '&') { lexer->current++; return makeToken(lexer, TOKEN_AND); }
+            else return errorToken(lexer, "Unexpected character '&'.");
+        case '|':
+            if (*lexer->current == '|') { lexer->current++; return makeToken(lexer, TOKEN_OR); }
+            else return errorToken(lexer, "Unexpected character '|'.");
         case '!':
             return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_BANG_EQUAL) : TOKEN_EOF); // ! or !=
         case '=':
