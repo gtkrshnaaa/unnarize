@@ -84,7 +84,14 @@ static TokenType identifierType(Lexer* lexer) {
             break;
         }
         case 'l':
+            if (lexer->current - lexer->start > 1) {
+                if (*(lexer->start + 1) == 'o') return checkKeyword(lexer, 2, 7, "adextern", TOKEN_LOADEXTERN);
+            }
+            // Fallback if not loadextern? No, loadextern is only word starting with l? 
+            // Wait, previous code: checkKeyword(lexer, 1, 9, "oadextern", TOKEN_LOADEXTERN);
+            // I should just add 'n' case.
             return checkKeyword(lexer, 1, 9, "oadextern", TOKEN_LOADEXTERN);
+        case 'n': return checkKeyword(lexer, 1, 2, "il", TOKEN_NIL);
         case 'v': return checkKeyword(lexer, 1, 2, "ar", TOKEN_VAR);
         case 'p': return checkKeyword(lexer, 1, 4, "rint", TOKEN_PRINT);
         case 'e': return checkKeyword(lexer, 1, 3, "lse", TOKEN_ELSE);
