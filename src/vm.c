@@ -1305,6 +1305,34 @@ static Value evaluate(VM* vm, Node* node) {
                 } else {
                     errorAtToken(node->unary.op, "Cannot negate non-numeric value.");
                 }
+            } else if (node->unary.op.type == TOKEN_PLUS) {
+                if (expr.type != VAL_INT && expr.type != VAL_FLOAT) {
+                    errorAtToken(node->unary.op, "Unary '+' requires numeric value.");
+                }
+                // No-op for numbers 
+            } else if (node->unary.op.type == TOKEN_BANG) {
+                bool isTrue = false;
+                switch (expr.type) {
+                    case VAL_BOOL: isTrue = expr.boolVal; break;
+                    case VAL_INT: isTrue = expr.intVal != 0; break;
+                    case VAL_FLOAT: isTrue = expr.floatVal != 0.0; break;
+                    case VAL_STRING: isTrue = expr.stringVal && *expr.stringVal; break;
+                    case VAL_ARRAY: isTrue = expr.arrayVal != NULL; break; // Empty array is true in many langs, or check count? JS: true. Python: count>0.
+                                    // consistently with IF stmt: count > 0?
+                                    // VM IF stmt says: count > 0.
+                                    // Let's match IF stmt logic manually or generally.
+                                    // IF stmt:
+                                    // case VAL_ARRAY: isTrue = cond.arrayVal && cond.arrayVal->count > 0;
+                                    isTrue = expr.arrayVal && expr.arrayVal->count > 0;
+                                    break;
+                    case VAL_MAP: { /* skipping deep check for speed? IF check size > 0 */ 
+                        int sz = 0; if (expr.mapVal) { for (int i = 0; i < TABLE_SIZE; i++) { if (expr.mapVal->buckets[i]) { sz=1; break; } } }
+                        isTrue = sz > 0;
+                        break;
+                    }
+                    default: isTrue = true; break;
+                }
+                return (Value){VAL_BOOL, .boolVal = !isTrue};
             }
             return expr;
         }
@@ -1847,7 +1875,8 @@ static Value evaluate(VM* vm, Node* node) {
                 error("Unknown string property.", node->get.name.line);
             }
             if (obj.type == VAL_ARRAY) {
-                if (strncmp(node->get.name.start, "length", node->get.name.length) == 0 && strlen("length") == (size_t)node->get.name.length) {
+                if ((strncmp(node->get.name.start, "length", node->get.name.length) == 0 && strlen("length") == (size_t)node->get.name.length) ||
+                    (strncmp(node->get.name.start, "count", node->get.name.length) == 0 && strlen("count") == (size_t)node->get.name.length)) {
                     Value v; v.type = VAL_INT; v.intVal = obj.arrayVal->count; return v;
                 }
                 error("Unknown array property.", node->get.name.line);
@@ -1943,6 +1972,8 @@ static Value evaluate(VM* vm, Node* node) {
 void initVM(VM* vm) {
     vm->stackTop = 0;
     vm->callStackTop = 0;
+    vm->argc = 0;
+    vm->argv = NULL;
     
     // Create global environment
     vm->globalEnv = malloc(sizeof(Environment));
