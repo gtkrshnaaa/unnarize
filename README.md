@@ -392,67 +392,67 @@ Run the comprehensive performance benchmark suite:
 make run-timer-benchmark
 ```
 
-## Plugin System
+## Core Libraries
 
-Unnarize features a powerful plugin system that allows you to extend the language with native C functions.
+Unnarize includes built-in core libraries that provide essential functionality without requiring any external dependencies.
 
-### Available Plugins
+### Available Core Libraries
 
-| Plugin | Functions | Description |
+| Library | Functions | Description |
 |---|---|---|
-| **mathLib** | `mathPower(base, exp)` | Mathematical operations |
-| **stringLib** | `stringUpper(str)`, `stringLength(str)` | String manipulation |
-| **timeLib** | `timeNow()`, `timeSleep(ms)` | Time and sleep functions |
-| **timerLib** | `timerStart()`, `timerElapsed()`, `timerElapsedMicros()` | High-precision benchmarking |
+| **ucoreUon** | `load(file)`, `get(table)`, `next(cursor)`, `parse(schema)`, `insert(table, data)`, `save(file)` | Built-in database with streaming file I/O |
+| **ucoreHttp** | `listen(port, handler)` | HTTP server for creating web services |
+| **ucoreTimer** | `now()`, `sleep(ms)` | Timing operations and sleep functionality |
+| **ucoreSystem** | `fileExists(path)` | System-level operations |
 
-### Quick Start
+### Usage Examples
 
-```bash
-# Build all plugins
-make build-plugins-all
+#### ucoreUon - Database Operations
 
-# Run plugin demos
-make plugins-demo-run
+```javascript
+// Load UON database
+var success = ucoreUon.load("database.uon");
 
-# Run performance benchmark
-make run-timer-benchmark
-```
+// Query a table
+var cursor = ucoreUon.get("users");
 
-### Plugin Development
-
-`loadextern(path)` dynamically loads a shared library (.so) and registers native functions:
-
-```c
-// Minimal plugin example
-#include <dlfcn.h>
-typedef struct VM VM;
-typedef enum { VAL_INT, VAL_FLOAT, VAL_STRING, VAL_BOOL, VAL_MODULE, VAL_ARRAY, VAL_MAP } ValueType;
-typedef struct { ValueType type; union { int intVal; double floatVal; char* stringVal; int boolVal; void* moduleVal; void* arrayVal; void* mapVal; }; } Value;
-typedef Value (*NativeFn)(VM*, Value* args, int argc);
-typedef void (*RegisterFn)(VM*, const char* name, NativeFn fn);
-
-static Value add1(VM* vm, Value* args, int argc) {
-  (void)vm; Value v; v.type = VAL_INT; v.intVal = 0;
-  if (argc == 1 && args[0].type == VAL_INT) { v.intVal = args[0].intVal + 1; }
-  return v;
-}
-
-void registerFunctions(VM* vm) {
-  RegisterFn reg = (RegisterFn)dlsym(RTLD_DEFAULT, "registerNativeFunction");
-  if (!reg) return;
-  reg(vm, "add1", &add1);
+// Iterate through results
+var user = ucoreUon.next(cursor);
+while (user) {
+    print("User: " + user.name);
+    user = ucoreUon.next(cursor);
 }
 ```
 
-**Build:**
-```sh
-gcc -shared -fPIC -o plugin.so plugin.c -ldl
+#### ucoreHttp - Web Server
+
+```javascript
+function handleRequest(req) {
+    print("Received " + req.method + " " + req.path);
+    return "Hello from Unnarize!";
+}
+
+ucoreHttp.listen(8080, "handleRequest");
 ```
 
-**Use:**
-```c
-loadextern("plugin.so");
-print(add1(41)); // 42
+#### ucoreTimer - Timing Operations
+
+```javascript
+var start = ucoreTimer.now();
+// ... do some work ...
+ucoreTimer.sleep(1000);  // Sleep 1 second
+var elapsed = ucoreTimer.now() - start;
+print("Elapsed: " + elapsed + "ms");
+```
+
+#### ucoreSystem - System Operations
+
+```javascript
+if (ucoreSystem.fileExists("config.uon")) {
+    print("Config file found");
+} else {
+    print("Config file not found");
+}
 ```
 
 ## Language Syntax Showcase
