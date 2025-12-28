@@ -75,7 +75,7 @@ static bool futureIsDone(Future* f) {
 }
 
 // Optimized FNV-1a hash function for variables (faster than previous implementation)
-static unsigned int hash(const char* key, int length) {
+unsigned int hash(const char* key, int length) {
     unsigned int hash = 2166136261u;
     const unsigned char* data = (const unsigned char*)key;
     for (int i = 0; i < length; i++) {
@@ -291,7 +291,7 @@ static bool tryCharCode(Value v, int* out) {
 }
 
 // ---- Array helpers ----
-static Array* newArray(void) {
+Array* newArray(void) {
     Array* a = (Array*)malloc(sizeof(Array));
     if (!a) error("Memory allocation failed.", 0);
     a->items = NULL; a->count = 0; a->capacity = 0;
@@ -305,7 +305,7 @@ static void arrayEnsureCap(Array* a, int cap) {
     if (!ni) error("Memory allocation failed.", 0);
     a->items = ni; a->capacity = nc;
 }
-static void arrayPush(Array* a, Value v) {
+void arrayPush(Array* a, Value v) {
     arrayEnsureCap(a, a->count + 1);
     a->items[a->count++] = v;
 }
@@ -317,13 +317,13 @@ static bool arrayPop(Array* a, Value* out) {
 }
 
 // ---- Map helpers ----
-static Map* newMap(void) {
+Map* newMap(void) {
     Map* m = (Map*)malloc(sizeof(Map));
     if (!m) error("Memory allocation failed.", 0);
     for (int i = 0; i < TABLE_SIZE; i++) m->buckets[i] = NULL;
     return m;
 }
-static MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut) {
+MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut) {
     unsigned int h = hash(skey, slen);
     if (bucketOut) *bucketOut = (int)h;
     MapEntry* e = m->buckets[h];
@@ -343,7 +343,7 @@ static MapEntry* mapFindEntryInt(Map* m, int ikey, int* bucketOut) {
     }
     return NULL;
 }
-static void mapSetStr(Map* m, const char* key, int len, Value v) {
+void mapSetStr(Map* m, const char* key, int len, Value v) {
     int b; MapEntry* e = mapFindEntry(m, key, len, &b);
     if (e) { e->value = v; return; }
     e = (MapEntry*)malloc(sizeof(MapEntry)); if (!e) error("Memory allocation failed.", 0);
@@ -351,7 +351,7 @@ static void mapSetStr(Map* m, const char* key, int len, Value v) {
     e->key = strndup(key, len); if (!e->key) { free(e); error("Memory allocation failed.", 0);} 
     e->value = v; e->next = m->buckets[b]; m->buckets[b] = e;
 }
-static void mapSetInt(Map* m, int ikey, Value v) {
+void mapSetInt(Map* m, int ikey, Value v) {
     int b; MapEntry* e = mapFindEntryInt(m, ikey, &b);
     if (e) { e->value = v; return; }
     e = (MapEntry*)malloc(sizeof(MapEntry)); if (!e) error("Memory allocation failed.", 0);
