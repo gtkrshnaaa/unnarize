@@ -38,18 +38,21 @@ static Value utimer_sleep(VM* vm, Value* args, int argCount) {
 }
 
 void registerUCoreTimer(VM* vm) {
-    char* modName = internString(vm, "ucoreTimer", 10);
-    Module* mod = malloc(sizeof(Module));
-    if (!mod) return;
-    mod->name = modName;
+    ObjString* modNameObj = internString(vm, "ucoreTimer", 10);
+    // Use raw chars
+    char* modName = modNameObj->chars;
+    
+    Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
+    mod->name = strdup(modName);
     mod->env = malloc(sizeof(Environment));
     if (!mod->env) return; 
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
+    mod->env->enclosing = NULL;
 
     defineNative(vm, mod->env, "now", utimer_now, 0);
     defineNative(vm, mod->env, "sleep", utimer_sleep, 1);
 
-    Value vMod; vMod.type = VAL_MODULE; vMod.moduleVal = mod;
+    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
     defineGlobal(vm, "ucoreTimer", vMod);
 }
