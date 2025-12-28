@@ -14,7 +14,7 @@ var cursor = ucoreUon.get("settings");
 if (cursor) {
     print("Iterating rows:");
     var row;
-    var row = ucoreUon.next(cursor);
+    row = ucoreUon.next(cursor);
     while (row) {
         print("Row object:");
         print(row);
