@@ -73,7 +73,9 @@ static Node* primary(Parser* parser) {
         Node* node = malloc(sizeof(Node));
         node->next = NULL;
         node->type = NODE_EXPR_VAR;
+        node->type = NODE_EXPR_VAR;
         node->var.name = parser->tokens[parser->current - 1];
+        node->var.slot = -1; // Initialize slot
         return finishPostfix(parser, node);
     }
     if (match(parser, TOKEN_LEFT_PAREN)) {
@@ -278,6 +280,7 @@ static Node* assignment(Parser* parser) {
             node->assign.name = expr->var.name;
             node->assign.operator = op;
             node->assign.value = value;
+            node->assign.slot = -1; // Initialize slot
             // Free the variable node as it's being converted to assignment target
             free(expr); 
             return node;
@@ -382,6 +385,7 @@ static Node* varDeclaration(Parser* parser) {
     node->type = NODE_STMT_VAR_DECL;
     node->varDecl.name = name;
     node->varDecl.initializer = initializer;
+    node->varDecl.slot = -1; // Initialize slot
     return node;
 }
 
@@ -470,6 +474,7 @@ static Node* forStatement(Parser* parser) {
             node->foreachStmt.iterator = name;
             node->foreachStmt.collection = collection;
             node->foreachStmt.body = body;
+            node->foreachStmt.slot = -1; // Initialize slot
             return node;
         }
 
