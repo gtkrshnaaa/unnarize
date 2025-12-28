@@ -97,7 +97,7 @@ static Node* unary(Parser* parser) {
         node->unary.expr = expr;
         return node;
     }
-    if (match(parser, TOKEN_MINUS) || match(parser, TOKEN_PLUS)) {
+    if (match(parser, TOKEN_MINUS) || match(parser, TOKEN_PLUS) || match(parser, TOKEN_BANG)) {
         Token op = parser->tokens[parser->current - 1];
         Node* expr = unary(parser);
         Node* node = malloc(sizeof(Node));
