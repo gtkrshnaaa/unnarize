@@ -94,6 +94,7 @@ static TokenType identifierType(Lexer* lexer) {
                 switch (*(lexer->start + 1)) {
                     case 'o': return checkKeyword(lexer, 2, 1, "r", TOKEN_FOR);
                     case 'u': return checkKeyword(lexer, 2, 6, "nction", TOKEN_FUNCTION);
+                    case 'a': return checkKeyword(lexer, 2, 3, "lse", TOKEN_FALSE);
                 }
             }
             break;
@@ -114,6 +115,7 @@ static TokenType identifierType(Lexer* lexer) {
             }
             break;
         case 'r': return checkKeyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
+        case 't': return checkKeyword(lexer, 1, 3, "rue", TOKEN_TRUE);
     }
     return TOKEN_IDENTIFIER;
 }
