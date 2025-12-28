@@ -2,6 +2,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "vm.h"
+#include "../corelib/ucore_uon.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
@@ -293,6 +294,7 @@ int main(int argc, char* argv[]) {
     // VM
     VM vm;
     initVM(&vm);
+    registerUCoreUON(&vm); // Register built-in core libraries
     interpret(&vm, ast);
 
     // Cleanup
