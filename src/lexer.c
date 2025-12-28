@@ -194,7 +194,7 @@ Token scanToken(Lexer* lexer) {
             if (*lexer->current == '|') { lexer->current++; return makeToken(lexer, TOKEN_OR); }
             else return errorToken(lexer, "Unexpected character '|'.");
         case '!':
-            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_BANG_EQUAL) : TOKEN_EOF); // ! or !=
+            return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_BANG_EQUAL) : TOKEN_BANG); // ! or !=
         case '=':
             return makeToken(lexer, (*lexer->current == '=') ? (lexer->current++, TOKEN_EQUAL_EQUAL) : TOKEN_EQUAL);
         case '>':
