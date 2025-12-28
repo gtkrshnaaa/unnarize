@@ -1102,12 +1102,12 @@ static void execute(VM* vm, Node* node) {
                 fullPath = searchFileRecursive(vm->projectRoot, modName);
             }
             if (!fullPath) {
-                error("Module file not found in project.", node->importStmt.module.line);
+                errorAtToken(node->importStmt.module, "Module file not found in project.");
             }
             char* source = readFileAll(fullPath);
             if (!source) {
                 free(fullPath);
-                error("Failed to read module file.", node->importStmt.module.line);
+                errorAtToken(node->importStmt.module, "Failed to read module file.");
             }
 
             // Prepare module environment
@@ -1238,7 +1238,7 @@ static Value evaluate(VM* vm, Node* node) {
             if (entry) {
                 return entry->value;
             }
-            error("Undefined variable.", node->var.name.line);
+            errorAtToken(node->var.name, "Undefined variable.");
             Value nullVal = {VAL_INT, .intVal = 0};
             return nullVal;
         }
@@ -1251,7 +1251,7 @@ static Value evaluate(VM* vm, Node* node) {
                 } else if (expr.type == VAL_FLOAT) {
                     expr.floatVal = -expr.floatVal;
                 } else {
-                    error("Cannot negate non-numeric value.", node->unary.op.line);
+                    errorAtToken(node->unary.op, "Cannot negate non-numeric value.");
                 }
             }
             return expr;
@@ -1469,13 +1469,13 @@ static Value evaluate(VM* vm, Node* node) {
                         break;
                     case TOKEN_SLASH: 
                         if (right.intVal == 0) {
-                            error("Division by zero.", node->binary.op.line);
+                            errorAtToken(node->binary.op, "Division by zero.");
                         }
                         result.intVal = left.intVal / right.intVal; 
                         break;
                     case TOKEN_PERCENT: 
                         if (right.intVal == 0) {
-                            error("Modulo by zero.", node->binary.op.line);
+                            errorAtToken(node->binary.op, "Modulo by zero.");
                         }
                         result.intVal = left.intVal % right.intVal; 
                         break;
