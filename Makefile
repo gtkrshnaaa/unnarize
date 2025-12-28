@@ -63,6 +63,15 @@ run-async: all
 run-modules: all
 	./$(EXECUTABLE) examples/05_modules.unna
 
+run-operators: all
+	./$(EXECUTABLE) examples/06_operators.unna
+
+run-foreach: all
+	./$(EXECUTABLE) examples/07_foreach.unna
+
+run-structs: all
+	./$(EXECUTABLE) examples/08_structs.unna
+
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.
 run-all: all build-plugins-all
