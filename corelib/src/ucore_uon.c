@@ -481,6 +481,8 @@ void registerUCoreUON(VM* vm) {
     // Add to global
     VarEntry* ve = malloc(sizeof(VarEntry));
     ve->key = strdup("ucoreUon");
+    ve->keyLength = 8;
+    ve->ownsKey = true;
     ve->value.type = VAL_MODULE;
     ve->value.moduleVal = mod;
     unsigned int h = hash("ucoreUon", 8);

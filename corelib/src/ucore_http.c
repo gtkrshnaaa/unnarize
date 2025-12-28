@@ -301,6 +301,8 @@ void registerUCoreHttp(VM* vm) {
     // Add to global
     VarEntry* ve = malloc(sizeof(VarEntry));
     ve->key = strdup("ucoreHttp");
+    ve->keyLength = 9;
+    ve->ownsKey = true;
     ve->value.type = VAL_MODULE; ve->value.moduleVal = mod;
     unsigned int h = hash("ucoreHttp", 9);
     ve->next = vm->globalEnv->buckets[h];

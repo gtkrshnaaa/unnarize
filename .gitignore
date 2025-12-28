@@ -1,9 +1,10 @@
 # Prerequisites
 *.d
 
-bin
-obj
-
+bin/
+obj/
+*.o
+*.uon
 z_listing
 
 # Object files
