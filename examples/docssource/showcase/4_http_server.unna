@@ -1,5 +1,5 @@
 // 4. Built-in HTTP Server
-// 4. Built-in HTTP Server
+
 // ucoreHttp is globally available
 
 function handleRequest(req) {
