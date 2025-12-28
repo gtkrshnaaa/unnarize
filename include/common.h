@@ -74,6 +74,9 @@ typedef struct {
 } Token;
 
 // Error reporting
+// Error reporting
+extern const char* g_source;
 void error(const char* message, int line);
+void errorAtToken(Token token, const char* message);
 
 #endif // COMMON_H
