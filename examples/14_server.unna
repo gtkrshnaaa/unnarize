@@ -1,0 +1,18 @@
+print("Starting server on 8085...");
+
+print("Starting server on 8085...");
+
+function serverHandler(req) {
+    print("[Server] Request: " + req.method + " " + req.path);
+    
+    if (req.path == "/hello") {
+        return "Hello from Unnarize Server!";
+    }
+    if (req.path == "/echo") {
+        return "Echo: " + req.body;
+    }
+    
+    return "404 Not Found";
+}
+
+ucoreHttp.listen(8085, "serverHandler");
