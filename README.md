@@ -46,8 +46,22 @@ A powerful, efficient, and modern scripting language built for performance and s
 ```bash
 git clone https://github.com/gtkrshnaaa/unnarize.git
 cd unnarize
-make
-./bin/unnarize examples/docssource/showcase/1_hello.unna
+## Quick Start
+
+```javascript
+// 1. Simple, Clean Syntax
+print("Hello, Unnarize!");
+
+// Variables
+var name = "Developer";
+print("Welcome, " + name);
+
+// Functions
+function greet(who) {
+    return "Hi, " + who + "!";
+}
+
+print(greet("World"));
 ```
 
 ## Examples
@@ -69,7 +83,7 @@ function greet(who) {
 print(greet("World"));
 ```
 
-### 2. Powerful Structures
+### 2. Structures
 ```javascript
 struct User {
     id;
@@ -119,34 +133,36 @@ print("Starting server on port 8080...");
 ucoreHttp.listen(8080, "handleRequest");
 ```
 
-### 5. UON (Unnarize Object Notation) Database
+### 5. Streaming File I/O (UON)
 ```javascript
-// 5. Native Database with UON
-// Define Schema
-ucoreUon.parse("@schema {\n    settings: [key, val]\n}");
+// 5. Streaming File I/O (Lazy Loading)
+print("Loading UON file (Streaming)...");
+var success = ucoreUon.load("app_data.uon");
+if (!success) {
+    print("Failed to load app_data.uon");
+}
 
-// Insert Data
-ucoreUon.insert("settings", ["theme", "dark"]);
-ucoreUon.insert("settings", ["retries", 3]);
-
-// Save Database
-ucoreUon.save("app_data.uon");
-print("Saved app_data.uon");
-
-// Clear and Load
-ucoreUon.parse("@flow { settings: [] }"); // Clear data
-ucoreUon.load("app_data.uon");
-
-// Query
-var rows = ucoreUon.get("settings");
-print("Loaded Theme: " + rows[0].val);
+print("Querying settings table...");
+var cursor = ucoreUon.get("settings");
+if (cursor) {
+    print("Iterating rows:");
+    var row;
+    row = ucoreUon.next(cursor);
+    while (row) {
+        print("  Row: " + row.key + " = " + row.val);
+        row = ucoreUon.next(cursor);
+    }
+    print("Done.");
+} else {
+    print("Table not found or error.");
+}
 ```
 
 ## About The Project
 
 Unnarize is a high-performance tree-walk interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), value pooling, and string interning infrastructure for maximum performance.
 
-Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **4+ million operations per second** while maintaining clean architecture and comprehensive feature support.
+Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **~17.8 million operations per second** on simple loops while maintaining clean architecture and comprehensive feature support.
 
 ### Core Philosophy
 **"Do something with one way, but perfect"** - Focus on efficiency, predictability, and elegant simplicity.
