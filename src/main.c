@@ -137,6 +137,19 @@ static void freeAST(Node* node) {
             freeAST(node->forStmt.increment);
             freeAST(node->forStmt.body);
             break;
+        case NODE_STMT_FOREACH:
+            freeAST(node->foreachStmt.collection);
+            freeAST(node->foreachStmt.body);
+            break;
+        case NODE_STMT_STRUCT_DECL:
+            if (node->structDecl.fields) {
+                free(node->structDecl.fields);
+            }
+            break;
+        case NODE_STMT_PROP_ASSIGN:
+            freeAST(node->propAssign.object);
+            freeAST(node->propAssign.value);
+            break;
         case NODE_STMT_BLOCK:
             for (int i = 0; i < node->block.count; i++) {
                 freeAST(node->block.statements[i]);
