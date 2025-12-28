@@ -29,12 +29,45 @@ static Value utimer_sleep(VM* vm, Value* args, int argCount) {
     }
     
     int ms = args[0].intVal;
-    usleep(ms * 1000); // usleep takes microseconds
+    struct timespec req;
+    req.tv_sec = ms / 1000;
+    req.tv_nsec = (ms % 1000) * 1000000;
+    nanosleep(&req, NULL);
     
     return (Value){VAL_INT, .intVal = 0};
 }
 
 void registerUCoreTimer(VM* vm) {
-    registerNativeFunction(vm, "ucoreTimer.now", utimer_now);
-    registerNativeFunction(vm, "ucoreTimer.sleep", utimer_sleep);
+    // Create Module
+    Module* mod = malloc(sizeof(Module));
+    if (!mod) return;
+    mod->name = strdup("ucoreTimer");
+    mod->env = malloc(sizeof(Environment));
+    if (!mod->env) return; // Should free mod
+    memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
+    memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
+
+    // Register now()
+    unsigned int hNow = hash("now", 3);
+    FuncEntry* feNow = malloc(sizeof(FuncEntry)); feNow->key = strdup("now");
+    feNow->next = mod->env->funcBuckets[hNow]; mod->env->funcBuckets[hNow] = feNow;
+    Function* fnNow = malloc(sizeof(Function)); fnNow->isNative = true; fnNow->native = utimer_now; fnNow->paramCount = 0;
+    fnNow->name = (Token){TOKEN_IDENTIFIER, feNow->key, 3, 0}; feNow->function = fnNow;
+
+    // Register sleep(ms)
+    unsigned int hSleep = hash("sleep", 5);
+    FuncEntry* feSleep = malloc(sizeof(FuncEntry)); feSleep->key = strdup("sleep");
+    feSleep->next = mod->env->funcBuckets[hSleep]; mod->env->funcBuckets[hSleep] = feSleep;
+    Function* fnSleep = malloc(sizeof(Function)); fnSleep->isNative = true; fnSleep->native = utimer_sleep; fnSleep->paramCount = 1;
+    fnSleep->name = (Token){TOKEN_IDENTIFIER, feSleep->key, 5, 0}; feSleep->function = fnSleep;
+
+    // Add ucoreTimer to global environment
+    VarEntry* ve = malloc(sizeof(VarEntry));
+    ve->key = strdup("ucoreTimer");
+    ve->keyLength = 10;
+    ve->ownsKey = true;
+    ve->value.type = VAL_MODULE; ve->value.moduleVal = mod;
+    unsigned int h = hash("ucoreTimer", 10);
+    ve->next = vm->globalEnv->buckets[h];
+    vm->globalEnv->buckets[h] = ve;
 }

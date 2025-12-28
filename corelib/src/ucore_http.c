@@ -37,7 +37,11 @@ static bool parseUrl(const char* url, char* hostOut, char* pathOut, int* portOut
     
     // Path
     if (*p == '/') {
-        strncpy(pathOut, p, 1024); // simplistic
+        // strncpy triggers warning for truncation, use safer copy
+        size_t len = strlen(p);
+        if (len >= 1024) len = 1023;
+        memcpy(pathOut, p, len);
+        pathOut[len] = '\0';
     } else {
         strcpy(pathOut, "/");
     }
