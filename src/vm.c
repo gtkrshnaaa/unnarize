@@ -1063,6 +1063,13 @@ static Value evaluate(VM* vm, Node* node) {
                     val.stringVal = strdup("");
                 }
                 if (!val.stringVal) error("Memory allocation failed.", t.line);
+                if (!val.stringVal) error("Memory allocation failed.", t.line);
+            } else if (t.type == TOKEN_TRUE) {
+                val.type = VAL_BOOL;
+                val.boolVal = true;
+            } else if (t.type == TOKEN_FALSE) {
+                val.type = VAL_BOOL;
+                val.boolVal = false;
             } else {
                 error("Invalid literal type.", t.line);
                 val.type = VAL_INT;
@@ -1588,6 +1595,20 @@ static Value evaluate(VM* vm, Node* node) {
             error("Indexing not supported for this type.", 0);
             Value nullVal = {VAL_INT, .intVal = 0};
             return nullVal;
+        }
+
+        case NODE_EXPR_ARRAY_LITERAL: {
+            Array* arr = newArray();
+            Node* elem = node->arrayLiteral.elements;
+            while (elem) {
+                Value v = evaluate(vm, elem);
+                arrayPush(arr, v);
+                elem = elem->next;
+            }
+            Value v;
+            v.type = VAL_ARRAY;
+            v.arrayVal = arr;
+            return v;
         }
         
         default:
