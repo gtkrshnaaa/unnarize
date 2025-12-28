@@ -24,16 +24,25 @@ function stringConcat(n) {
     return s.length;
 }
 
+var start = 0.0;
+var end = 0.0;
+
 // Run Fib
 // print("Running Fibonacci(25)...");
 // print(fib(25));
 
 // Run Loop
 print("Running SumLoop(100000)...");
+start = ucoreTimer.now();
 print(sumLoop(100000));
+end = ucoreTimer.now();
+print("Time: " + (end - start) + " ms");
 
 // Run String
 print("Running StringConcat(1000)...");
+start = ucoreTimer.now();
 print(stringConcat(1000));
+end = ucoreTimer.now();
+print("Time: " + (end - start) + " ms");
 
 print("Benchmark Done.");

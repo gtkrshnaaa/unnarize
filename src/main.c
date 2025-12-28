@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "ucore_uon.h"
 #include "ucore_http.h"
+#include "ucore_timer.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
@@ -297,6 +298,7 @@ int main(int argc, char* argv[]) {
     initVM(&vm);
     registerUCoreUON(&vm); // Register built-in core libraries
     registerUCoreHttp(&vm);
+    registerUCoreTimer(&vm); // Register Timer
     interpret(&vm, ast);
 
     // Cleanup
