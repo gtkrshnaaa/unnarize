@@ -40,12 +40,32 @@ static Node* finishPostfix(Parser* parser, Node* expr);
 
 // Parse primary (literals, vars, groups)
 static Node* primary(Parser* parser) {
-    if (match(parser, TOKEN_NUMBER) || match(parser, TOKEN_STRING)) {
+    if (match(parser, TOKEN_NUMBER) || match(parser, TOKEN_STRING) || 
+        match(parser, TOKEN_TRUE) || match(parser, TOKEN_FALSE)) {
         Node* node = malloc(sizeof(Node));
         node->next = NULL;
         node->type = NODE_EXPR_LITERAL;
         node->literal.token = parser->tokens[parser->current - 1];
         return node;
+    }
+    if (match(parser, TOKEN_LEFT_BRACKET)) {
+        // Array literal [e1, e2, ...]
+        Node* node = malloc(sizeof(Node));
+        node->next = NULL;
+        node->type = NODE_EXPR_ARRAY_LITERAL;
+        node->arrayLiteral.elements = NULL;
+        node->arrayLiteral.count = 0;
+
+        if (!check(parser, TOKEN_RIGHT_BRACKET)) {
+            Node** currentElem = &node->arrayLiteral.elements;
+            do {
+                *currentElem = expression(parser);
+                node->arrayLiteral.count++;
+                currentElem = &(*currentElem)->next;
+            } while (match(parser, TOKEN_COMMA));
+        }
+        consume(parser, TOKEN_RIGHT_BRACKET, "Expect ']' after array literal.");
+        return finishPostfix(parser, node);
     }
     if (match(parser, TOKEN_IDENTIFIER)) {
         // Variable reference base
