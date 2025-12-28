@@ -52,7 +52,9 @@ typedef enum {
     TOKEN_FUNCTION,
     TOKEN_RETURN,
     TOKEN_COMMA,
-    TOKEN_LOADEXTERN
+    TOKEN_LOADEXTERN,
+    TOKEN_TRUE,
+    TOKEN_FALSE
 } TokenType;
 
 // Token structure
