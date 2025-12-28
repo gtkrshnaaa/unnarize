@@ -1,10 +1,12 @@
 #include "common.h"
+#include <unistd.h>
 #include "lexer.h"
 #include "parser.h"
 #include "vm.h"
 #include "ucore_uon.h"
 #include "ucore_http.h"
 #include "ucore_timer.h"
+#include "ucore_system.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
@@ -256,14 +258,14 @@ static void freeAST(Node* node) {
     free(node);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     // Support version flags
     if (argc == 2 && (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
         printf("unnarize %s\n", UNNARIZE_VERSION);
         return 0;
     }
 
-    if (argc != 2) {
+    if (argc < 2) {
         fprintf(stderr, "Usage: %s <file.unna>\n", argv[0]);
         fprintf(stderr, "       %s -v | --version\n", argv[0]);
         return 1;
@@ -296,9 +298,20 @@ int main(int argc, char* argv[]) {
     // VM
     VM vm;
     initVM(&vm);
+    vm.argc = argc;
+    vm.argv = argv;
+
+    char* projectRoot = getenv("UNNARIZE_ROOT");
+    if (projectRoot) {
+        strncpy(vm.projectRoot, projectRoot, 1023);
+    } else {
+        getcwd(vm.projectRoot, 1024);
+    }
+
     registerUCoreUON(&vm); // Register built-in core libraries
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
+    registerUCoreSystem(&vm); // Register System
     interpret(&vm, ast);
 
     // Cleanup
