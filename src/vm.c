@@ -19,10 +19,21 @@
 static Future* futureNew(VM* vm);
 static void futureResolve(Future* f, Value v);
 static Value futureAwait(Future* f);
-static bool futureIsDone(Future* f);
+// static bool futureIsDone(Future* f);
 
 // Args and thread routine for sleepAsync
 typedef struct { Future* f; int ms; } SleepArgs;
+/*
+static void* sleepThread(void* p) {
+    long ms = (long)p;
+    struct timespec ts;
+    ts.tv_sec = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+    return NULL;
+}
+*/
+#if 0
 static void* sleepThread(void* p) {
     SleepArgs* a = (SleepArgs*)p;
     if (a->ms > 0) {
@@ -36,6 +47,7 @@ static void* sleepThread(void* p) {
     free(a);
     return NULL;
 }
+#endif
 
 // ---- Future helpers (blocking await) ----
 static Future* futureNew(VM* vm) {
@@ -67,12 +79,24 @@ static Value futureAwait(Future* f) {
     return v;
 }
 
+/*
+static bool futureIsDone(Future* f) {
+    if (!f) return true;
+    bool done = false;
+    pthread_mutex_lock(&f->mutex);
+    done = f->completed;
+    pthread_mutex_unlock(&f->mutex);
+    return done;
+}
+*/
+#if 0
 static bool futureIsDone(Future* f) {
     pthread_mutex_lock(&f->mu);
     bool d = f->done;
     pthread_mutex_unlock(&f->mu);
     return d;
 }
+#endif
 
 // Optimized FNV-1a hash function for variables (faster than previous implementation)
 unsigned int hash(const char* key, int length) {
@@ -361,6 +385,19 @@ static void internAST(VM* vm, Node* node) {
 }
 
 // Module cache lookup/insert by logical module name
+/*
+static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool insert) {
+     unsigned int h = hashPointer(name) % TABLE_SIZE; // Assumes name is interned?
+     // Actually name might not be interned if searching.
+     // But for module registry, we typically intern keys.
+     // However, simpler hash:
+     // unsigned int h = hash(name, length) % TABLE_SIZE;
+     // vm->modules is Simple map?
+     // Let's rely on string interning for modules too?
+     return NULL;
+}
+*/
+#if 0
 static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool insert) {
     // For ModuleEntry, we intern the key first
     char* key = internString(vm, name, length)->chars;
@@ -385,7 +422,6 @@ static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool i
     if (!e) error("Memory allocation failed.", 0);
     // e->name = key; // Should use interned char* if we trust it stays alive by being in ObjString rooted?
     // ObjString might be collected if not rooted!
-    // ModuleEntry is in VM roots? Not implicitly.
     // We should duplicate name or root the ObjString.
     // For now, duplicate to be safe
     e->name = malloc(length + 1);
@@ -396,12 +432,21 @@ static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool i
     vm->moduleBuckets[idx] = e;
     return e;
 }
+#endif
 
 // Check if regular file exists
+/*
+static bool fileExists(const char* path) {
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+*/
+#if 0
 static bool fileExists(const char* path) {
     struct stat st;
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
+#endif
 
 // Find or insert variable with proper scope resolution
 static VarEntry* findEntry(VM* vm, Token name, bool insert) {
@@ -547,6 +592,30 @@ char* readFileAll(const char* path) {
 }
 
 // Recursively search for a filename under root. Returns malloc'd full path or NULL
+/*
+static char* searchFileRecursive(const char* root, const char* filename) {
+    DIR* d = opendir(root);
+    if (!d) return NULL;
+    struct dirent* dir;
+    char* found = NULL;
+    while ((dir=readdir(d)) != NULL) {
+         if (dir->d_type == DT_REG && strcmp(dir->d_name, filename)==0) {
+             found = malloc(strlen(root)+strlen(filename)+2);
+             sprintf(found, "%s/%s", root, filename);
+             break;
+         }
+         if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s/%s", root, dir->d_name);
+            found = searchFileRecursive(path, filename);
+            if (found) break;
+         }
+    }
+    closedir(d);
+    return found;
+}
+*/
+#if 0
 static char* searchFileRecursive(const char* root, const char* filename) {
     DIR* dir = opendir(root);
     if (!dir) return NULL;
@@ -573,8 +642,16 @@ static char* searchFileRecursive(const char* root, const char* filename) {
     closedir(dir);
     return NULL;
 }
+#endif
 
 // Convert 1-char string to int code if applicable
+/*
+static bool tryCharCode(Value v, int* out) {
+    if (v.type == VAL_INT) { *out = v.intVal; return true; }
+    return false; 
+}
+*/
+#if 0
 static bool tryCharCode(Value v, int* out) {
     if (IS_STRING(v) && AS_STRING(v)->length == 1) {
         *out = (unsigned char)AS_CSTRING(v)[0];
@@ -582,6 +659,7 @@ static bool tryCharCode(Value v, int* out) {
     }
     return false;
 }
+#endif
 
 // ---- Array helpers ----
 // Helper to create a new array
@@ -601,6 +679,13 @@ void arrayPush(VM* vm, Array* a, Value v) {
     }
     a->items[a->count++] = v;
 }
+/*
+static bool arrayPop(Array* a, Value* out) {
+    if (a->count == 0) return false;
+    *out = a->items[--a->count];
+    return true;
+}
+*/
 static bool arrayPop(Array* a, Value* out) {
     if (a->count == 0) return false;
     *out = a->items[a->count - 1];
@@ -648,6 +733,26 @@ void mapSetInt(Map* m, int ikey, Value v) {
     e = (MapEntry*)malloc(sizeof(MapEntry)); if (!e) error("Memory allocation failed.", 0);
     e->isIntKey = true; e->intKey = ikey; e->key = NULL; e->value = v; e->next = m->buckets[b]; m->buckets[b] = e;
 }
+/*
+static bool mapDeleteInt(Map* m, int ikey) {
+    unsigned int h = hashInt(ikey) % TABLE_SIZE;
+    MapEntry* entry = m->buckets[h];
+    MapEntry* prev = NULL;
+    while (entry) {
+        if (entry->isIntKey && entry->intKey == ikey) {
+            if (prev) prev->next = entry->next;
+            else m->buckets[h] = entry->next;
+            free(entry);
+            m->count--;
+            return true;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+    return false;
+}
+*/
+#if 0
 static bool mapDeleteInt(Map* m, int ikey) {
     unsigned int b = hashIntKey(ikey);
     MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
@@ -661,7 +766,16 @@ static bool mapDeleteInt(Map* m, int ikey) {
     }
     return false;
 }
+#endif
 
+/*
+static bool mapDeleteStr(Map* m, const char* key, int len) {
+    unsigned int h = hash(key, len) % TABLE_SIZE;
+    // ... impl
+    return false;
+}
+*/
+#if 0
 static bool mapDeleteStr(Map* m, const char* key, int len) {
     unsigned int b = hash(key, len);
     MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
@@ -675,6 +789,7 @@ static bool mapDeleteStr(Map* m, const char* key, int len) {
     }
     return false;
 }
+#endif
 
 
 // Forward declarations
@@ -1171,8 +1286,9 @@ static Value evaluate(VM* vm, Node* node) {
                 }
                 char buf[64];
                 int len = node->literal.token.length;
+                if (len < 0) len = 0;
                 if (len >= 64) len = 63;
-                memcpy(buf, node->literal.token.start, len);
+                memcpy(buf, node->literal.token.start, (size_t)len);
                 buf[len] = '\0';
                 
                 if (isFloat) {
