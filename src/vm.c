@@ -239,7 +239,7 @@ static VarEntry* findVarInEnv(Environment* env, Token name) {
 }
 
 // Read whole file
-static char* readFileAll(const char* path) {
+char* readFileAll(const char* path) {
     FILE* file = fopen(path, "rb");
     if (!file) return NULL;
     fseek(file, 0L, SEEK_END);

@@ -186,16 +186,9 @@ static void parseFlowBlock(const char** p) {
     if (peek(*p) == '}') (*p)++;
 }
 
-static Value uon_parse(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) {
-        printf("Error: ucoreUon.parse expects string.\n"); // Or VM error
-        Value nullVal = {VAL_INT, .intVal = 0}; return nullVal;
-    }
-    
+static void parseFromSource(const char* source) {
     ensureInit();
-    const char* p = args[0].stringVal;
-    
+    const char* p = source;
     while (peek(p)) {
         skipSpace(&p);
         if (matchStr(&p, "@schema")) {
@@ -206,6 +199,35 @@ static Value uon_parse(VM* vm, Value* args, int argCount) {
             if (peek(p)) p++; // skip unknown or end
         }
     }
+}
+
+static Value uon_parse(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 1 || args[0].type != VAL_STRING) {
+        printf("Error: ucoreUon.parse expects string.\n"); // Or VM error
+        Value nullVal = {VAL_INT, .intVal = 0}; return nullVal;
+    }
+    
+    parseFromSource(args[0].stringVal);
+    
+    Value v; v.type = VAL_BOOL; v.boolVal = true;
+    return v;
+}
+
+static Value uon_load(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 1 || args[0].type != VAL_STRING) {
+        printf("Error: ucoreUon.load expects file path string.\n");
+        return (Value){VAL_INT, .intVal = 0};
+    }
+    char* source = readFileAll(args[0].stringVal);
+    if (!source) {
+        printf("Error: ucoreUon.load could not read file '%s'.\n", args[0].stringVal);
+        return (Value){VAL_INT, .intVal = 0};
+    }
+    
+    parseFromSource(source);
+    free(source);
     
     Value v; v.type = VAL_BOOL; v.boolVal = true;
     return v;
@@ -280,6 +302,20 @@ void registerUCoreUON(VM* vm) {
     fnGet->paramCount = 1;
     fnGet->name = (Token){TOKEN_IDENTIFIER, feGet->key, 3, 0};
     feGet->function = fnGet;
+    
+    // Register load
+    unsigned int hLoad = hash("load", 4);
+    FuncEntry* feLoad = malloc(sizeof(FuncEntry));
+    feLoad->key = strdup("load");
+    feLoad->next = mod->env->funcBuckets[hLoad];
+    mod->env->funcBuckets[hLoad] = feLoad;
+    
+    Function* fnLoad = malloc(sizeof(Function));
+    fnLoad->isNative = true;
+    fnLoad->native = uon_load;
+    fnLoad->paramCount = 1;
+    fnLoad->name = (Token){TOKEN_IDENTIFIER, feLoad->key, 4, 0};
+    feLoad->function = fnLoad;
     
     // Add to global
     VarEntry* ve = malloc(sizeof(VarEntry));

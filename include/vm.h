@@ -215,5 +215,6 @@ void mapSetStr(Map* m, const char* key, int len, Value v);
 void mapSetInt(Map* m, int ikey, Value v);
 MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut);
 void arrayPush(Array* a, Value v);
+char* readFileAll(const char* path);
 
 #endif // VM_H

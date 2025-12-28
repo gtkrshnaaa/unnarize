@@ -83,6 +83,9 @@ run-errors: all
 run-uon: all
 	./$(EXECUTABLE) examples/10_ucore_uon.unna
 
+run-uon-file: all
+	./$(EXECUTABLE) examples/11_uon_file.unna
+
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.
 run-all: all build-plugins-all
