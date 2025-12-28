@@ -202,9 +202,6 @@ static FuncEntry* findFuncEntry(Environment* env, Token name, bool insert) {
 
 
 Function* findFunctionByName(VM* vm, const char* name) {
-    Token t;
-    t.start = name;
-    t.length = strlen(name);
     // Reuse existing static helper if possible or duplicate logic. 
     // Since findFunction is static, we can't call it easily unless we remove static or duplicate.
     // Let's duplicate logic for now to be safe and avoid header reshuffling for Token.
@@ -685,11 +682,16 @@ static void execute(VM* vm, Node* node) {
                     printf("{map size=%d}\n", sz);
                     break;
                 }
-                case VAL_FUTURE: {
-                    bool d = value.futureVal ? futureIsDone(value.futureVal) : false;
-                    printf("[future %s]\n", d ? "done" : "pending");
-                    break;
+               case VAL_FUTURE:
+                if (value.futureVal) {
+                     printf(futureIsDone(value.futureVal) ? "[future done]\n" : "[future pending]\n");
+                } else {
+                     printf("[future null]\n");
                 }
+                break;
+            default:
+                printf("[object]\n");
+                break;
             }
             break;
         }
@@ -713,6 +715,7 @@ static void execute(VM* vm, Node* node) {
                              case TOKEN_MINUS_EQUAL: slot->intVal -= val.intVal; break;
                              case TOKEN_STAR_EQUAL: slot->intVal *= val.intVal; break;
                              case TOKEN_SLASH_EQUAL: slot->intVal /= val.intVal; break;
+                             default: break;
                          }
                      } else {
                          // Simple float fallback
@@ -724,6 +727,7 @@ static void execute(VM* vm, Node* node) {
                              case TOKEN_MINUS_EQUAL: slot->floatVal = l - r; break;
                              case TOKEN_STAR_EQUAL: slot->floatVal = l * r; break;
                              case TOKEN_SLASH_EQUAL: slot->floatVal = l / r; break;
+                             default: break;
                          }
                      }
                 } else {
@@ -781,6 +785,10 @@ static void execute(VM* vm, Node* node) {
                 case VAL_FUTURE:
                     error("Condition cannot be a Future. Use await.", 0);
                     break;
+                default: 
+                    // Structs or others are truthy? Or false? Let's say truthy for objects.
+                    isTrue = true; 
+                    break;
             }
             
             if (isTrue) {
@@ -827,6 +835,7 @@ static void execute(VM* vm, Node* node) {
                     case VAL_FUTURE:
                         error("Condition cannot be a Future. Use await.", 0);
                         break;
+                    default: isTrue = true; break;
                 }
                 if (!isTrue) break;
                 execute(vm, node->whileStmt.body);
@@ -875,6 +884,8 @@ static void execute(VM* vm, Node* node) {
                         case VAL_FUTURE:
                             error("Condition cannot be a Future. Use await.", 0);
                             break;
+                            
+                        default: condTrue = true; break;
                     }
                 }
                 if (!condTrue) break;
@@ -987,6 +998,7 @@ static void execute(VM* vm, Node* node) {
                              case TOKEN_MINUS_EQUAL: slot->intVal -= val.intVal; break;
                              case TOKEN_STAR_EQUAL: slot->intVal *= val.intVal; break;
                              case TOKEN_SLASH_EQUAL: slot->intVal /= val.intVal; break;
+                             default: break;
                          }
                      } else {
                          double l = current.type==VAL_INT?(double)current.intVal:current.floatVal;
@@ -997,6 +1009,7 @@ static void execute(VM* vm, Node* node) {
                              case TOKEN_MINUS_EQUAL: slot->floatVal = l - r; break;
                              case TOKEN_STAR_EQUAL: slot->floatVal = l * r; break;
                              case TOKEN_SLASH_EQUAL: slot->floatVal = l / r; break;
+                             default: break;
                          }
                      }
                 } else {
@@ -1366,6 +1379,9 @@ static Value evaluate(VM* vm, Node* node) {
                         snprintf(leftStr, sizeof(leftStr), "[future %s]", d ? "done" : "pending");
                         break;
                     }
+                    default:
+                        strcpy(leftStr, "[object]");
+                        break;
                 }
                 
                 // Convert right operand to string
@@ -1402,6 +1418,9 @@ static Value evaluate(VM* vm, Node* node) {
                         snprintf(rightStr, sizeof(rightStr), "[future %s]", d ? "done" : "pending");
                         break;
                     }
+                    default:
+                        strcpy(rightStr, "[object]");
+                        break;
                 }
                 
                 result.type = VAL_STRING;
@@ -1452,6 +1471,15 @@ static Value evaluate(VM* vm, Node* node) {
                         case VAL_FUTURE:
                             // Compare by identity (pointer equality)
                             isEqual = left.futureVal == right.futureVal;
+                            break;
+                        case VAL_STRUCT_DEF:
+                            isEqual = left.structDef == right.structDef;
+                            break;
+                        case VAL_STRUCT_INSTANCE:
+                            isEqual = left.structInstance == right.structInstance;
+                            break;
+                        default:
+                            isEqual = false;
                             break;
                     }
                 }
