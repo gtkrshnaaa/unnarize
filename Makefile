@@ -10,8 +10,9 @@ LISTDIR = z_listing
 PREFIX ?= /usr/local
 DESTDIR ?=
 
-SOURCES = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+SOURCES_SRC = $(wildcard $(SRCDIR)/*.c)
+SOURCES_CORE = $(wildcard corelib/*.c)
+OBJECTS = $(SOURCES_SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o) $(SOURCES_CORE:corelib/%.c=$(OBJDIR)/%.o)
 
 EXECUTABLE = $(BINDIR)/unnarize
 
@@ -21,6 +22,9 @@ $(EXECUTABLE): $(OBJECTS) | $(BINDIR)
 	$(CC) $(OBJECTS) -o $@ -ldl -lpthread -Wl,-export-dynamic
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR)/%.o: corelib/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR):
@@ -74,6 +78,9 @@ run-structs: all
 
 run-errors: all
 	./$(EXECUTABLE) examples/09_errors.unna
+
+run-uon: all
+	./$(EXECUTABLE) examples/10_ucore_uon.unna
 
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.
