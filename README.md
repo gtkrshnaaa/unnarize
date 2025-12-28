@@ -2,7 +2,7 @@
 
 ![C](https://img.shields.io/badge/language-C-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Performance](https://img.shields.io/badge/performance-4M%20ops%2Fsec-brightgreen.svg)
+![Performance](https://img.shields.io/badge/performance-17M%20ops%2Fsec-brightgreen.svg)
 
 
 **A simple, dynamic, C-style scripting language interpreter built from scratch in C.**
@@ -227,23 +227,22 @@ Unnarize delivers exceptional performance for a tree-walking interpreter:
 
 | Operation Type | Performance | Description |
 |---|---|---|
-| **Simple Loops** | 4.8M ops/sec | Basic counting and iteration |
-| **Arithmetic** | 4.2M ops/sec | Mathematical operations |
-| **Variable Assignment** | 3.7M ops/sec | Variable manipulation |
-| **Nested Loops** | 3.2M ops/sec | Complex iteration patterns |
-| **String Operations** | 10M ops/sec | String concatenation and manipulation |
-| **Function Calls** | 1.1M ops/sec | Function invocation overhead |
+| **Simple Loops** | **17.8M ops/sec** | Optimized Stack-Based Locals |
+| **Arithmetic** | 15M ops/sec | Fast integer math |
+| **Global Access** | 5M ops/sec | Hash-based global lookups |
+| **Function Calls** | 2M ops/sec | Optimized stack frame management |
+| **String Operations** | ~1M ops/sec | GC-managed string concatenation |
 
-**Overall Average: 3.9 million operations per second**
+**Overall Peak: ~17.8 million operations per second**
 
 ### Performance Features
 
-- **FNV-1a Hash Function:** Optimized hash table lookups (15-20% faster)
-- **Value Pooling:** Reduced memory allocation overhead
-- **String Interning Infrastructure:** Ready for string deduplication
-- **Optimized Memory Management:** Manual allocation with efficient reuse patterns
+- **Stack-Based Local Resolution:** O(1) array access for local variables (vs O(n) hash lookups).
+- **Mark-and-Sweep Garbage Collection:** Efficient automatic memory management.
+- **FNV-1a Hash Function:** Optimized hash table lookups for globals/methods.
+- **String Interning:** Request-scoped string deduplication.
 
-*Benchmark with timer plugin: `make run-timer-benchmark`*
+*Benchmark: `bin/unnarize examples/15_benchmark.unna`*
 
 ## Getting Started
 
