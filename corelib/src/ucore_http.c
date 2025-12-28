@@ -51,7 +51,7 @@ static bool parseUrl(const char* url, char* hostOut, char* pathOut, int* portOut
 
 // ---- JSON Helper ----
 static void json_append(char** buf, int* len, int* cap, const char* str) {
-    int l = strlen(str);
+    int l = (int)strlen(str);
     if (*len + l >= *cap) {
         *cap = *cap * 2 + l + 1024;
         *buf = realloc(*buf, *cap);
@@ -62,6 +62,11 @@ static void json_append(char** buf, int* len, int* cap, const char* str) {
 
 static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
     char temp[64];
+    if (v.type == VAL_NIL) {
+        json_append(buf, len, cap, "null");
+        return;
+    }
+    
     switch (v.type) {
         case VAL_INT:
             snprintf(temp, sizeof(temp), "%d", v.intVal);
@@ -74,56 +79,40 @@ static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
         case VAL_BOOL:
             json_append(buf, len, cap, v.boolVal ? "true" : "false");
             break;
-        case VAL_STRING:
-            json_append(buf, len, cap, "\"");
-            // escaped string? MVP: just simple quotes
-            json_append(buf, len, cap, v.stringVal ? v.stringVal : "");
-            json_append(buf, len, cap, "\"");
-            break;
-        case VAL_ARRAY: {
-            json_append(buf, len, cap, "[");
-            if (v.arrayVal) {
-                for (int i = 0; i < v.arrayVal->count; i++) {
+        case VAL_OBJ: {
+            Obj* o = AS_OBJ(v);
+            if (o->type == OBJ_STRING) {
+                json_append(buf, len, cap, "\"");
+                json_append(buf, len, cap, ((ObjString*)o)->chars);
+                json_append(buf, len, cap, "\"");
+            } else if (o->type == OBJ_ARRAY) {
+                Array* a = (Array*)o;
+                json_append(buf, len, cap, "[");
+                for (int i = 0; i < a->count; i++) {
                     if (i > 0) json_append(buf, len, cap, ",");
-                    json_serialize_val(v.arrayVal->items[i], buf, len, cap);
+                    json_serialize_val(a->items[i], buf, len, cap);
                 }
-            }
-            json_append(buf, len, cap, "]");
-            break;
-        }
-        case VAL_MAP: {
-            json_append(buf, len, cap, "{");
-            if (v.mapVal) {
-                int count = 0;
+                json_append(buf, len, cap, "]");
+            } else if (o->type == OBJ_MAP) {
+                Map* m = (Map*)o;
+                json_append(buf, len, cap, "{");
+                bool first = true;
                 for (int i = 0; i < TABLE_SIZE; i++) {
-                    MapEntry* e = v.mapVal->buckets[i];
+                    MapEntry* e = m->buckets[i];
                     while (e) {
-                        if (!e->isIntKey && e->key) { // JSON object keys = strings
-                            if (count > 0) json_append(buf, len, cap, ",");
-                            json_append(buf, len, cap, "\"");
-                            json_append(buf, len, cap, e->key);
-                            json_append(buf, len, cap, "\":");
-                            json_serialize_val(e->value, buf, len, cap);
-                            count++;
-                        }
-                        e = e->next;
+                         if (!first) json_append(buf, len, cap, ",");
+                         first = false;
+                         json_append(buf, len, cap, "\"");
+                         json_append(buf, len, cap, e->key); // Assume keys are strings
+                         json_append(buf, len, cap, "\":");
+                         json_serialize_val(e->value, buf, len, cap);
+                         e = e->next;
                     }
                 }
+                json_append(buf, len, cap, "}");
+            } else {
+                json_append(buf, len, cap, "\"<obj>\"");
             }
-            json_append(buf, len, cap, "}");
-            break;
-        }
-        case VAL_STRUCT_INSTANCE: {
-            json_append(buf, len, cap, "{");
-            StructInstance* s = v.structInstance;
-            for (int i = 0; i < s->def->fieldCount; i++) {
-                if (i > 0) json_append(buf, len, cap, ",");
-                json_append(buf, len, cap, "\"");
-                json_append(buf, len, cap, s->def->fields[i]);
-                json_append(buf, len, cap, "\":");
-                json_serialize_val(s->fields[i], buf, len, cap);
-            }
-            json_append(buf, len, cap, "}");
             break;
         }
         default:
@@ -134,8 +123,11 @@ static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
 
 // http.json(data) -> string
 static Value uhttp_json(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 1) return (Value){VAL_STRING, .stringVal=strdup("{}")};
+    if (argCount != 1) {
+        ObjString* empty = internString(vm, "{}", 2);
+        Value v; v.type = VAL_OBJ; v.obj = (Obj*)empty;
+        return v;
+    }
     
     int cap = 1024;
     int len = 0;
@@ -144,32 +136,35 @@ static Value uhttp_json(VM* vm, Value* args, int argCount) {
     
     json_serialize_val(args[0], &buf, &len, &cap);
     
-    Value v; v.type = VAL_STRING; v.stringVal = buf;
+    ObjString* s = internString(vm, buf, len);
+    free(buf);
+    
+    Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
     return v;
 }
 
-static Value http_perform(const char* method, const char* url, const char* body) {
+static Value http_perform(VM* vm, const char* method, const char* url, const char* body) {
     char host[256];
     char path[1024];
     int port;
     
     if (!parseUrl(url, host, path, &port)) {
         printf("Invalid URL or HTTPS not supported.\n");
-        return (Value){VAL_INT, .intVal=0}; // null
+        return (Value){VAL_NIL, .intVal=0}; 
     }
     
     // DNS Resolve
     struct hostent* he = gethostbyname(host);
     if (!he) {
         printf("Could not resolve host: %s\n", host);
-        return (Value){VAL_INT, .intVal=0}; // null
+        return (Value){VAL_NIL, .intVal=0}; // null
     }
     
     // Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Socket creation failed");
-        return (Value){VAL_INT, .intVal=0};
+        return (Value){VAL_NIL, .intVal=0};
     }
     
     struct sockaddr_in serv_addr;
@@ -183,12 +178,12 @@ static Value http_perform(const char* method, const char* url, const char* body)
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Connection failed");
         close(sockfd);
-        return (Value){VAL_INT, .intVal=0};
+        return (Value){VAL_NIL, .intVal=0};
     }
     
     // Construct Request
     char req[4096];
-    int contentLen = body ? strlen(body) : 0;
+    int contentLen = body ? (int)strlen(body) : 0;
     snprintf(req, sizeof(req), 
         "%s %s HTTP/1.1\r\n"
         "Host: %s\r\n"
@@ -203,7 +198,7 @@ static Value http_perform(const char* method, const char* url, const char* body)
     if (send(sockfd, req, strlen(req), 0) < 0) {
         perror("Send failed");
         close(sockfd);
-        return (Value){VAL_INT, .intVal=0};
+        return (Value){VAL_NIL, .intVal=0};
     }
     
     // Receive
@@ -231,27 +226,27 @@ static Value http_perform(const char* method, const char* url, const char* body)
         bodyStart = buf;
     }
     
-    Value vRes; vRes.type = VAL_STRING; vRes.stringVal = strdup(bodyStart);
+    ObjString* os = internString(vm, bodyStart, (int)strlen(bodyStart));
     free(buf);
+    
+    Value vRes; vRes.type = VAL_OBJ; vRes.obj = (Obj*)os;
     return vRes;
 }
 
 static Value uhttp_get(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
         printf("Error: ucoreHttp.get(url) expects url string.\n");
-        return (Value){VAL_INT, .intVal=0};
+        return (Value){VAL_NIL, .intVal=0};
     }
-    return http_perform("GET", args[0].stringVal, NULL);
+    return http_perform(vm, "GET", AS_CSTRING(args[0]), NULL);
 }
 
 static Value uhttp_post(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 2 || args[0].type != VAL_STRING || args[1].type != VAL_STRING) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         printf("Error: ucoreHttp.post(url, body) expects url and body strings.\n");
-        return (Value){VAL_INT, .intVal=0};
+        return (Value){VAL_NIL, .intVal=0};
     }
-    return http_perform("POST", args[0].stringVal, args[1].stringVal);
+    return http_perform(vm, "POST", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
 }
 
 
@@ -267,15 +262,15 @@ static Route* g_routes = NULL;
 
 static Value uhttp_route(VM* vm, Value* args, int argCount) {
     (void)vm;
-    if (argCount != 3 || args[0].type != VAL_STRING || args[1].type != VAL_STRING || args[2].type != VAL_STRING) {
+    if (argCount != 3 || !IS_STRING(args[0]) || !IS_STRING(args[1]) || !IS_STRING(args[2])) {
         printf("Error: ucoreHttp.route(method, path, handlerName) expects 3 strings.\n");
         return (Value){VAL_BOOL, .boolVal=false};
     }
     
     Route* r = malloc(sizeof(Route));
-    r->method = strdup(args[0].stringVal);
-    r->path = strdup(args[1].stringVal);
-    r->handlerName = strdup(args[2].stringVal);
+    r->method = strdup(AS_CSTRING(args[0]));
+    r->path = strdup(AS_CSTRING(args[1]));
+    r->handlerName = strdup(AS_CSTRING(args[2]));
     r->next = g_routes;
     g_routes = r;
     
@@ -292,8 +287,8 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
     char* mainHandlerName = NULL;
     Function* mainHandler = NULL;
     
-    if (argCount >= 2 && args[1].type == VAL_STRING) {
-        mainHandlerName = args[1].stringVal;
+    if (argCount >= 2 && IS_STRING(args[1])) {
+        mainHandlerName = AS_CSTRING(args[1]);
         mainHandler = findFunctionByName(vm, mainHandlerName);
         if (!mainHandler) {
              printf("Error: Handler function '%s' not found.\n", mainHandlerName);
@@ -386,17 +381,17 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         }
         
         // Build Request Map
-        Map* reqMap = newMap();
-        Value vMethod; vMethod.type = VAL_STRING; vMethod.stringVal = strdup(method);
+        Map* reqMap = newMap(vm);
+        Value vMethod; vMethod.type = VAL_OBJ; vMethod.obj = (Obj*)internString(vm, method, (int)strlen(method));
         mapSetStr(reqMap, "method", 6, vMethod);
         
-        Value vPath; vPath.type = VAL_STRING; vPath.stringVal = strdup(path);
+        Value vPath; vPath.type = VAL_OBJ; vPath.obj = (Obj*)internString(vm, path, (int)strlen(path));
         mapSetStr(reqMap, "path", 4, vPath);
 
-        Value vBody; vBody.type = VAL_STRING; vBody.stringVal = strdup(body);
+        Value vBody; vBody.type = VAL_OBJ; vBody.obj = (Obj*)internString(vm, body, (int)strlen(body));
         mapSetStr(reqMap, "body", 4, vBody);
         
-        Value vReq; vReq.type = VAL_MAP; vReq.mapVal = reqMap;
+        Value vReq; vReq.type = VAL_OBJ; vReq.obj = (Obj*)reqMap;
         
         // Call Handler
         Value handlerArgs[1];
@@ -407,8 +402,8 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         // Send Response
         char respBuffer[4096];
         char* content = "";
-        if (resVal.type == VAL_STRING) {
-            content = resVal.stringVal;
+        if (IS_STRING(resVal)) {
+            content = AS_CSTRING(resVal);
         }
         
         snprintf(respBuffer, sizeof(respBuffer), 
@@ -428,21 +423,23 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
 
 
 void registerUCoreHttp(VM* vm) {
-    char* modName = internString(vm, "ucoreHttp", 9);
-    Module* mod = malloc(sizeof(Module));
-    mod->name = modName;
-    mod->env = malloc(sizeof(Environment));
+    ObjString* modNameObj = internString(vm, "ucoreHttp", 9);
+    char* modName = modNameObj->chars; 
+    
+    Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
+    mod->name = strdup(modName); 
+    mod->env = malloc(sizeof(Environment)); 
+    if (!mod->env) error("Memory allocation failed env.", 0);
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
+    mod->env->enclosing = NULL; // Globals
     
-    // Register native functions using defineNative helper
     defineNative(vm, mod->env, "get", uhttp_get, 1);
     defineNative(vm, mod->env, "post", uhttp_post, 2);
     defineNative(vm, mod->env, "listen", uhttp_listen, 2);
     defineNative(vm, mod->env, "json", uhttp_json, 1);
     defineNative(vm, mod->env, "route", uhttp_route, 3);
     
-    // Add module to global scope
-    Value vMod; vMod.type = VAL_MODULE; vMod.moduleVal = mod;
+    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
     defineGlobal(vm, "ucoreHttp", vMod);
 }
