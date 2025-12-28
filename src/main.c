@@ -314,6 +314,7 @@ int main(int argc, char** argv) {
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
     registerUCoreSystem(&vm); // Register System
+    
     interpret(&vm, ast);
 
     // Cleanup
