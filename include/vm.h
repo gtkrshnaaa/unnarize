@@ -16,7 +16,8 @@ typedef enum {
     VAL_MAP,
     VAL_FUTURE,
     VAL_STRUCT_DEF,
-    VAL_STRUCT_INSTANCE
+    VAL_STRUCT_INSTANCE,
+    VAL_RESOURCE
 } ValueType;
 
 // Value structure for runtime values
@@ -39,6 +40,7 @@ typedef struct {
         Array* arrayVal;
         Map* mapVal;
         Future* futureVal;
+        void* resourceVal; // Generic void* (FILE*, pointers, etc)
         StructDef* structDef;
         StructInstance* structInstance;
     };
@@ -184,6 +186,9 @@ struct VM {
     int externHandleCount;          // Count of loaded extern libraries
     StringPool stringPool;          // String interning pool for performance
     ValuePool valuePool;            // Value pool for basic types
+    // CLI Arguments
+    int argc;
+    char** argv;
 };
 
 // VM function prototypes
