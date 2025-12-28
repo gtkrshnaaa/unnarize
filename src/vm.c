@@ -1778,7 +1778,18 @@ static Value evaluate(VM* vm, Node* node) {
                     Value v; v.type = VAL_INT; v.intVal = obj.stringVal ? (int)strlen(obj.stringVal) : 0; return v;
                 }
                 error("Unknown string property.", node->get.name.line);
-            } else if (obj.type == VAL_MODULE) {
+            }
+            if (obj.type == VAL_ARRAY) {
+                if (strncmp(node->get.name.start, "length", node->get.name.length) == 0 && strlen("length") == (size_t)node->get.name.length) {
+                    Value v; v.type = VAL_INT; v.intVal = obj.arrayVal->count; return v;
+                }
+                // error("Unknown array property.", node->get.name.line); // Or allow fallthrough for method calls?
+                // Method calls like `arr.push()` are handled in NODE_EXPR_CALL, accessing the method itself as property on array object isn't fully robust yet unless we return a BoundMethod. 
+                // But for now Unnarize handles method calls separately in CALL.
+                // So if we are here in GET, it's a property.
+                error("Unknown array property.", node->get.name.line);
+            }
+            else if (obj.type == VAL_MODULE) {
                 // module constant/variable or function name as value isn't supported; only variables returned.
                 VarEntry* ve = findVarInEnv(obj.moduleVal->env, node->get.name);
                 if (ve) return ve->value;
