@@ -70,6 +70,7 @@ static Value sys_getenv(VM* vm, Value* args, int argCount) {
 // fileExists(path) -> bool
 static Value sys_fileExists(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_STRING(args[0])) return (Value){VAL_BOOL, .boolVal=false};
+    (void)vm;
     
     struct stat st;
     if (stat(AS_CSTRING(args[0]), &st) == 0) {
