@@ -380,39 +380,90 @@ print("Role: " + admin.roles[0]);
         
         <p><strong>Key Features:</strong></p>
         <ul>
-            <li>💾 <strong>Lazy Loading</strong>: Read data on-demand without loading entire file</li>
+            <li>💾 <strong>Lazy Loading</strong>: Read data on demand without loading entire file</li>
             <li>🔄 <strong>Streaming API</strong>: Iterate through large datasets efficiently</li>
             <li>📦 <strong>Built-in</strong>: No external database installation required</li>
             <li>⚡ <strong>Fast</strong>: Optimized for quick access patterns</li>
         </ul>
 
-        <div class="code-block">
-            <pre><code class="language-unnarize">// Example: Loading and querying a UON file
-print("Loading UON file (Streaming)...");
-var success = ucoreUon.load("app_data.uon");
-if (!success) {
-    print("Failed to load app_data.uon");
+        <h5>UON File Format (.uon)</h5>
+        <p>UON files use a simple, readable text format with schema and data sections:</p>
+        <pre><code class="language-plaintext">@schema {
+    users: [id, name, role]
+    settings: [key, val]
 }
 
-// Query a specific table
-print("Querying settings table...");
-var cursor = ucoreUon.get("settings");
-
-if (cursor) {
-    print("Iterating rows:");
-    var row;
-    row = ucoreUon.next(cursor);
-    while (row) {
-        // Access row data by field name
-        print("  Row: " + row.key + " = " + row.val);
-        row = ucoreUon.next(cursor);
-    }
-    print("Done.");
-} else {
-    print("Table not found or error.");
+@flow {
+    users: [
+        [1, "Alice", "admin"]
+        [2, "Bob", "user"]
+        [3, "Charlie", "moderator"]
+    ]
+    settings: [
+        ["theme", "dark"]
+        ["language", "en"]
+        ["notifications", "enabled"]
+    ]
 }
 </code></pre>
-        </div>             <h3 id="variables" class="font-display font-bold text-2xl tracking-tight">3.2 Variables & Data Types</h3>
+
+        <h5>Using UON from Unnarize (.unna)</h5>
+        <p>Load and query UON files with the streaming API:</p>
+        <div class="code-block">
+            <pre><code class="language-unnarize">// Example: Loading and querying a UON file
+print("Loading UON database...");
+var success = ucoreUon.load("database.uon");
+
+if (!success) {
+    print("Failed to load database.uon");
+}
+
+// Query the users table
+print("\n=== Users Table ===");
+var userCursor = ucoreUon.get("users");
+
+if (userCursor) {
+    var user;
+    user = ucoreUon.next(userCursor);
+    while (user) {
+        // Access fields by name (defined in schema)
+        print("ID: " + user.id + ", Name: " + user.name + ", Role: " + user.role);
+        user = ucoreUon.next(userCursor);
+    }
+}
+
+// Query the settings table
+print("\n=== Settings Table ===");
+var settingsCursor = ucoreUon.get("settings");
+
+if (settingsCursor) {
+    var setting;
+    setting = ucoreUon.next(settingsCursor);
+    while (setting) {
+        print(setting.key + " = " + setting.val);
+        setting = ucoreUon.next(settingsCursor);
+    }
+}
+
+print("\nDone!");
+</code></pre>
+        </div>
+
+        <p><strong>Output:</strong></p>
+        <pre><code class="language-plaintext">Loading UON database...
+
+=== Users Table ===
+ID: 1, Name: Alice, Role: admin
+ID: 2, Name: Bob, Role: user
+ID: 3, Name: Charlie, Role: moderator
+
+=== Settings Table ===
+theme = dark
+language = en
+notifications = enabled
+
+Done!
+</code></pre>             <h3 id="variables" class="font-display font-bold text-2xl tracking-tight">3.2 Variables & Data Types</h3>
                     <p>Variables are declared using the <code>var</code> keyword. Unnarize uses <strong>dynamic typing</strong>, meaning a variable's type is determined by the value it holds and can change at runtime.</p>
                     <pre><code class="language-unnarize">var message = "This is a string";
 var number = 100;
