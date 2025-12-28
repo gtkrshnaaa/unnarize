@@ -24,7 +24,8 @@ typedef enum {
     NODE_STMT_FUNCTION,
     NODE_STMT_RETURN,
     NODE_STMT_IMPORT,
-    NODE_STMT_LOADEXTERN
+    NODE_STMT_LOADEXTERN,
+    NODE_EXPR_ARRAY_LITERAL
 } NodeType;
 
 // Forward declaration for AST Node
@@ -134,6 +135,11 @@ struct Node {
         struct {
             Node* pathExpr;
         } loadexternStmt;
+        // Array literal [e1, e2, ...]
+        struct {
+            Node* elements; // Linked list
+            int count;
+        } arrayLiteral;
     };
     Node* next; // For linked list (function arguments)
 };
