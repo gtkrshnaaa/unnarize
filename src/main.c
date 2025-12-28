@@ -3,9 +3,60 @@
 #include "parser.h"
 #include "vm.h"
 
-// Error function
+const char* g_source = NULL;
+
+// Helper to print error line with context
+static void printErrorLine(int line, const char* highlightStart, int highlightLen) {
+    if (!g_source || line <= 0) return;
+
+    // Find the start of the line
+    const char* start = g_source;
+    int currentLine = 1;
+    while (currentLine < line && *start != '\0') {
+        if (*start == '\n') currentLine++;
+        start++;
+    }
+
+    if (*start == '\0') return; // Line not found
+
+    // Find end of line
+    const char* end = start;
+    while (*end != '\0' && *end != '\n') {
+        end++;
+    }
+
+    // Print the line
+    fprintf(stderr, "%.*s\n", (int)(end - start), start);
+
+    // Print highlight if applicable
+    if (highlightStart && highlightLen > 0) {
+        // Calculate offset from line start
+        int offset = (int)(highlightStart - start);
+        if (offset >= 0 && offset < (end - start)) {
+            for (int i = 0; i < offset; i++) {
+                // Handle tabs if necessary, but for now assuming spaces/visible chars
+                // If source has tabs, caret alignment might be off unless we handle it.
+                // Simple approach: copy whitespace from source?
+                if (start[i] == '\t') fprintf(stderr, "\t");
+                else fprintf(stderr, " ");
+            }
+            for (int i = 0; i < highlightLen; i++) fprintf(stderr, "^");
+            fprintf(stderr, "\n");
+        }
+    }
+}
+
+// Generic error
 void error(const char* message, int line) {
     fprintf(stderr, "[line %d] Error: %s\n", line, message);
+    printErrorLine(line, NULL, 0);
+    exit(1);
+}
+
+// Error at specific token
+void errorAtToken(Token token, const char* message) {
+    fprintf(stderr, "[line %d] Error: %s\n", token.line, message);
+    printErrorLine(token.line, token.start, token.length);
     exit(1);
 }
 
@@ -207,6 +258,7 @@ int main(int argc, char* argv[]) {
     }
 
     char* source = readFile(argv[1]);
+    g_source = source;
 
     // Lexer
     Lexer lexer;
