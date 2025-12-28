@@ -25,7 +25,10 @@ typedef enum {
     NODE_STMT_RETURN,
     NODE_STMT_IMPORT,
     NODE_STMT_LOADEXTERN,
-    NODE_EXPR_ARRAY_LITERAL
+    NODE_EXPR_ARRAY_LITERAL,
+    NODE_STMT_FOREACH,
+    NODE_STMT_STRUCT_DECL,
+    NODE_STMT_PROP_ASSIGN
 } NodeType;
 
 // Forward declaration for AST Node
@@ -78,12 +81,14 @@ struct Node {
         // Assign
         struct {
             Token name;
+            Token operator; // = or += or -= etc.
             Node* value;
         } assign;
         // Index assignment: target[index] = value
         struct {
             Node* target;
             Node* index;
+            Token operator; // = or += etc.
             Node* value;
         } indexAssign;
         // Print
@@ -140,6 +145,25 @@ struct Node {
             Node* elements; // Linked list
             int count;
         } arrayLiteral;
+        // Foreach (var item : collection)
+        struct {
+            Token iterator;
+            Node* collection;
+            Node* body;
+        } foreachStmt;
+        // Struct Declaration
+        struct {
+            Token name;
+            Token* fields;
+            int fieldCount;
+        } structDecl;
+        // Property Assignment (obj.prop = val)
+        struct {
+            Node* object;
+            Token name;
+            Token operator;
+            Node* value;
+        } propAssign;
     };
     Node* next; // For linked list (function arguments)
 };
