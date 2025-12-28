@@ -46,25 +46,28 @@ uninstall:
 	@echo "Unnarize uninstalled successfully"
 
 run: all
-	./$(EXECUTABLE) examples/test.unna
+	./$(EXECUTABLE) examples/01_basics.unna
 
-modularity-run: all
-	./$(EXECUTABLE) examples/modularity/main.unna
+run-basics: all
+	./$(EXECUTABLE) examples/01_basics.unna
 
-arrays-maps-run: all
-	./$(EXECUTABLE) examples/arraysMaps.unna
+run-structures: all
+	./$(EXECUTABLE) examples/02_structures.unna
 
-project-test-run: all
-	./$(EXECUTABLE) examples/projectTest/main.unna
+run-functions: all
+	./$(EXECUTABLE) examples/03_functions.unna
 
-# Run async/await demo
-async-demo-run: all
-	./$(EXECUTABLE) examples/asyncDemo.unna
+run-async: all
+	./$(EXECUTABLE) examples/04_async.unna
 
-# Run all .unna files under examples/ (builds plugins first)
+run-modules: all
+	./$(EXECUTABLE) examples/05_modules.unna
+
+# Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
+# We usually only want to run top-level examples.
 run-all: all build-plugins-all
-	@echo "Running all examples..."
-	@find examples -type f -name "*.unna" -print0 | sort -z | xargs -0 -I{} sh -c 'echo; echo ">>> Running: {}"; ./$(EXECUTABLE) "{}"'
+	@echo "Running all top-level examples..."
+	@find examples -maxdepth 1 -type f -name "*.unna" -print0 | sort -z | xargs -0 -I{} sh -c 'echo; echo ">>> Running: {}"; ./$(EXECUTABLE) "{}"'
 
 PLUGINS_SRCDIR = examples/plugins/src
 PLUGINS_BUILDDIR = examples/plugins/build
