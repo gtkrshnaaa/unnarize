@@ -189,6 +189,10 @@ core_list:
 	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
 	@find $(SRCDIR) -type f \( -name "*.c" -o -name "*.h" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
 	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@echo "SECTION: corelib/ (Standard Library)" >> $(LISTDIR)/corelist.txt
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
+	@find corelib -type f \( -name "*.c" -o -name "*.h" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
+	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
 	@echo "SECTION: examples/ (Language Examples)" >> $(LISTDIR)/corelist.txt
 	@echo "=================================================================" >> $(LISTDIR)/corelist.txt
 	@find examples -type d \( -name .unnat -o -name bin -o -name obj -o -name .vscode -o -name $(LISTDIR) \) -prune -o -type f \( -name "*.unna" -o -name "*.c" -o -name "*.h" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LISTDIR)/corelist.txt; echo "FILE: {}" >> $(LISTDIR)/corelist.txt; echo "=================================================================" >> $(LISTDIR)/corelist.txt; cat "{}" >> $(LISTDIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
