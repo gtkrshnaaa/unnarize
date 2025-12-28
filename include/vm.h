@@ -5,28 +5,38 @@
 #include "parser.h"
 #include <pthread.h>
 
+// Object types
+typedef enum {
+    OBJ_STRING,
+    OBJ_MODULE,
+    OBJ_ARRAY,
+    OBJ_MAP,
+    OBJ_STRUCT_DEF,
+    OBJ_STRUCT_INSTANCE,
+    OBJ_RESOURCE,
+    OBJ_FUNCTION,
+    OBJ_NATIVE,
+    OBJ_FUTURE,
+    OBJ_UPVALUE,
+    OBJ_ENVIRONMENT
+} ObjType;
+
+typedef struct Obj Obj;
+
+struct Obj {
+    ObjType type;
+    bool isMarked;
+    Obj* next;
+};
+
 // Value types for VM
 typedef enum {
     VAL_BOOL,
     VAL_INT,
     VAL_FLOAT,
-    VAL_STRING,
-    VAL_MODULE,
-    VAL_ARRAY,
-    VAL_MAP,
-    VAL_FUTURE,
-    VAL_STRUCT_DEF,
-    VAL_STRUCT_INSTANCE,
-    VAL_RESOURCE
+    VAL_OBJ,
+    VAL_NIL
 } ValueType;
-
-// Value structure for runtime values
-typedef struct Module Module;
-typedef struct Array Array;
-typedef struct Map Map;
-typedef struct Future Future;
-typedef struct StructDef StructDef;
-typedef struct StructInstance StructInstance;
 
 // Value structure for runtime values
 typedef struct {
@@ -35,16 +45,26 @@ typedef struct {
         bool boolVal;
         int intVal;
         double floatVal;
-        char* stringVal;
-        Module* moduleVal; // This should remain Module* as per the original code, not ModuleEntry*
-        Array* arrayVal;
-        Map* mapVal;
-        Future* futureVal;
-        void* resourceVal; // Generic void* (FILE*, pointers, etc)
-        StructDef* structDef;
-        StructInstance* structInstance;
+        Obj* obj;
     };
 } Value;
+
+// Helpers
+#define AS_OBJ(value)     ((value).obj)
+#define AS_STRING(value)  ((ObjString*)AS_OBJ(value))
+#define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
+
+#define IS_OBJ(value)     ((value).type == VAL_OBJ)
+#define IS_STRING(value)  (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_STRING)
+#define IS_ARRAY(value)   (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_ARRAY)
+#define IS_MAP(value)     (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_MAP)
+
+typedef struct ObjString {
+    Obj obj;
+    char* chars;
+    int length;
+    unsigned int hash;
+} ObjString;
 
 // Forward declarations
 typedef struct VarEntry VarEntry;
@@ -55,6 +75,15 @@ typedef struct CallFrame CallFrame;
 typedef struct VM VM;
 typedef struct ModuleEntry ModuleEntry;
 
+// Typedefs for object structs
+typedef struct Module Module;
+typedef struct Array Array;
+typedef struct MapEntry MapEntry;
+typedef struct Map Map;
+typedef struct StructDef StructDef;
+typedef struct StructInstance StructInstance;
+typedef struct Future Future;
+
 // Native function type for external C functions
 typedef Value (*NativeFn)(VM*, Value* args, int argCount);
 
@@ -62,7 +91,7 @@ typedef Value (*NativeFn)(VM*, Value* args, int argCount);
 struct VarEntry {
     char* key;              // Variable name
     int keyLength;          // Length of key
-    bool ownsKey; // Optimization: If false, do not free key (it's a reference)
+    bool ownsKey; 
     Value value;            // Variable value
     struct VarEntry* next;  // Next entry in hash bucket
 };
@@ -75,7 +104,6 @@ struct FuncEntry {
 };
 
 // Initial hash table size for environments
-// Reduced to Save memory per stack frame
 #define TABLE_SIZE 61
 
 // String interning pool for performance optimization
@@ -96,6 +124,7 @@ typedef struct ValuePool {
 
 // Environment structure (scope)
 struct Environment {
+    Obj obj;                           // Header for GC
     struct Environment* enclosing;     // Parent environment
     VarEntry* buckets[TABLE_SIZE];     // Variable hash table
     FuncEntry* funcBuckets[TABLE_SIZE]; // Function hash table
@@ -103,62 +132,73 @@ struct Environment {
 
 // Module wrapper
 struct Module {
+    Obj obj;
     char* name;
     Environment* env;
-    // Keep the module source buffer alive for the lifetime of the module,
-    // because AST Tokens point into this buffer.
     char* source;
 };
 
 // Minimal dynamic array implementation
 struct Array {
+    Obj obj;
     Value* items;
     int count;
     int capacity;
 };
 
-// Minimal map (hash table) implementation supporting string and int keys
-typedef struct MapEntry MapEntry;
+// Map entry
 struct MapEntry {
-    bool isIntKey;          // true: use intKey; false: use key (string)
-    char* key;              // string key (owned)
-    int intKey;             // int key
-    Value value;            // stored value
-    MapEntry* next;         // chaining in bucket
+    bool isIntKey;
+    char* key; // Or ObjString*? For now char* interned
+    int intKey;
+    Value value;
+    MapEntry* next;
 };
 
 struct Map {
+    Obj obj;
     MapEntry* buckets[TABLE_SIZE];
 };
 
 struct StructDef {
+    Obj obj;
     char* name;
-    char** fields; // Array of field names
+    char** fields;
     int fieldCount;
 };
 
 struct StructInstance {
+    Obj obj;
     StructDef* def;
-    Value* fields; // Array of values
+    Value* fields;
 };
 
-// Module cache entry structure
-struct ModuleEntry {
-    char* key;                 // Module name (logical name from import, not alias)
-    Module* module;            // Loaded module object
-    struct ModuleEntry* next;  // Next entry in hash bucket
+struct Future {
+    Obj obj;
+    bool done;              // completion flag
+    Value result;           // resolved value
+    pthread_mutex_t mu;     // mutex
+    pthread_cond_t cv;      // condition variable
 };
+
+typedef void (*ResourceCleanupFn)(void* data);
+typedef struct {
+    Obj obj;
+    void* data;
+    ResourceCleanupFn cleanup;
+} ObjResource;
 
 // Function structure
 struct Function {
-    Token name;             // Function name
-    Token* params;          // Parameter names
-    int paramCount;         // Number of parameters
-    Node* body;             // Function body (AST node)
-    Environment* closure;   // Closure environment (for lexical scoping)
-    bool isNative;          // true if this is a native (C) function
-    NativeFn native;        // pointer to native function (if isNative)
-    bool isAsync;           // async function flag
+    Obj obj; // Function is an object now
+    Token name;
+    Token* params;
+    int paramCount;
+    Node* body;
+    Environment* closure;
+    bool isNative;
+    NativeFn native;
+    bool isAsync;
 };
 
 // VM constants
@@ -168,14 +208,24 @@ struct Function {
 // Call frame structure for function calls
 struct CallFrame {
     Environment* env;       // Previous environment
+    int fp;                 // Previous frame pointer
     Value returnValue;      // Function return value
     bool hasReturned;       // Whether function has returned
+};
+
+// Module cache entry
+struct ModuleEntry {
+    char* name;
+    int nameLen;
+    Module* module;
+    struct ModuleEntry* next;
 };
 
 // Virtual Machine structure
 struct VM {
     Value stack[STACK_MAX];         // Value stack
     int stackTop;                   // Stack pointer
+    int fp;                         // Current frame pointer
     Environment* env;               // Current environment
     Environment* globalEnv;         // Global environment
     Environment* defEnv;            // Target environment for function definitions
@@ -187,6 +237,14 @@ struct VM {
     int externHandleCount;          // Count of loaded extern libraries
     StringPool stringPool;          // String interning pool for performance
     ValuePool valuePool;            // Value pool for basic types
+    // GC State
+    Obj* objects;                   // Linked list of all objects
+    int grayCount;
+    int grayCapacity;
+    Obj** grayStack;
+    size_t bytesAllocated;
+    size_t nextGC;
+    
     // CLI Arguments
     int argc;
     char** argv;
@@ -218,18 +276,26 @@ void registerNativeFunction(VM* vm, const char* name, NativeFn function);
 
 // Core Helpers exposed for corelib
 unsigned int hash(const char* key, int length);
-Map* newMap(void);
-Array* newArray(void);
+Map* newMap(VM* vm);
+Array* newArray(VM* vm);
 void mapSetStr(Map* m, const char* key, int len, Value v);
 void mapSetInt(Map* m, int ikey, Value v);
 MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut);
-void arrayPush(Array* a, Value v);
-void arrayPush(Array* a, Value v);
+void arrayPush(VM* vm, Array* a, Value v);
 char* readFileAll(const char* path);
 Value callFunction(VM* vm, Function* func, Value* args, int argCount);
 Function* findFunctionByName(VM* vm, const char* name);
 void defineGlobal(VM* vm, const char* name, Value value);
 void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int arity);
-char* internString(VM* vm, const char* str, int length);
+ObjString* internString(VM* vm, const char* str, int length);
+
+// Memory Management
+void* reallocate(VM* vm, void* pointer, size_t oldSize, size_t newSize);
+void collectGarbage(VM* vm);
+#define ALLOCATE_OBJ(vm, type, objectType) \
+    (type*)allocateObject(vm, sizeof(type), objectType)
+
+Obj* allocateObject(VM* vm, size_t size, ObjType type);
+void freeObject(VM* vm, Obj* object);
 
 #endif // VM_H
