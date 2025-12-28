@@ -339,6 +339,22 @@ async function fetchData() {
     return "Done!";
 }
 await fetchData();</code></pre>
+        </div>
+
+        <h4>UON (Native Database)</h4>
+        <p>Unnarize includes a built-in structural database format called UON, perfect for configuration and lightweight data storage.</p>
+        <div class="code-block">
+            <pre><code>// Define Schema
+ucoreUon.parse("@schema { users: [id, name] }");
+
+// Insert & Save
+ucoreUon.insert("users", [1, "Admin"]);
+ucoreUon.save("db.uon");
+
+// Load & Query
+ucoreUon.load("db.uon");
+var users = ucoreUon.get("users");
+print(users[0].name); // Admin</code></pre>
         </div>             <h3 id="variables" class="font-display font-bold text-2xl tracking-tight">3.2 Variables & Data Types</h3>
                     <p>Variables are declared using the <code>var</code> keyword. Unnarize uses <strong>dynamic typing</strong>, meaning a variable's type is determined by the value it holds and can change at runtime.</p>
                     <pre><code class="language-unnarize">var message = "This is a string";
