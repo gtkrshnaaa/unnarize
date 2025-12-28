@@ -54,7 +54,15 @@ typedef enum {
     TOKEN_COMMA,
     TOKEN_LOADEXTERN,
     TOKEN_TRUE,
-    TOKEN_FALSE
+    TOKEN_FALSE,
+    TOKEN_AND, // &&
+    TOKEN_OR,  // ||
+    TOKEN_PLUS_EQUAL,  // +=
+    TOKEN_MINUS_EQUAL, // -=
+    TOKEN_STAR_EQUAL,  // *=
+    TOKEN_SLASH_EQUAL, // /=
+    TOKEN_COLON,       // :
+    TOKEN_STRUCT       // struct
 } TokenType;
 
 // Token structure
