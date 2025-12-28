@@ -38,8 +38,9 @@
     </script>
     <style>
         /* Simple tilt badge utility */
-        .tilt { transform: rotate(-8deg); }
-        .tilt-r { transform: rotate(8deg); }
+        /* Tilt transforms disabled */
+        .tilt { transform: none; }
+        .tilt-r { transform: none; }
         /* Light body pattern */
         body {
             background-color: white;
@@ -200,18 +201,18 @@
             </nav>
         </header>
 
-        <!-- Background glow blobs - moved outside main for full viewport coverage -->
+        <!-- Background glow blobs - STATIC (animations disabled) -->
         <div class="pointer-events-none fixed -z-10 inset-0 overflow-hidden">
             <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-fuchsia-500/40 blob"></div>
-            <div class="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-sky-400/40 blob" style="animation-delay: 2s"></div>
-            <div class="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-lime-400/40 blob" style="animation-delay: 4s"></div>
-            <div class="absolute top-1/4 left-1/4 w-48 h-48 rounded-full bg-purple-500/30 blob" style="animation-delay: 1s"></div>
-            <div class="absolute bottom-1/4 right-1/4 w-56 h-56 rounded-full bg-cyan-400/35 blob" style="animation-delay: 3s"></div>
-            <div class="absolute top-3/4 left-1/6 w-40 h-40 rounded-full bg-pink-500/25 blob" style="animation-delay: 5s"></div>
-            <div class="absolute top-1/6 right-1/3 w-52 h-52 rounded-full bg-emerald-400/30 blob" style="animation-delay: 6s"></div>
-            <div class="absolute bottom-1/3 left-2/3 w-44 h-44 rounded-full bg-orange-400/25 blob" style="animation-delay: 7s"></div>
-            <div class="absolute top-2/3 right-1/6 w-36 h-36 rounded-full bg-violet-400/20 blob" style="animation-delay: 8s"></div>
-            <div class="absolute bottom-1/6 left-1/5 w-60 h-60 rounded-full bg-teal-400/30 blob" style="animation-delay: 9s"></div>
+            <div class="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-sky-400/40 blob"></div>
+            <div class="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-lime-400/40 blob"></div>
+            <div class="absolute top-1/4 left-1/4 w-48 h-48 rounded-full bg-purple-500/30 blob"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-56 h-56 rounded-full bg-cyan-400/35 blob"></div>
+            <div class="absolute top-3/4 left-1/6 w-40 h-40 rounded-full bg-pink-500/25 blob"></div>
+            <div class="absolute top-1/6 right-1/3 w-52 h-52 rounded-full bg-emerald-400/30 blob"></div>
+            <div class="absolute bottom-1/3 left-2/3 w-44 h-44 rounded-full bg-orange-400/25 blob"></div>
+            <div class="absolute top-2/3 right-1/6 w-36 h-36 rounded-full bg-violet-400/20 blob"></div>
+            <div class="absolute bottom-1/6 left-1/5 w-60 h-60 rounded-full bg-teal-400/30 blob"></div>
         </div>
 
         <main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
@@ -340,44 +341,69 @@ var x = 10; // This is also a comment.
 </code></pre>
                     
                     <h4>The `print` Statement</h4>
-                    <p>Use <code>print</code> to output values to the console. Each <code>print</code> call automatically adds a new line.</p>
-        <h4>Structures</h4>
-        <p>Define custom data structures for clean, type-like organization:</p>
+                    <p>Use <code>print</code> to output values to the console. Each <code>print</code> call automatically adds a new line. You can print any type of value including strings, numbers, and objects.</p>
+                    <pre><code class="language-unnarize">print("Hello, World!");
+// Prints: Hello, World!
+
+var age = 25;
+print("Age: " + age);
+// Prints: Age: 25
+</code></pre>
+        <h4>Structures (Structs)</h4>
+        <p><strong>Define custom data structures</strong> for clean, type-like organization. Structs provide a simple way to group related data together, similar to classes in other languages but without inheritance complexity.</p>
         <div class="code-block">
-            <pre><code class="language-unnarize">struct User {
+            <pre><code class="language-unnarize">// Define a struct schema
+struct User {
     id;
     name;
     roles;
 }
 
-// Create instance
+// Create instance by calling struct like a function
 var admin = User(1, "Admin", ["admin", "editor"]);
 
 // Print whole object
 print(admin); 
+// Output: <obj>
 
-// Access
+// Access fields using dot notation
 print("User ID: " + admin.id);
+// Output: User ID: 1
+
 print("Role: " + admin.roles[0]);
+// Output: Role: admin
 </code></pre>
         </div>
 
-        <h4>Streaming File I/O (UON)</h4>
-        <p>Unnarize includes a built-in structural database format called UON, perfect for lazy-loading configuration and data files:</p>
+        <h4>UON (Unnarize Object Notation) - Built-in Database</h4>
+        <p><strong>UON is a powerful built-in database format</strong> designed for streaming file I/O and lazy-loading data. Perfect for configuration files, lightweight databases, and structured data storage without external dependencies.</p>
+        
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li>💾 <strong>Lazy Loading</strong>: Read data on-demand without loading entire file</li>
+            <li>🔄 <strong>Streaming API</strong>: Iterate through large datasets efficiently</li>
+            <li>📦 <strong>Built-in</strong>: No external database installation required</li>
+            <li>⚡ <strong>Fast</strong>: Optimized for quick access patterns</li>
+        </ul>
+
         <div class="code-block">
-            <pre><code class="language-unnarize">print("Loading UON file (Streaming)...");
+            <pre><code class="language-unnarize">// Example: Loading and querying a UON file
+print("Loading UON file (Streaming)...");
 var success = ucoreUon.load("app_data.uon");
 if (!success) {
     print("Failed to load app_data.uon");
 }
 
+// Query a specific table
 print("Querying settings table...");
 var cursor = ucoreUon.get("settings");
+
 if (cursor) {
     print("Iterating rows:");
     var row;
     row = ucoreUon.next(cursor);
     while (row) {
+        // Access row data by field name
         print("  Row: " + row.key + " = " + row.val);
         row = ucoreUon.next(cursor);
     }
@@ -1321,20 +1347,8 @@ gcc -shared -fPIC -o processing_lib.so processing_lib.c -ldl
         })();
 
         // Scroll reveal animations
-        (function scrollReveal(){
-            const observer = new IntersectionObserver((entries)=>{
-                entries.forEach((e)=>{
-                    if (e.isIntersecting) {
-                        e.target.classList.add('opacity-100','translate-y-0');
-                        observer.unobserve(e.target);
-                    }
-                });
-            }, { threshold: 0.08 });
-            document.querySelectorAll('section, nav#navigation').forEach((el)=>{
-                el.classList.add('opacity-0','translate-y-4','transition-all','duration-700');
-                observer.observe(el);
-            });
-        })();
+        // Scroll reveal animations - DISABLED per user request
+        // All sections remain visible without animation();
 
         // Floating back-to-top button
         (function backToTop(){
