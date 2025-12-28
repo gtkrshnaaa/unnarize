@@ -58,3 +58,9 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Generated examples output
+examples/*.uon
+!examples/data.uon
+examples/*.out
+examples/*.tmp
