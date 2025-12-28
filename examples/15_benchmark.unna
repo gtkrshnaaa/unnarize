@@ -1,0 +1,39 @@
+print("Starting Benchmark...");
+
+// 1. Recursive Fibonacci (Function Call Overhead)
+function fib(n) {
+    if (n < 2) return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+// 2. Heavy Loop + Arithmetic
+function sumLoop(n) {
+    var sum = 0;
+    for (var i = 0; i < n; i = i + 1) {
+        sum = sum + i;
+    }
+    return sum;
+}
+
+// 3. String Concatenation (Allocation Overhead)
+function stringConcat(n) {
+    var s = "";
+    for (var i = 0; i < n; i = i + 1) {
+        s = s + "a";
+    }
+    return s.length;
+}
+
+// Run Fib
+// print("Running Fibonacci(25)...");
+// print(fib(25));
+
+// Run Loop
+print("Running SumLoop(100000)...");
+print(sumLoop(100000));
+
+// Run String
+print("Running StringConcat(1000)...");
+print(stringConcat(1000));
+
+print("Benchmark Done.");

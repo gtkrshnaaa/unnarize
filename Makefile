@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Wextra -std=c11 -O3 -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl -lpthread -Wl,-export-dynamic
 
 SRCDIR = src
@@ -88,6 +88,9 @@ run-uon-file: all
 
 run-http: all
 	./$(EXECUTABLE) examples/13_http.unna
+
+run-server: all
+	./$(EXECUTABLE) examples/14_server.unna
 
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.

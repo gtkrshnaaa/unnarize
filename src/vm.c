@@ -1,11 +1,14 @@
-#include "vm.h"
 #include "lexer.h"
 #include "parser.h"
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "vm.h"
 #include <dlfcn.h>
 #include <time.h>
+#include <math.h>
+
+// TABLE_SIZE and CALL_STACK_MAX are in vm.h
 
 // Local Future struct definition (pointer type is exposed via vm.h)
 typedef struct Future {
@@ -126,7 +129,7 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
     // First, search in current environment
     VarEntry* entry = vm->env->buckets[h];
     while (entry) {
-        if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+        if (strncmp(entry->key, name.start, name.length) == 0 && entry->keyLength == name.length) {
             return entry;
         }
         entry = entry->next;
@@ -136,7 +139,7 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
     if (!insert && vm->defEnv && vm->defEnv != vm->env) {
         entry = vm->defEnv->buckets[h];
         while (entry) {
-            if (strncmp(entry->key, name.start, name.length) == 0 && strlen(entry->key) == (size_t)name.length) {
+            if (strncmp(entry->key, name.start, name.length) == 0 && entry->keyLength == name.length) {
                 return entry;
             }
             entry = entry->next;
@@ -160,17 +163,24 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
         if (!entry) {
             error("Memory allocation failed.", name.line);
         }
-        entry->key = strndup(name.start, name.length);
+        
+        // Ensure name.start is null-terminated or safer copy handling
+        // For VAR_DECL, we usually want to own the key.
+        entry->key = strndup(name.start, name.length); 
         if (!entry->key) {
             free(entry);
             error("Memory allocation failed.", name.line);
         }
+        entry->keyLength = name.length;
+        entry->ownsKey = true; 
+        
         entry->value.type = VAL_INT; // Default init
         entry->value.intVal = 0;
         entry->next = vm->env->buckets[h];
         vm->env->buckets[h] = entry;
+        return entry;
     }
-    return entry;
+    return NULL;
 }
 
 // Find or insert function in specific environment
@@ -490,6 +500,10 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
         error("Call stack overflow.", 0);
     }
     
+    // Debug depth
+    // printf("Call depth: %d\n", vm->callStackTop);
+    // printf("Calling %.*s\n", func->name.length, func->name.start);
+    
     // Create new environment for function execution
     Environment* funcEnv = malloc(sizeof(Environment));
     if (!funcEnv) error("Memory allocation failed.", 0);
@@ -506,16 +520,19 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     // Set up parameters in function environment
     for (int i = 0; i < argCount; i++) {
         VarEntry* paramEntry = malloc(sizeof(VarEntry));
-        if (!paramEntry) error("Memory allocation failed.", 0);
-        
+        if (!paramEntry) error("Memory allocation failed for param.", func->name.line); // Changed error message and line
+
+        // Revert optimization: duplicate key to ensure safety for now.
         paramEntry->key = strndup(func->params[i].start, func->params[i].length);
         if (!paramEntry->key) {
             free(paramEntry);
-            error("Memory allocation failed.", 0);
+            error("Memory allocation failed.", func->name.line);
         }
+        paramEntry->keyLength = func->params[i].length;
+        paramEntry->ownsKey = true;
         
         paramEntry->value = args[i];
-        unsigned int hashVal = hash(paramEntry->key, strlen(paramEntry->key));
+        unsigned int hashVal = hash(paramEntry->key, func->params[i].length); // Use length from token
         paramEntry->next = funcEnv->buckets[hashVal];
         funcEnv->buckets[hashVal] = paramEntry;
     }
@@ -549,7 +566,9 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
         VarEntry* entry = funcEnv->buckets[i];
         while (entry) {
             VarEntry* next = entry->next;
-            free(entry->key);
+            if (entry->ownsKey) {
+                free(entry->key);
+            }
             // Do NOT free entry->value.stringVal here.
             // String values passed as arguments or assigned to locals may alias
             // memory owned by outer scopes; freeing here can cause double-free

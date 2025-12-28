@@ -59,6 +59,8 @@ typedef Value (*NativeFn)(VM*, Value* args, int argCount);
 // Variable entry structure for hash table
 struct VarEntry {
     char* key;              // Variable name
+    int keyLength;          // Length of key
+    bool ownsKey; // Optimization: If false, do not free key (it's a reference)
     Value value;            // Variable value
     struct VarEntry* next;  // Next entry in hash bucket
 };
@@ -70,8 +72,9 @@ struct FuncEntry {
     struct FuncEntry* next; // Next entry in hash bucket
 };
 
-// Hash table size for environments
-#define TABLE_SIZE 256
+// Initial hash table size for environments
+// Reduced to Save memory per stack frame
+#define TABLE_SIZE 61
 
 // String interning pool for performance optimization
 typedef struct StringPool {
