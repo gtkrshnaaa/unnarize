@@ -119,6 +119,29 @@ print("Starting server on port 8080...");
 ucoreHttp.listen(8080, "handleRequest");
 ```
 
+### 5. UON (Unnarize Object Notation) Database
+```javascript
+// 5. Native Database with UON
+// Define Schema
+ucoreUon.parse("@schema {\n    settings: [key, val]\n}");
+
+// Insert Data
+ucoreUon.insert("settings", ["theme", "dark"]);
+ucoreUon.insert("settings", ["retries", 3]);
+
+// Save Database
+ucoreUon.save("app_data.uon");
+print("Saved app_data.uon");
+
+// Clear and Load
+ucoreUon.parse("@flow { settings: [] }"); // Clear data
+ucoreUon.load("app_data.uon");
+
+// Query
+var rows = ucoreUon.get("settings");
+print("Loaded Theme: " + rows[0].val);
+```
+
 ## About The Project
 
 Unnarize is a high-performance tree-walk interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), value pooling, and string interning infrastructure for maximum performance.
