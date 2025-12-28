@@ -86,6 +86,9 @@ run-uon: all
 run-uon-file: all
 	./$(EXECUTABLE) examples/11_uon_file.unna
 
+run-http: all
+	./$(EXECUTABLE) examples/13_http.unna
+
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.
 run-all: all build-plugins-all

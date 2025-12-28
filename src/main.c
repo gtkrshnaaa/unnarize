@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "vm.h"
 #include "ucore_uon.h"
+#include "ucore_http.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
@@ -295,6 +296,7 @@ int main(int argc, char* argv[]) {
     VM vm;
     initVM(&vm);
     registerUCoreUON(&vm); // Register built-in core libraries
+    registerUCoreHttp(&vm);
     interpret(&vm, ast);
 
     // Cleanup
