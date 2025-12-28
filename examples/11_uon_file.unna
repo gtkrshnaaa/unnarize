@@ -1,0 +1,8 @@
+print("Loading UON file...");
+ucoreUon.load("examples/data.uon");
+
+print("Fetching items table...");
+var items = ucoreUon.get("items");
+
+print("Item 1: " + items[0].name + " ($" + items[0].price + ")");
+print("Item 2: " + items[1].name);
