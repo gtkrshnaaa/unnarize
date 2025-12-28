@@ -3,36 +3,78 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
-// Internal storage
+// Schema storage only - we don't store data anymore
 static Map* uonSchemas = NULL; // TableName -> StructDef
-static Map* uonData = NULL;    // TableName -> Array (of Arrays)
+
+// Cursor structure for streaming
+typedef struct {
+    FILE* file;
+    char* tableName;
+    long startOffset; // Where the implementation loop starts (after leading [)
+} UonCursor;
 
 static void ensureInit() {
     if (!uonSchemas) uonSchemas = newMap();
-    if (!uonData) uonData = newMap();
+    // uonData removed
 }
 
 // ---- Parser Utils ----
 
 static char peek(const char* p) { return *p; }
-// static char advance(const char** p) { return *((*p)++); } // Unused
-
 static void skipSpace(const char** p) {
     while (peek(*p) && isspace(peek(*p))) (*p)++;
 }
-
-static bool matchStr(const char** p, const char* kw) {
-    int len = strlen(kw);
-    if (strncmp(*p, kw, len) == 0) {
-        *p += len;
-        return true;
+// File-based peek/skip
+static int fpeek(FILE* f) {
+    int c = fgetc(f);
+    ungetc(c, f);
+    return c;
+}
+static void fskipSpace(FILE* f) {
+    int c;
+    while ((c = fgetc(f)) != EOF) {
+        if (!isspace(c)) {
+            ungetc(c, f);
+            return;
+        }
     }
-    return false;
+}
+static bool fmatchStr(FILE* f, const char* kw) {
+    long pos = ftell(f);
+    const char* p = kw;
+    while (*p) {
+        int c = fgetc(f);
+        if (c != *p) {
+            fseek(f, pos, SEEK_SET);
+            return false;
+        }
+        p++;
+    }
+    return true;
 }
 
-// Parse identifier: alphanumeric + _
-// Returns malloc'd string
+// Helper to read identifier from file
+static char* fparseIdentifier(FILE* f) {
+    fskipSpace(f);
+    char buf[256];
+    int i = 0;
+    int c;
+    while ((c = fgetc(f)) != EOF) {
+        if (isalnum(c) || c == '_') {
+            if (i < 255) buf[i++] = c;
+        } else {
+            ungetc(c, f);
+            break;
+        }
+    }
+    buf[i] = '\0';
+    if (i == 0) return NULL;
+    return strdup(buf);
+}
+
+// Re-use string parser logic for schema parsing (loaded in RAM still, as schema is small)
 static char* parseIdentifier(const char** p) {
     skipSpace(p);
     const char* start = *p;
@@ -42,44 +84,11 @@ static char* parseIdentifier(const char** p) {
     return strndup(start, len);
 }
 
-// Parse value: int, string (quoted), or relation ref (ignored/treated as string/int?) 
-// UON flow values: [1, "Kiann", "Dev"]
-static Value parseValue(const char** p) {
-    skipSpace(p);
-    if (peek(*p) == '"') {
-        const char* start = ++(*p);
-        while (peek(*p) && peek(*p) != '"') (*p)++;
-        int len = *p - start;
-        if (peek(*p) == '"') (*p)++;
-        Value v; v.type = VAL_STRING; v.stringVal = strndup(start, len);
-        return v;
-    }
-    // Number
-    if (isdigit(peek(*p)) || peek(*p) == '-') {
-        const char* start = *p;
-        while (isdigit(peek(*p)) || peek(*p) == '.') (*p)++;
-        int len = *p - start;
-        char* buf = strndup(start, len);
-        // Simple heuristic: if dot, float, else int
-        if (strchr(buf, '.')) {
-            Value v; v.type = VAL_FLOAT; v.floatVal = atof(buf);
-            free(buf); return v;
-        } else {
-            Value v; v.type = VAL_INT; v.intVal = atoi(buf);
-            free(buf); return v;
-        }
-    }
-    // Default/Error
-    Value v; v.type = VAL_INT; v.intVal = 0; 
-    return v;
-}
-
 static void parseSchemaBlock(const char** p) {
     skipSpace(p);
     if (peek(*p) != '{') return;
     (*p)++;
     
-    // entries: tableName: [col, col]
     while (peek(*p) && peek(*p) != '}') {
         skipSpace(p);
         if (peek(*p) == '}') break;
@@ -93,9 +102,8 @@ static void parseSchemaBlock(const char** p) {
         skipSpace(p);
         if (peek(*p) == '[') (*p)++;
         
-        // Cols
         StructDef* def = malloc(sizeof(StructDef));
-        def->name = tableName; // Takes ownership
+        def->name = tableName;
         def->fields = malloc(16 * sizeof(char*));
         def->fieldCount = 0;
         int cap = 16;
@@ -104,8 +112,7 @@ static void parseSchemaBlock(const char** p) {
             skipSpace(p);
             char* col = parseIdentifier(p);
             if (col) {
-                // Check if relation (> something), ignore rest until comma or ]
-                skipSpace(p);
+                skipSpace(p); // ignore > relation
                 if (peek(*p) == '>') {
                     while (peek(*p) && peek(*p) != ',' && peek(*p) != ']') (*p)++;
                 }
@@ -121,64 +128,8 @@ static void parseSchemaBlock(const char** p) {
         }
         if (peek(*p) == ']') (*p)++;
         
-        // Register schema
         Value vDef; vDef.type = VAL_STRUCT_DEF; vDef.structDef = def;
         mapSetStr(uonSchemas, tableName, strlen(tableName), vDef);
-        
-        skipSpace(p);
-        if (peek(*p) == ',') (*p)++;
-    }
-    if (peek(*p) == '}') (*p)++;
-}
-
-static void parseFlowBlock(const char** p) {
-    skipSpace(p);
-    if (peek(*p) != '{') return;
-    (*p)++;
-    
-    // entries: tableName: [ [row], [row] ]
-    while (peek(*p) && peek(*p) != '}') {
-        skipSpace(p);
-        if (peek(*p) == '}') break;
-        
-        char* tableName = parseIdentifier(p);
-        if (!tableName) break;
-        
-        skipSpace(p);
-        if (peek(*p) == ':') (*p)++;
-        
-        skipSpace(p); 
-        if (peek(*p) != '[') { free(tableName); continue; } // Error
-        (*p)++; // Open list of rows
-        
-        Array* tableRows = newArray();
-        
-        while (peek(*p) && peek(*p) != ']') {
-             skipSpace(p);
-             if (peek(*p) == '[') {
-                 // Row
-                 (*p)++;
-                 Array* row = newArray();
-                 while (peek(*p) && peek(*p) != ']') {
-                     Value v = parseValue(p);
-                     arrayPush(row, v);
-                     skipSpace(p);
-                     if (peek(*p) == ',') (*p)++;
-                 }
-                 if (peek(*p) == ']') (*p)++;
-                 
-                 Value vRow; vRow.type = VAL_ARRAY; vRow.arrayVal = row;
-                 arrayPush(tableRows, vRow);
-             }
-             skipSpace(p);
-             if (peek(*p) == ',') (*p)++;
-        }
-        if (peek(*p) == ']') (*p)++;
-        
-        // Store
-        Value vData; vData.type = VAL_ARRAY; vData.arrayVal = tableRows;
-        mapSetStr(uonData, tableName, strlen(tableName), vData);
-        free(tableName);
         
         skipSpace(p);
         if (peek(*p) == ',') (*p)++;
@@ -191,220 +142,257 @@ static void parseFromSource(const char* source) {
     const char* p = source;
     while (peek(p)) {
         skipSpace(&p);
-        if (matchStr(&p, "@schema")) {
+        if (strncmp(p, "@schema", 7) == 0) {
+            p += 7;
             parseSchemaBlock(&p);
-        } else if (matchStr(&p, "@flow")) {
-            parseFlowBlock(&p);
+        } else if (strncmp(p, "@flow", 5) == 0) {
+            // Stop parsing flow in RAM
+            break;
         } else {
-            if (peek(p)) p++; // skip unknown or end
+            if (peek(p)) p++;
         }
     }
 }
+
+// --------------------------------------------------------
+// API
+// --------------------------------------------------------
 
 static Value uon_parse(VM* vm, Value* args, int argCount) {
     (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) {
-        printf("Error: ucoreUon.parse expects string.\n"); // Or VM error
-        Value nullVal = {VAL_INT, .intVal = 0}; return nullVal;
-    }
-    
+    if (argCount != 1 || args[0].type != VAL_STRING) return (Value){VAL_INT, .intVal = 0};
     parseFromSource(args[0].stringVal);
-    
-    Value v; v.type = VAL_BOOL; v.boolVal = true;
-    return v;
-}
-
-static Value uon_load(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) {
-        printf("Error: ucoreUon.load expects file path string.\n");
-        return (Value){VAL_INT, .intVal = 0};
-    }
-    char* source = readFileAll(args[0].stringVal);
-    if (!source) {
-        printf("Error: ucoreUon.load could not read file '%s'.\n", args[0].stringVal);
-        return (Value){VAL_INT, .intVal = 0};
-    }
-    
-    parseFromSource(source);
-    free(source);
-    
-    Value v; v.type = VAL_BOOL; v.boolVal = true;
-    return v;
-}
-
-static Value uon_insert(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 2 || args[0].type != VAL_STRING || args[1].type != VAL_ARRAY) {
-        printf("Error: ucoreUon.insert(tableName, rowArray)\n");
-        return (Value){VAL_INT, .intVal = 0};
-    }
-    
-    char* tableName = args[0].stringVal;
-    ensureInit();
-    
-    // Check if table exists
-    MapEntry* eData = mapFindEntry(uonData, tableName, strlen(tableName), NULL);
-    if (!eData) {
-        printf("Error: Table '%s' not found.\n", tableName);
-        return (Value){VAL_BOOL, .boolVal = false};
-    }
-    
-    // Append
-    arrayPush(eData->value.arrayVal, args[1]);
-    
+    // Note: parsing flow inline (string) is essentially ignored/not useful for streaming.
+    // If user provides a full string with flow, we might want to support it, but
+    // for now we prioritize FILE streaming.
     return (Value){VAL_BOOL, .boolVal = true};
 }
 
-static Value uon_delete(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 2 || args[0].type != VAL_STRING) {
-        printf("Error: ucoreUon.delete(tableName, id)\n");
-        return (Value){VAL_BOOL, .boolVal = false};
-    }
-    
-    char* tableName = args[0].stringVal;
-    Value idVal = args[1];
-    ensureInit();
-    
-    MapEntry* eData = mapFindEntry(uonData, tableName, strlen(tableName), NULL);
-    if (!eData) return (Value){VAL_BOOL, .boolVal = false};
-    
-    Array* rows = eData->value.arrayVal;
-    for (int i = 0; i < rows->count; i++) {
-        Value row = rows->items[i];
-        if (row.type != VAL_ARRAY || row.arrayVal->count == 0) continue;
-        
-        Value rowId = row.arrayVal->items[0];
-        
-        bool match = false;
-        if (idVal.type == VAL_INT && rowId.type == VAL_INT && idVal.intVal == rowId.intVal) match = true;
-        else if (idVal.type == VAL_STRING && rowId.type == VAL_STRING && strcmp(idVal.stringVal, rowId.stringVal) == 0) match = true;
-        
-        if (match) {
-            // Swap remove
-            rows->items[i] = rows->items[rows->count - 1];
-            rows->count--;
-            return (Value){VAL_BOOL, .boolVal = true};
-        }
-    }
-    
-    return (Value){VAL_BOOL, .boolVal = false};
-}
+// Globals
+static char g_lastPath[1024] = {0};
 
-static Value uon_get(VM* vm, Value* args, int argCount) {
+static Value uon_load_impl(VM* vm, Value* args, int argCount) {
     (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) return (Value){VAL_INT, .intVal=0};
+    if (argCount < 1 || args[0].type != VAL_STRING) return (Value){VAL_BOOL, .boolVal=false};
+    char* path = args[0].stringVal;
+    strncpy(g_lastPath, path, 1023);
     
-    ensureInit();
-    char* tableName = args[0].stringVal;
-    int len = strlen(tableName);
+    // Schema parse limited logic
+    FILE* f = fopen(path, "r");
+    if(!f) return (Value){VAL_BOOL, .boolVal=false};
     
-    MapEntry* eSchema = mapFindEntry(uonSchemas, tableName, len, NULL);
-    MapEntry* eData = mapFindEntry(uonData, tableName, len, NULL);
-    
-    if (!eSchema || !eData) return (Value){VAL_INT, .intVal=0};
-    
-    StructDef* def = eSchema->value.structDef;
-    Array* rows = eData->value.arrayVal;
-    
-    // Create array of StructInstances
-    Array* resultList = newArray();
-    for (int i = 0; i < rows->count; i++) {
-        Value rowVal = rows->items[i];
-        if (rowVal.type != VAL_ARRAY) continue;
-        
-        StructInstance* inst = malloc(sizeof(StructInstance));
-        inst->def = def;
-        inst->fields = rowVal.arrayVal->items; // Zero-copy View!
-        
-        Value vInst; vInst.type = VAL_STRUCT_INSTANCE; vInst.structInstance = inst;
-        arrayPush(resultList, vInst);
+    size_t cap = 1024 * 64; // Limit schema read to 64KB
+    size_t len = 0;
+    char* buf = malloc(cap + 1);
+    int c;
+    while((c = fgetc(f)) != EOF && len < cap) {
+        buf[len++] = c;
+        if(len >= 5 && strncmp(&buf[len-5], "@flow", 5) == 0) break;
     }
-    
-    Value vRes; vRes.type = VAL_ARRAY; vRes.arrayVal = resultList;
-    return vRes;
-}
-
-static void fprintValue(FILE* f, Value v) {
-    switch (v.type) {
-        case VAL_INT: fprintf(f, "%d", v.intVal); break;
-        case VAL_FLOAT: fprintf(f, "%g", v.floatVal); break;
-        case VAL_STRING: fprintf(f, "\"%s\"", v.stringVal); break; // TODO: Escape quotes
-        case VAL_BOOL: fprintf(f, "%s", v.boolVal ? "true" : "false"); break;
-        default: fprintf(f, "null"); break;
-    }
-}
-
-static Value uon_save(VM* vm, Value* args, int argCount) {
-    (void)vm;
-    if (argCount != 1 || args[0].type != VAL_STRING) {
-        printf("Error: ucoreUon.save(path) expects path string.\n");
-        return (Value){VAL_BOOL, .boolVal = false};
-    }
-    
-    const char* path = args[0].stringVal;
-    FILE* f = fopen(path, "w");
-    if (!f) {
-        printf("Error: Could not open file '%s' for writing.\n", path);
-        return (Value){VAL_BOOL, .boolVal = false};
-    }
-    
-    ensureInit();
-    
-    // Write Schema
-    fprintf(f, "@schema {\n");
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        MapEntry* e = uonSchemas->buckets[i];
-        while (e) {
-            StructDef* def = e->value.structDef;
-            fprintf(f, "    %s: [", def->name);
-            for (int k = 0; k < def->fieldCount; k++) {
-                fprintf(f, "%s%s", def->fields[k], k < def->fieldCount - 1 ? ", " : "");
-            }
-            fprintf(f, "]");
-            e = e->next;
-            if (e || i < TABLE_SIZE - 1) fprintf(f, ","); // Technically trailing comma might be allowed or we just use comma for all but last... 
-            // Simplified: always comma if not last in this bucket or next buckets exist. 
-            // Just simple comma always is fine if parser supports it, or newline.
-            // Our parser requires comma separation? 
-            // Parser logic: `skipSpace(p); if (peek(*p) == ',') (*p)++;` -> yes, comma is optional/consumed if present.
-            fprintf(f, "\n"); 
-        }
-    }
-    fprintf(f, "}\n");
-    
-    // Write Flow
-    fprintf(f, "@flow {\n");
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        MapEntry* e = uonData->buckets[i];
-        while (e) {
-            char* tableName = e->key; // MapEntry has key
-            Array* rows = e->value.arrayVal;
-            
-            fprintf(f, "    %s: [\n", tableName);
-            for (int r = 0; r < rows->count; r++) {
-                Value row = rows->items[r];
-                if (row.type != VAL_ARRAY) continue;
-                fprintf(f, "        [");
-                for (int c = 0; c < row.arrayVal->count; c++) {
-                    fprintValue(f, row.arrayVal->items[c]);
-                    if (c < row.arrayVal->count - 1) fprintf(f, ", ");
-                }
-                fprintf(f, "]");
-                if (r < rows->count - 1) fprintf(f, ",");
-                fprintf(f, "\n");
-            }
-            fprintf(f, "    ]");
-            
-            e = e->next;
-             fprintf(f, ",\n");
-        }
-    }
-    fprintf(f, "}\n");
-    
+    buf[len] = '\0';
     fclose(f);
-    return (Value){VAL_BOOL, .boolVal = true};
+    parseFromSource(buf);
+    free(buf);
+    
+    return (Value){VAL_BOOL, .boolVal=true};
+}
+
+static Value uon_get_impl(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    char* tableName = NULL;
+    char* path = g_lastPath;
+    
+    if (argCount == 1) {
+        tableName = args[0].stringVal;
+    } else if (argCount == 2) {
+        path = args[0].stringVal;
+        tableName = args[1].stringVal;
+    } else return (Value){VAL_INT, .intVal=0};
+    
+    FILE* f = fopen(path, "r");
+    if (!f) return (Value){VAL_INT, .intVal=0};
+    
+    // Scan for @flow
+    // This is inefficient (scanning every time), but robust for "Low Cost" (no RAM index).
+    // Performance: O(File) per Get. Acceptable for CLI tools.
+    
+    // Fast-forward to @flow
+    // Reset file
+    fseek(f, 0, SEEK_SET);
+    
+    // Find "@flow"
+    // Brute force scan
+    int matched = 0;
+    bool inFlow = false;
+    while(true) {
+        int c = fgetc(f);
+        if (c == EOF) break;
+        if (c == "@flow"[matched]) matched++;
+        else matched = 0;
+        if (matched == 5) { inFlow = true; break; }
+    }
+    
+    if (!inFlow) { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    
+    // Find "tableName:"
+    // Inside @flow { ... }
+    
+    fskipSpace(f);
+    if (fgetc(f) != '{') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    
+    bool foundTable = false;
+    while(true) {
+        fskipSpace(f);
+        int c = fpeek(f);
+        if (c == '}' || c == EOF) break;
+        
+        char* id = fparseIdentifier(f);
+        if (!id) break;
+        
+        if (strcmp(id, tableName) == 0) {
+            free(id);
+            foundTable = true;
+            break;
+        }
+        free(id);
+        
+        // Skip value
+        fskipSpace(f);
+        if (fgetc(f) == ':') {
+             fskipSpace(f);
+             // Verify it is a list [
+             if (fgetc(f) == '[') {
+                 // Skip content until closing ]
+                 int depth = 1;
+                 while(depth > 0 && (c=fgetc(f)) != EOF) {
+                     if(c=='[') depth++;
+                     if(c==']') depth--;
+                 }
+             }
+             fskipSpace(f);
+             if (fpeek(f) == ',') fgetc(f);
+        }
+    }
+    
+    if (!foundTable) { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    
+    // Found table. Should be at ':'
+    fskipSpace(f);
+    if (fgetc(f) != ':') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    fskipSpace(f);
+    if (fgetc(f) != '[') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    
+    // Created Cursor!
+    UonCursor* cursor = malloc(sizeof(UonCursor));
+    cursor->file = f;
+    cursor->tableName = strdup(tableName);
+    cursor->startOffset = ftell(f);
+    
+    Value v; v.type = VAL_RESOURCE; v.resourceVal = cursor;
+    return v;
+}
+
+static Value fparseValue(FILE* f) {
+    fskipSpace(f);
+    int c = fpeek(f);
+    
+    if (c == '"') {
+        fgetc(f);
+        char buf[1024]; int i=0;
+        while((c=fgetc(f)) != EOF && c != '"' && i < 1023) buf[i++] = c;
+        buf[i] = '\0';
+        Value v; v.type = VAL_STRING; v.stringVal = strdup(buf);
+        return v;
+    }
+    
+    if (isdigit(c) || c == '-') {
+        char buf[64]; int i=0;
+        while((c=fgetc(f)) != EOF && (isdigit(c) || c == '.' || c=='-') && i < 63) buf[i++] = c;
+        buf[i] = '\0';
+        ungetc(c, f); // Put back non-digit
+        
+        if (strchr(buf, '.')) {
+            Value v; v.type = VAL_FLOAT; v.floatVal = atof(buf);
+            return v;
+        } else {
+            Value v; v.type = VAL_INT; v.intVal = atoi(buf);
+            return v;
+        }
+    }
+    return (Value){VAL_INT, .intVal=0};
+}
+
+static Value uon_next(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || args[0].type != VAL_RESOURCE) return (Value){VAL_INT, .intVal=0}; // null
+    
+    UonCursor* cursor = (UonCursor*)args[0].resourceVal;
+    FILE* f = cursor->file;
+    
+    fskipSpace(f);
+    int c = fpeek(f);
+    if (c == ']') {
+        // End of list
+        // Close automatically?
+        fclose(f);
+        free(cursor->tableName);
+        free(cursor);
+        args[0].resourceVal = NULL; // Zero out to prevent use-after-free
+        return (Value){VAL_INT, .intVal=0}; // null loop terminator
+    }
+    
+    if (c == ',') { fgetc(f); fskipSpace(f); c = fpeek(f); }
+    if (c == ']') { fclose(f); free(cursor->tableName); free(cursor); args[0].resourceVal = NULL; return (Value){VAL_INT, .intVal=0}; }
+
+    if (c != '[') {
+        // Malformed or end
+        return (Value){VAL_INT, .intVal=0};
+    }
+    fgetc(f); // eat [
+    
+    // Parse Row
+    Array* row = newArray();
+    while ((c=fpeek(f)) != ']' && c != EOF) {
+        Value val = fparseValue(f);
+        arrayPush(row, val);
+        fskipSpace(f);
+        if (fpeek(f) == ',') fgetc(f);
+    }
+    if (fpeek(f) == ']') fgetc(f);
+    
+    // Convert to StructInstance if schema exists
+    ensureInit();
+    char* tn = cursor->tableName;
+    MapEntry* e = mapFindEntry(uonSchemas, tn, strlen(tn), NULL);
+    if (e && e->value.type == VAL_STRUCT_DEF) {
+         StructInstance* obj = malloc(sizeof(StructInstance));
+         obj->def = e->value.structDef;
+         obj->fields = row->items;
+         // Note: we steal items from Array. 
+         // But Array struct will be freed by VM (gc not impl, but value semantics).
+         // Actually in unnarize arrayPush copies value. 
+         // Value is struct `{type, union}`.
+         // If we create a StructInstance, we need an array of Values. row->items is exactly that.
+         // We can free the Array wrapper but keep items.
+         free(row); // Shallow free wrapper? Array struct is malloced.
+         
+         Value vRet; vRet.type = VAL_STRUCT_INSTANCE; vRet.structInstance = obj;
+         return vRet;
+    }
+
+    Value vArr; vArr.type = VAL_ARRAY; vArr.arrayVal = row;
+    return vArr;
+}
+
+static Value uon_save_dummy(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    printf("Warning: ucoreUon.save() disabled in lazy mode (read-only optimization).\n");
+    return (Value){VAL_BOOL, .boolVal=true};
+}
+
+// Stubs for insert/delete (read-only for now or append-only later)
+static Value uon_noop(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    return (Value){VAL_BOOL, .boolVal=false};
 }
 
 void registerUCoreUON(VM* vm) {
@@ -414,69 +402,58 @@ void registerUCoreUON(VM* vm) {
     mod->env = malloc(sizeof(Environment));
     memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
     memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
-    
-    // Register parse
-    unsigned int hParse = hash("parse", 5);
-    FuncEntry* feParse = malloc(sizeof(FuncEntry));
-    feParse->key = strdup("parse");
-    feParse->next = mod->env->funcBuckets[hParse];
-    mod->env->funcBuckets[hParse] = feParse;
-    
-    Function* fnParse = malloc(sizeof(Function));
-    fnParse->isNative = true;
-    fnParse->native = uon_parse;
-    fnParse->paramCount = 1;
-    fnParse->name = (Token){TOKEN_IDENTIFIER, feParse->key, 5, 0};
-    feParse->function = fnParse;
-    
-    // Register get
-    unsigned int hGet = hash("get", 3);
-    FuncEntry* feGet = malloc(sizeof(FuncEntry));
-    feGet->key = strdup("get");
-    feGet->next = mod->env->funcBuckets[hGet];
-    mod->env->funcBuckets[hGet] = feGet;
-    
-    Function* fnGet = malloc(sizeof(Function));
-    fnGet->isNative = true;
-    fnGet->native = uon_get;
-    fnGet->paramCount = 1;
-    fnGet->name = (Token){TOKEN_IDENTIFIER, feGet->key, 3, 0};
-    feGet->function = fnGet;
-    
-    // Register load
-    unsigned int hLoad = hash("load", 4);
-    FuncEntry* feLoad = malloc(sizeof(FuncEntry));
-    feLoad->key = strdup("load");
-    feLoad->next = mod->env->funcBuckets[hLoad];
-    mod->env->funcBuckets[hLoad] = feLoad;
-    
-    Function* fnLoad = malloc(sizeof(Function));
-    fnLoad->isNative = true;
-    fnLoad->native = uon_load;
-    fnLoad->paramCount = 1;
-    fnLoad->name = (Token){TOKEN_IDENTIFIER, feLoad->key, 4, 0};
-    feLoad->function = fnLoad;
-    
-    // Register insert
-    unsigned int hIns = hash("insert", 6);
-    FuncEntry* feIns = malloc(sizeof(FuncEntry)); feIns->key = strdup("insert");
-    feIns->next = mod->env->funcBuckets[hIns]; mod->env->funcBuckets[hIns] = feIns;
-    Function* fnIns = malloc(sizeof(Function)); fnIns->isNative = true; fnIns->native = uon_insert; fnIns->paramCount = 2;
-    fnIns->name = (Token){TOKEN_IDENTIFIER, feIns->key, 6, 0}; feIns->function = fnIns;
 
-    // Register delete
-    unsigned int hDel = hash("delete", 6);
-    FuncEntry* feDel = malloc(sizeof(FuncEntry)); feDel->key = strdup("delete");
-    feDel->next = mod->env->funcBuckets[hDel]; mod->env->funcBuckets[hDel] = feDel;
-    Function* fnDel = malloc(sizeof(Function)); fnDel->isNative = true; fnDel->native = uon_delete; fnDel->paramCount = 2;
-    fnDel->name = (Token){TOKEN_IDENTIFIER, feDel->key, 6, 0}; feDel->function = fnDel;
+    // Register natives
+    // parse
+    {
+        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("parse");
+        unsigned int h = hash("parse", 5);
+        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_parse; fn->paramCount=1;
+        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 5, 0}; fe->function = fn;
+    }
+    // load
+    {
+        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("load");
+        unsigned int h = hash("load", 4);
+        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_load_impl; fn->paramCount=1; // Renamed
+        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 4, 0}; fe->function = fn;
+    }
+    // get
+    {
+        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("get");
+        unsigned int h = hash("get", 3);
+        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_get_impl; fn->paramCount=1; // Renamed
+        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 3, 0}; fe->function = fn;
+    }
+    // next
+    {
+        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("next");
+        unsigned int h = hash("next", 4);
+        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_next; fn->paramCount=1;
+        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 4, 0}; fe->function = fn;
+    }
 
-    // Register save
-    unsigned int hSav = hash("save", 4);
-    FuncEntry* feSav = malloc(sizeof(FuncEntry)); feSav->key = strdup("save");
-    feSav->next = mod->env->funcBuckets[hSav]; mod->env->funcBuckets[hSav] = feSav;
-    Function* fnSav = malloc(sizeof(Function)); fnSav->isNative = true; fnSav->native = uon_save; fnSav->paramCount = 1;
-    fnSav->name = (Token){TOKEN_IDENTIFIER, feSav->key, 4, 0}; feSav->function = fnSav;
+    // save/insert/delete -> noops or dummies
+    // We retain them to prevent crash but they might not work as expected in streaming mode yet.
+    // Ideally we append to file. But for now, read-only focus.
+    {
+        FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("save");
+        unsigned int h = hash("save", 4);
+        fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+        Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_save_dummy; fn->paramCount=1;
+        fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 4, 0}; fe->function = fn;
+    }
+    {
+         FuncEntry* fe = malloc(sizeof(FuncEntry)); fe->key = strdup("insert");
+         unsigned int h = hash("insert", 6);
+         fe->next = mod->env->funcBuckets[h]; mod->env->funcBuckets[h] = fe;
+         Function* fn = malloc(sizeof(Function)); fn->isNative = true; fn->native = uon_noop; fn->paramCount=2;
+         fn->name = (Token){TOKEN_IDENTIFIER, fe->key, 6, 0}; fe->function = fn;
+    }
 
     // Add to global
     VarEntry* ve = malloc(sizeof(VarEntry));
