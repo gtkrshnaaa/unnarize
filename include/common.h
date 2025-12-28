@@ -56,6 +56,7 @@ typedef enum {
     TOKEN_LOADEXTERN,
     TOKEN_TRUE,
     TOKEN_FALSE,
+    TOKEN_NIL,
     TOKEN_AND, // &&
     TOKEN_OR,  // ||
     TOKEN_PLUS_EQUAL,  // +=
@@ -80,5 +81,8 @@ extern const char* g_source;
 extern const char* g_filename;
 void error(const char* message, int line);
 void errorAtToken(Token token, const char* message);
+
+#define GROW_CAPACITY(capacity) \
+    ((capacity) < 8 ? 8 : (capacity) * 2)
 
 #endif // COMMON_H
