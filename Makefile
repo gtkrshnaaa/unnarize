@@ -72,6 +72,9 @@ run-foreach: all
 run-structs: all
 	./$(EXECUTABLE) examples/08_structs.unna
 
+run-errors: all
+	./$(EXECUTABLE) examples/09_errors.unna
+
 # Run all .unna files under examples/ (excluding modules subfolder implicitly if not executed directly, but find will find them)
 # We usually only want to run top-level examples.
 run-all: all build-plugins-all
