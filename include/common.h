@@ -76,6 +76,7 @@ typedef struct {
 // Error reporting
 // Error reporting
 extern const char* g_source;
+extern const char* g_filename;
 void error(const char* message, int line);
 void errorAtToken(Token token, const char* message);
 
