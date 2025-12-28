@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -Iinclude -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Wextra -std=c11 -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
+LDFLAGS = -ldl -lpthread -Wl,-export-dynamic
 
 SRCDIR = src
 OBJDIR = obj
@@ -11,20 +12,20 @@ PREFIX ?= /usr/local
 DESTDIR ?=
 
 SOURCES_SRC = $(wildcard $(SRCDIR)/*.c)
-SOURCES_CORE = $(wildcard corelib/*.c)
-OBJECTS = $(SOURCES_SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o) $(SOURCES_CORE:corelib/%.c=$(OBJDIR)/%.o)
+SOURCES_CORE = $(wildcard corelib/src/*.c)
+OBJECTS = $(SOURCES_SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o) $(SOURCES_CORE:corelib/src/%.c=$(OBJDIR)/%.o)
 
 EXECUTABLE = $(BINDIR)/unnarize
 
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS) | $(BINDIR)
-	$(CC) $(OBJECTS) -o $@ -ldl -lpthread -Wl,-export-dynamic
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: corelib/%.c | $(OBJDIR)
+$(OBJDIR)/%.o: corelib/src/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR):

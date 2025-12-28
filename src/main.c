@@ -2,7 +2,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "vm.h"
-#include "../corelib/ucore_uon.h"
+#include "ucore_uon.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
