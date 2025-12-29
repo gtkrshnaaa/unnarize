@@ -1,108 +1,28 @@
-# Unnarize Tutorial: Zero to Hero
+# 📘 Unnarize Tutorial: Zero to Hero
 
-Welcome to the complete Unnarize tutorial! This guide will take you from absolute beginner to building real projects.
+Welcome to the comprehensive guide for **Unnarize**, a dynamic C-style scripting language built for performance and simplicity. This tutorial will take you from printing "Hello World" to building a web server and banking system.
 
-## 📚 Table of Contents
-
-1. [Hello World](#1-hello-world)
-2. [Variables](#2-variables)
-3. [Conditionals](#3-conditionals)
-4. [Loops](#4-loops)
-5. [Functions](#5-functions)
-6. [Arrays](#6-arrays)
-7. [Maps](#7-maps)
-8. [Structs](#8-structs)
-9. [Project: Todo List](#9-project-todo-list)
-10. [Project: Banking System](#10-project-banking-system)
-11. [Core Libraries](#11-core-libraries)
-    - [Timer](#timer-module)
-    - [System](#system-module)
-    - [UON Database](#uon-module)
-    - [HTTP Web Server](#http-module)
-12. [Modularity](#12-modularity)
+> **How to use this tutorial**:
+> All code examples below are complete and runnable. You can copy them into a file (e.g., `script.unna`) and run them using:
+> ```bash
+> ./bin/unnarize script.unna
+> ```
 
 ---
 
-## Prerequisites
+## 1. Basics
 
-Make sure Unnarize is installed:
+### Hello World
+The journey begins with a single line.
 
-```bash
-# Build Unnarize
-make
-
-# Or install system-wide
-sudo make install
+```javascript
+print("Hello, World!");
 ```
 
-Run any tutorial file:
+### Variables & Data Types
+Unnarize is dynamically typed. Use `var` to declare variables.
 
-```bash
-./bin/unnarize examples/tutorial/01_hello_world.unna
-```
-
----
-
-## 1. Hello World
-
-**File**: `examples/tutorial/01_hello_world.unna`
-
-Learn the basics: printing output, creating variables, and string concatenation.
-
-**What you'll learn**:
-- Using `print()` to display output
-- Creating variables with `var`
-- String concatenation with `+`
-- Working with numbers and text
-
-**Code**:
-
-```c
-print("Hello, Unnarize!");
-print("Welcome to your first program!");
-
-var name = "World";
-print("Hello, " + name + "!");
-
-var x = 42;
-var y = 3.14;
-var message = "The answer is";
-
-print(message + " " + x);
-print("Pi is approximately " + y);
-```
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/01_hello_world.unna
-```
-
-**Expected output**:
-```
-Hello, Unnarize!
-Welcome to your first program!
-Hello, World!
-The answer is 42
-Pi is approximately 3.14
-```
-
----
-
-## 2. Variables
-
-**File**: `examples/tutorial/02_variables.unna`
-
-Master variables and arithmetic operations.
-
-**What you'll learn**:
-- Different data types (integers, floats, strings, booleans)
-- Arithmetic operators (`+`, `-`, `*`, `/`)
-- Variable reassignment
-- Compound assignment (`+=`)
-
-**Code**:
-
-```c
+```javascript
 var age = 25;
 var price = 99.99;
 var name = "Alice";
@@ -113,46 +33,20 @@ print("Price: $" + price);
 print("Name: " + name);
 print("Active: " + isActive);
 
+// Math operations
 var sum = 10 + 5;
-var difference = 20 - 8;
-var product = 6 * 7;
-var quotient = 100 / 4;
-
 print("Sum: " + sum);
-print("Difference: " + difference);
-print("Product: " + product);
-print("Quotient: " + quotient);
 
+// Compound assignment
 var a = 10;
-a = a + 5;
-print("a after addition: " + a);
-
-a += 10;
+a += 5;
 print("a after += : " + a);
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/02_variables.unna
-```
+### Conditionals (If/Else)
+Control the flow of your program logic.
 
----
-
-## 3. Conditionals
-
-**File**: `examples/tutorial/03_conditionals.unna`
-
-Control program flow with if/else statements.
-
-**What you'll learn**:
-- `if`, `else if`, `else` statements
-- Comparison operators (`>`, `<`, `>=`, `<=`, `==`)
-- Logical operators (`&&`, `||`, `!`)
-- Boolean expressions
-
-**Code**:
-
-```c
+```javascript
 var temperature = 25;
 
 if (temperature > 30) {
@@ -164,487 +58,146 @@ if (temperature > 30) {
 }
 
 var score = 85;
-var passed = score >= 60;
-
-if (passed) {
-    print("Congratulations! You passed.");
+if (score >= 60) {
+    print("Passed!");
 } else {
-    print("Sorry, you failed.");
+    print("Failed.");
 }
 
-var age = 18;
-var hasLicense = true;
-
-if (age >= 18 && hasLicense) {
-    print("You can drive!");
-} else {
-    print("You cannot drive yet.");
-}
-
-var isWeekend = false;
-var isHoliday = true;
-
-if (isWeekend || isHoliday) {
+// Logical Operators: && (AND), || (OR)
+var weekend = false;
+var holiday = true;
+if (weekend || holiday) {
     print("Time to relax!");
-} else {
-    print("Time to work!");
 }
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/03_conditionals.unna
-```
+### Loops
+Repeat actions using `while` and `for` loops.
 
----
-
-## 4. Loops
-
-**File**: `examples/tutorial/04_loops.unna`
-
-Repeat code with while and for loops.
-
-**What you'll learn**:
-- `while` loops
-- `for` loops
-- Loop counters and iteration
-- Practical loop applications
-
-**Code**:
-
-```c
+```javascript
 print("=== While Loop ===");
 var count = 1;
-while (count <= 5) {
-    print("Count: " + count);
+while (count <= 3) {
+    print(count);
     count = count + 1;
 }
 
-print("");
 print("=== For Loop ===");
-for (var i = 1; i <= 5; i = i + 1) {
+for (var i = 1; i <= 3; i = i + 1) {
     print("i = " + i);
 }
 
-print("");
 print("=== Countdown ===");
-for (var num = 10; num >= 1; num = num - 1) {
-    print(num);
+for (var n = 3; n > 0; n = n - 1) {
+    print(n + "...");
 }
-print("Blast off!");
-
-print("");
-print("=== Multiplication Table ===");
-var number = 7;
-for (var i = 1; i <= 10; i = i + 1) {
-    var result = number * i;
-    print(number + " x " + i + " = " + result);
-}
-
-print("");
-print("=== Sum of Numbers ===");
-var sum = 0;
-for (var i = 1; i <= 100; i = i + 1) {
-    sum = sum + i;
-}
-print("Sum of 1 to 100: " + sum);
+print("Liftoff!");
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/04_loops.unna
-```
+### Functions
+Encapsulate logic for reuse.
 
----
-
-## 5. Functions
-
-**File**: `examples/tutorial/05_functions.unna`
-
-Create reusable code with functions.
-
-**What you'll learn**:
-- Defining functions
-- Function parameters
-- Return values
-- Recursion
-
-**Code**:
-
-```c
-function greet() {
-    print("Hello from a function!");
+```javascript
+function greet(name) {
+    return "Hello, " + name + "!";
 }
 
-greet();
-greet();
+print(greet("Alice"));
 
-function sayHello(name) {
-    print("Hello, " + name + "!");
-}
-
-sayHello("Alice");
-sayHello("Bob");
-
-function add(a, b) {
-    return a + b;
-}
-
-var result = add(10, 20);
-print("10 + 20 = " + result);
-
-function multiply(x, y) {
-    return x * y;
-}
-
-var product = multiply(6, 7);
-print("6 * 7 = " + product);
-
-function isEven(number) {
-    var half = number / 2;
-    var doubled = half * 2;
-    return doubled == number;
-}
-
-print("Is 4 even? " + isEven(4));
-print("Is 7 even? " + isEven(7));
-
+// Recursion is fully supported
 function factorial(n) {
-    if (n <= 1) {
-        return 1;
-    }
+    if (n <= 1) return 1;
     return n * factorial(n - 1);
 }
 
 print("Factorial of 5: " + factorial(5));
-print("Factorial of 6: " + factorial(6));
-
-function fibonacci(n) {
-    if (n <= 1) {
-        return n;
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-print("Fibonacci(10): " + fibonacci(10));
-```
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/05_functions.unna
 ```
 
 ---
 
-## 6. Arrays
+## 2. Data Structures
 
-**File**: `examples/tutorial/06_arrays.unna`
+### Arrays
+Lists of ordered values.
 
-Work with ordered collections of data.
+```javascript
+var fruits = ["apple", "banana", "cherry"];
+print("First fruit: " + fruits[0]);
 
-**What you'll learn**:
-- Creating arrays with `[]` syntax
-- Accessing elements by index
-- Modifying array elements
-- Array functions: `push()`, `pop()`, `length()`
-- Iterating with for loops and for-each
-- Nested arrays
-
-**Code**:
-
-```c
-print("=== Creating Arrays ===");
-var numbers = [1, 2, 3, 4, 5];
-var fruits = ["apple", "banana", "orange"];
-var mixed = [42, "hello", 3.14, true];
-
-print("Numbers: " + numbers);
+// Modifying
+fruits[1] = "mango";
+push(fruits, "date");
 print("Fruits: " + fruits);
 
-print("");
-print("=== Accessing Elements ===");
-print("First number: " + numbers[0]);
-print("Second fruit: " + fruits[1]);
-print("Last number: " + numbers[4]);
-
-print("");
-print("=== Modifying Arrays ===");
-fruits[1] = "mango";
-print("After change: " + fruits);
-
-print("");
-print("=== Array Functions ===");
-var items = [];
-push(items, "first");
-push(items, "second");
-push(items, "third");
-print("After pushes: " + items);
-print("Length: " + length(items));
-
-var last = pop(items);
-print("Popped: " + last);
-print("Remaining: " + items);
-
-print("");
-print("=== Iterating Arrays ===");
-var colors = ["red", "green", "blue"];
-
-print("Using for loop:");
-for (var i = 0; i < length(colors); i = i + 1) {
-    print("  " + i + ": " + colors[i]);
+// Iteration
+print("--- List ---");
+for (var f : fruits) {
+    print("- " + f);
 }
 
-print("Using for-each:");
-for (var color : colors) {
-    print("  Color: " + color);
-}
-
-print("");
-print("=== Nested Arrays ===");
-var matrix = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9]
-];
-
-print("matrix[0][0] = " + matrix[0][0]);
-print("matrix[1][2] = " + matrix[1][2]);
-print("matrix[2][1] = " + matrix[2][1]);
-
-print("");
-print("=== Practical Example ===");
-var scores = [85, 92, 78, 95, 88];
-var sum = 0;
-
-for (var score : scores) {
-    sum = sum + score;
-}
-
-var average = sum / length(scores);
-print("Average score: " + average);
+// Length and Pop
+print("Total: " + length(fruits));
+var last = pop(fruits);
+print("Removed: " + last);
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/06_arrays.unna
-```
+### Maps
+Key-value pairs (dictionaries).
 
----
-
-## 7. Maps
-
-**File**: `examples/tutorial/07_maps.unna`
-
-Store key-value pairs with maps (dictionaries).
-
-**What you'll learn**:
-- Creating maps with `map()`
-- String and integer keys
-- Map functions: `has()`, `keys()`
-- Iterating over maps
-
-**Code**:
-
-```c
-print("=== Creating Maps ===");
+```javascript
 var user = map();
 user["name"] = "Alice";
-user["age"] = 25;
-user["email"] = "alice@example.com";
+user["role"] = "Admin";
+user["active"] = true;
 
-print("Name: " + user["name"]);
-print("Age: " + user["age"]);
-print("Email: " + user["email"]);
+print(user["name"] + " is " + user["role"]);
 
-print("");
-print("=== Integer Keys ===");
-var data = map();
-data[1] = "first";
-data[2] = "second";
-data[100] = "hundredth";
-
-print("data[1]: " + data[1]);
-print("data[100]: " + data[100]);
-
-print("");
-print("=== Map Functions ===");
-var config = map();
-config["debug"] = true;
-config["port"] = 8080;
-config["host"] = "localhost";
-
-print("Has 'debug': " + has(config, "debug"));
-print("Has 'timeout': " + has(config, "timeout"));
-
-var allKeys = keys(config);
-print("All keys: " + allKeys);
-print("Number of keys: " + length(allKeys));
-
-print("");
-print("=== Iterating Maps ===");
-var scores = map();
-scores["Alice"] = 95;
-scores["Bob"] = 87;
-scores["Charlie"] = 92;
-
-var names = keys(scores);
-for (var name : names) {
-    print(name + ": " + scores[name]);
+// Check keys
+if (has(user, "email")) {
+    print("Email found");
+} else {
+    print("No email");
 }
 
-print("");
-print("=== Practical Example ===");
-var inventory = map();
-inventory["apples"] = 50;
-inventory["oranges"] = 30;
-inventory["bananas"] = 45;
-
-print("=== Inventory ===");
-var items = keys(inventory);
-for (var item : items) {
-    var quantity = inventory[item];
-    print(item + ": " + quantity + " units");
+// Iterate keys
+var props = keys(user);
+for (var prop : props) {
+    print(prop + ": " + user[prop]);
 }
-
-inventory["apples"] = inventory["apples"] - 10;
-print("");
-print("After selling 10 apples:");
-print("Apples remaining: " + inventory["apples"]);
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/07_maps.unna
-```
+### Structs
+Custom data types for structured data.
 
----
-
-## 8. Structs
-
-**File**: `examples/tutorial/08_structs.unna`
-
-Define custom data types with structs.
-
-**What you'll learn**:
-- Defining structs
-- Creating struct instances
-- Accessing and modifying fields
-- Nested structs
-- Structs in arrays
-
-**Code**:
-
-```c
-print("=== Defining Structs ===");
+```javascript
 struct Point {
     x;
     y;
 }
 
-var p1 = Point(10, 20);
-print("Point: (" + p1.x + ", " + p1.y + ")");
+var p = Point(10, 20);
+print("Point: " + p.x + ", " + p.y);
 
-p1.x = 30;
-p1.y = 40;
-print("Updated: (" + p1.x + ", " + p1.y + ")");
-
-print("");
-print("=== Struct with Multiple Fields ===");
-struct Person {
-    name;
-    age;
-    email;
+// Nested Structs
+struct Circle {
+    center;
+    radius;
 }
 
-var alice = Person("Alice", 25, "alice@example.com");
-print("Name: " + alice.name);
-print("Age: " + alice.age);
-print("Email: " + alice.email);
-
-alice.age = alice.age + 1;
-print("After birthday: " + alice.age);
-
-print("");
-print("=== Nested Structs ===");
-struct Address {
-    street;
-    city;
-    zipcode;
-}
-
-struct Employee {
-    name;
-    position;
-    address;
-}
-
-var addr = Address("123 Main St", "New York", "10001");
-var emp = Employee("Bob", "Developer", addr);
-
-print("Employee: " + emp.name);
-print("Position: " + emp.position);
-print("City: " + emp.address.city);
-print("Street: " + emp.address.street);
-
-print("");
-print("=== Structs in Arrays ===");
-struct Product {
-    id;
-    name;
-    price;
-}
-
-var products = [
-    Product(1, "Laptop", 999),
-    Product(2, "Mouse", 25),
-    Product(3, "Keyboard", 75)
-];
-
-print("=== Product Catalog ===");
-for (var product : products) {
-    print("ID: " + product.id);
-    print("  Name: " + product.name);
-    print("  Price: $" + product.price);
-}
-
-print("");
-print("=== Calculating Total ===");
-var total = 0;
-for (var product : products) {
-    total = total + product.price;
-}
-print("Total value: $" + total);
-```
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/08_structs.unna
+var c = Circle(p, 5.5);
+print("Circle radius: " + c.radius);
+print("Center X: " + c.center.x);
 ```
 
 ---
 
-## 9. Project: Todo List
+## 3. Real Projects
 
-**File**: `examples/tutorial/09_project_todo_list.unna`
+### Project 1: To-Do List Manager
+A complete command-line task manager.
 
-Build a complete todo list manager combining everything you've learned.
-
-**Features**:
-- Add tasks
-- Mark tasks as completed
-- List all tasks with status
-- Count completed tasks
-
-**What you'll practice**:
-- Structs for data modeling
-- Arrays for storage
-- Functions for operations
-- Conditionals for logic
-- Loops for iteration
-
-**Code**:
-
-```c
+```javascript
 struct Task {
     id;
     title;
@@ -662,462 +215,147 @@ function addTask(title) {
 }
 
 function listTasks() {
-    print("");
-    print("=== Task List ===");
-    if (length(tasks) == 0) {
-        print("No tasks yet!");
-        return;
-    }
-    
+    print("\n=== Tasks ===");
     for (var task : tasks) {
         var status = "[ ]";
-        if (task.completed) {
-            status = "[x]";
-        }
+        if (task.completed) status = "[x]";
         print(status + " " + task.id + ". " + task.title);
     }
 }
 
-function completeTask(taskId) {
+function complete(id) {
     for (var task : tasks) {
-        if (task.id == taskId) {
+        if (task.id == id) {
             task.completed = true;
             print("Completed: " + task.title);
             return;
         }
     }
-    print("Task not found!");
 }
 
-function countCompleted() {
-    var count = 0;
-    for (var task : tasks) {
-        if (task.completed) {
-            count = count + 1;
-        }
-    }
-    return count;
-}
-
-print("=== Todo List Manager ===");
-
-addTask("Learn Unnarize basics");
-addTask("Build a simple program");
-addTask("Read documentation");
-addTask("Create a project");
-
+// Usage
+addTask("Learn Unnarize");
+addTask("Build App");
 listTasks();
-
-print("");
-print("Completing some tasks...");
-completeTask(1);
-completeTask(3);
-
+complete(1);
 listTasks();
-
-print("");
-var completed = countCompleted();
-var total = length(tasks);
-var remaining = total - completed;
-print("Progress: " + completed + "/" + total + " completed");
-print("Remaining: " + remaining + " tasks");
-```
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/09_project_todo_list.unna
-```
-
-**Expected output**:
-```
-=== Todo List Manager ===
-Added: Learn Unnarize basics
-Added: Build a simple program
-Added: Read documentation
-Added: Create a project
-
-=== Task List ===
-[ ] 1. Learn Unnarize basics
-[ ] 2. Build a simple program
-[ ] 3. Read documentation
-[ ] 4. Create a project
-
-Completing some tasks...
-Completed: Learn Unnarize basics
-Completed: Read documentation
-
-=== Task List ===
-[x] 1. Learn Unnarize basics
-[ ] 2. Build a simple program
-[x] 3. Read documentation
-[ ] 4. Create a project
-
-Progress: 2/4 completed
-Remaining: 2 tasks
 ```
 
 ---
 
-## 10. Project: Banking System
+## 4. Core Libraries
+Unnarize comes with powerful built-in modules.
 
-**File**: `examples/tutorial/10_project_banking_system.unna`
+### System Module (`ucoreSystem`)
+Interact with the OS.
 
-Build a complete banking system with accounts, deposits, withdrawals, and transfers.
+```javascript
+// Arguments
+var args = ucoreSystem.args();
+print("Args: " + args);
 
-**Features**:
-- Create bank accounts
-- Deposit money
-- Withdraw money
-- Transfer between accounts
-- Check balance
-- Error handling
+// Environment
+var user = ucoreSystem.getenv("USER");
+print("User: " + user);
 
-**What you'll practice**:
-- Maps for account storage
-- Structs for account data
-- Functions for operations
-- Conditionals for validation
-- Complex business logic
-
-**Code**:
-
-```c
-struct BankAccount {
-    accountNumber;
-    holderName;
-    balance;
+// Filesystem
+if (ucoreSystem.fileExists("config.txt")) {
+    print("Config found.");
+} else {
+    print("Config missing.");
 }
-
-var accounts = map();
-var nextAccountNumber = 1000;
-
-function createAccount(name, initialDeposit) {
-    var accNum = nextAccountNumber;
-    nextAccountNumber = nextAccountNumber + 1;
-    
-    var account = BankAccount(accNum, name, initialDeposit);
-    accounts[accNum] = account;
-    
-    print("Account created successfully!");
-    print("Account Number: " + accNum);
-    print("Holder: " + name);
-    print("Initial Balance: $" + initialDeposit);
-    print("");
-    
-    return accNum;
-}
-
-function deposit(accountNumber, amount) {
-    if (!has(accounts, accountNumber)) {
-        print("Error: Account not found!");
-        return;
-    }
-    
-    var account = accounts[accountNumber];
-    account.balance = account.balance + amount;
-    
-    print("Deposited $" + amount);
-    print("New balance: $" + account.balance);
-    print("");
-}
-
-function withdraw(accountNumber, amount) {
-    if (!has(accounts, accountNumber)) {
-        print("Error: Account not found!");
-        return;
-    }
-    
-    var account = accounts[accountNumber];
-    
-    if (account.balance < amount) {
-        print("Error: Insufficient funds!");
-        print("Current balance: $" + account.balance);
-        print("");
-        return;
-    }
-    
-    account.balance = account.balance - amount;
-    print("Withdrew $" + amount);
-    print("New balance: $" + account.balance);
-    print("");
-}
-
-function checkBalance(accountNumber) {
-    if (!has(accounts, accountNumber)) {
-        print("Error: Account not found!");
-        return;
-    }
-    
-    var account = accounts[accountNumber];
-    print("Account: " + accountNumber);
-    print("Holder: " + account.holderName);
-    print("Balance: $" + account.balance);
-    print("");
-}
-
-function transfer(fromAccount, toAccount, amount) {
-    if (!has(accounts, fromAccount) || !has(accounts, toAccount)) {
-        print("Error: One or both accounts not found!");
-        return;
-    }
-    
-    var from = accounts[fromAccount];
-    var to = accounts[toAccount];
-    
-    if (from.balance < amount) {
-        print("Error: Insufficient funds for transfer!");
-        return;
-    }
-    
-    from.balance = from.balance - amount;
-    to.balance = to.balance + amount;
-    
-    print("Transfer successful!");
-    print("From: " + from.holderName + " (Account " + fromAccount + ")");
-    print("To: " + to.holderName + " (Account " + toAccount + ")");
-    print("Amount: $" + amount);
-    print("");
-}
-
-print("=== Banking System Demo ===");
-print("");
-
-var acc1 = createAccount("Alice Johnson", 1000);
-var acc2 = createAccount("Bob Smith", 500);
-
-checkBalance(acc1);
-checkBalance(acc2);
-
-deposit(acc1, 250);
-withdraw(acc2, 100);
-
-transfer(acc1, acc2, 300);
-
-print("=== Final Balances ===");
-checkBalance(acc1);
-checkBalance(acc2);
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/10_project_banking_system.unna
-```
+### Timer Module (`ucoreTimer`)
+High-precision timing.
 
-**Expected output**:
-```
-=== Banking System Demo ===
-
-Account created successfully!
-Account Number: 1000
-Holder: Alice Johnson
-Initial Balance: $1000
-
-Account created successfully!
-Account Number: 1001
-Holder: Bob Smith
-Initial Balance: $500
-
-Account: 1000
-Holder: Alice Johnson
-Balance: $1000
-
-Account: 1001
-Holder: Bob Smith
-Balance: $500
-
-Deposited $250
-New balance: $1250
-
-Withdrew $100
-New balance: $400
-
-Transfer successful!
-From: Alice Johnson (Account 1000)
-To: Bob Smith (Account 1001)
-Amount: $300
-
-=== Final Balances ===
-Account: 1000
-Holder: Alice Johnson
-Balance: $950
-
-Account: 1001
-Holder: Bob Smith
-Balance: $700
-```
-
----
-
-## 11. Core Libraries
-
-Unnarize comes with built-in modules for system operations and timing.
-
-### Timer Module
-
-**File**: `examples/tutorial/corelib/timer/timer_demo.unna`
-
-Learn to use Unnarize's built-in timer module for measuring performance.
-
-**Code**:
-```c
-print("=== Timer Module (ucoreTimer) ===");
+```javascript
 var start = ucoreTimer.now();
-// ... (see file for full example)
+
+// Simulate work
+var sum = 0;
+for (var i=0; i<100000; i=i+1) sum = sum + i;
+
+var end = ucoreTimer.now();
+print("Work done in " + (end - start) + "ms");
 ```
 
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/corelib/timer/timer_demo.unna
+### HTTP Server (`ucoreHttp`)
+Build web APIs in seconds.
+
+**Server Script:**
+```javascript
+print("Starting server on port 8080...");
+
+function home(req) {
+    return "Welcome to Unnarize!";
+}
+
+function api(req) {
+    var data = map();
+    data["status"] = "ok";
+    data["time"] = ucoreTimer.now();
+    return ucoreHttp.json(data);
+}
+
+ucoreHttp.route("GET", "/", "home");
+ucoreHttp.route("GET", "/api", "api");
+
+// Blocks indefinitely
+ucoreHttp.listen(8080);
 ```
 
-### System Module
+### UON Database (`ucoreUon`)
+Unnarize Object Notation - a streaming database format.
 
-**File**: `examples/tutorial/corelib/system/system_demo.unna`
-
-Interact with the system environment.
-
-**Features**:
-- `ucoreSystem.args()`: Get command line arguments
-- `ucoreSystem.getenv(name)`: Get environment variables
-- `ucoreSystem.fileExists(path)`: Check file existence
-- `ucoreSystem.input(prompt)`: Read user input
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/corelib/system/system_demo.unna
+**1. Create a data file (`data.uon`)**:
+```uon
+@schema {
+    users: [id, name, active]
+}
+@flow {
+    users: [
+        { id: 1, name: "Alice", active: true },
+        { id: 2, name: "Bob", active: false }
+    ]
+}
 ```
 
-### UON Module
+**2. Script to read it**:
+```javascript
+ucoreUon.load("data.uon");
+var cursor = ucoreUon.get("users");
 
-**Folder**: `examples/tutorial/corelib/uon/`
-
-Read structured data from `.uon` files efficiently.
-
-**Features**:
-- `ucoreUon.load(path)`: Load database file
-- `ucoreUon.get(table)`: Get table cursor
-- `ucoreUon.next(cursor)`: Iterate records
-
-**Run it**:
-```bash
-./bin/unnarize examples/tutorial/corelib/uon/uon_demo.unna
-```
-
-### HTTP Module
-
-**Folder**: `examples/tutorial/corelib/http/`
-
-Build web servers and make API requests.
-
-**Features**:
-- `ucoreHttp.listen(port)`: Start server
-- `ucoreHttp.route(method, path, handler)`: Define routes
-- `ucoreHttp.json(data)`: Serialize data
-- `ucoreHttp.get(url)`: HTTP Client
-
-**Run it**:
-```bash
-# Start Server
-./bin/unnarize examples/tutorial/corelib/http/http_server.unna
+var user = ucoreUon.next(cursor);
+while (user) {
+    print("User: " + user["name"]);
+    user = ucoreUon.next(cursor);
+}
 ```
 
 ---
 
-## 12. Modularity
+## 5. Modularity (Syntax)
+Organize code into files.
 
-Unnarize supports breaking code into multiple files using the `import` statement.
+> **Note**: This demonstrates the standard syntax.
 
-**Concept**:
-Logic is separated into module files and imported into the main script with an alias.
-
-**Example**:
-
-`math_utils.unna`:
-```c
+**`math.unna`**:
+```javascript
 function add(a, b) {
     return a + b;
 }
 ```
 
-`main.unna`:
-```c
-import math_utils as math;
+**`main.unna`**:
+```javascript
+import math as m;
 
-var res = math.add(10, 5);
+var res = m.add(10, 5);
+print(res);
 ```
 
-**Note**: The module resolution system depends on the specific VM implementation and search paths.
-
-
-## 🎓 Next Steps
-
-Congratulations! You've completed the Unnarize tutorial. Here's what to do next:
-
-### 1. Explore More Examples
-Check out `examples/` directory for more advanced programs:
-- `examples/02_structures.unna` - Data structures
-- `examples/05_modules.unna` - Module system
-- `examples/08_structs.unna` - Advanced structs
-
-### 2. Read Documentation
-- Main README: Project overview and features
-- `index.html`: Complete language reference
-- `examples/benchmarks/`: Performance testing
-
-### 3. Build Your Own Projects
-Ideas to practice:
-- Calculator
-- Contact manager
-- Inventory system
-- Game (number guessing, tic-tac-toe)
-- Data processor
-
-### 4. Contribute
-- Report bugs
-- Suggest features
-- Share your projects
-- Improve documentation
-
 ---
 
-## 📝 Quick Reference
-
-### Data Types
-- **Integer**: `42`
-- **Float**: `3.14`
-- **String**: `"hello"`
-- **Boolean**: `true`, `false`
-
-### Control Flow
-- **If**: `if (condition) { }`
-- **While**: `while (condition) { }`
-- **For**: `for (var i = 0; i < 10; i = i + 1) { }`
-- **For-each**: `for (var item : array) { }`
-
-### Data Structures
-- **Array**: `[1, 2, 3]`
-- **Map**: `map()`
-- **Struct**: `struct Name { field; }`
-
-### Built-in Functions
-- **Output**: `print(value)`
-- **Array**: `push()`, `pop()`, `length()`
-- **Map**: `has()`, `keys()`
-- **CoreLibs**: `ucoreTimer`, `ucoreSystem`, `ucoreUon`, `ucoreHttp`
-
----
-
-## 💡 Tips
-
-1. **Start small**: Master basics before complex projects
-2. **Experiment**: Modify tutorial code to see what happens
-3. **Read errors**: Error messages help you learn
-4. **Practice**: Build small programs regularly
-5. **Ask questions**: Community is here to help
-
----
-
-**Happy coding with Unnarize!** 🚀
-
-*Tutorial created: 2025-12-29*  
-*Unnarize version: 0.1.1-beta*
+## 🚀 Congratulations!
+You have completed the Unnarize tutorial. You now understand variables, functions, data structures, and how to use the powerful core libraries to build real applications.
