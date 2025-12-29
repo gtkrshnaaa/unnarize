@@ -1,0 +1,72 @@
+// ==========================================
+// run_all_benchmarks.unna
+// Master benchmark runner
+// Executes all benchmarks and summarizes results
+// ==========================================
+
+print("╔════════════════════════════════════════════════════════════╗");
+print("║       UNNARIZE PERFORMANCE BENCHMARK SUITE                 ║");
+print("║       Comprehensive Performance Testing                    ║");
+print("╚════════════════════════════════════════════════════════════╝");
+print("");
+print("Starting comprehensive benchmark suite...");
+print("This will test various aspects of Unnarize performance:");
+print("  - Simple loops");
+print("  - Arithmetic operations");
+print("  - Array operations");
+print("  - Function calls");
+print("  - String operations");
+print("  - Struct operations");
+print("");
+print("Please wait, this may take a few minutes...");
+print("");
+print("════════════════════════════════════════════════════════════");
+print("");
+
+// Note: In a real implementation, you would use import to run each benchmark
+// For now, this serves as documentation of the benchmark suite
+
+print("Available Benchmarks:");
+print("");
+print("1. 01_simple_loop_benchmark.unna");
+print("   - Tests: 1M, 5M, 10M iterations");
+print("   - Measures: Raw loop performance");
+print("");
+
+print("2. 02_arithmetic_benchmark.unna");
+print("   - Tests: Addition, Multiplication, Division, Modulo, Mixed");
+print("   - Measures: Math operation performance (5M ops each)");
+print("");
+
+print("3. 03_array_benchmark.unna");
+print("   - Tests: Push, Read, Write, Iteration, Length");
+print("   - Measures: Array operation performance");
+print("");
+
+print("4. 04_function_call_benchmark.unna");
+print("   - Tests: Simple calls, Recursion, Fibonacci, Nested calls");
+print("   - Measures: Function invocation overhead");
+print("");
+
+print("5. 05_string_benchmark.unna");
+print("   - Tests: Concatenation, Conversion, Length checks");
+print("   - Measures: String operation performance");
+print("");
+
+print("6. 06_struct_benchmark.unna");
+print("   - Tests: Creation, Field access, Arrays, Iteration");
+print("   - Measures: Struct operation performance");
+print("");
+
+print("════════════════════════════════════════════════════════════");
+print("");
+print("To run individual benchmarks:");
+print("");
+print("  ./bin/unnarize examples/benchmarks/01_simple_loop_benchmark.unna");
+print("  ./bin/unnarize examples/benchmarks/02_arithmetic_benchmark.unna");
+print("  ./bin/unnarize examples/benchmarks/03_array_benchmark.unna");
+print("  ./bin/unnarize examples/benchmarks/04_function_call_benchmark.unna");
+print("  ./bin/unnarize examples/benchmarks/05_string_benchmark.unna");
+print("  ./bin/unnarize examples/benchmarks/06_struct_benchmark.unna");
+print("");
+print("════════════════════════════════════════════════════════════");

@@ -1,0 +1,101 @@
+// ==========================================
+// 03_array_benchmark.unna
+// Benchmark: Array operations
+// Tests array access and manipulation performance
+// ==========================================
+
+print("=== Array Operations Benchmark ===");
+print("");
+
+// Benchmark 1: Array creation and push (1M ops)
+print("Test 1: Array push - 1 Million operations");
+var start1 = ucoreTimer.now();
+var arr1 = [];
+for (var i = 0; i < 1000000; i = i + 1) {
+    push(arr1, i);
+}
+var end1 = ucoreTimer.now();
+var elapsed1 = end1 - start1;
+var opsPerSec1 = 1000000 / (elapsed1 / 1000);
+
+print("Array length: " + length(arr1));
+print("Time: " + elapsed1 + " ms");
+print("Operations/sec: " + opsPerSec1);
+print("");
+
+// Benchmark 2: Array indexing read (5M ops)
+print("Test 2: Array read access - 5 Million operations");
+var arr2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+var start2 = ucoreTimer.now();
+var sum2 = 0;
+for (var i = 0; i < 5000000; i = i + 1) {
+    sum2 = sum2 + arr2[i % 10];
+}
+var end2 = ucoreTimer.now();
+var elapsed2 = end2 - start2;
+var opsPerSec2 = 5000000 / (elapsed2 / 1000);
+
+print("Sum: " + sum2);
+print("Time: " + elapsed2 + " ms");
+print("Operations/sec: " + opsPerSec2);
+print("");
+
+// Benchmark 3: Array indexing write (2M ops)
+print("Test 3: Array write access - 2 Million operations");
+var arr3 = [];
+for (var i = 0; i < 100; i = i + 1) {
+    push(arr3, 0);
+}
+var start3 = ucoreTimer.now();
+for (var i = 0; i < 2000000; i = i + 1) {
+    arr3[i % 100] = i;
+}
+var end3 = ucoreTimer.now();
+var elapsed3 = end3 - start3;
+var opsPerSec3 = 2000000 / (elapsed3 / 1000);
+
+print("Last value: " + arr3[99]);
+print("Time: " + elapsed3 + " ms");
+print("Operations/sec: " + opsPerSec3);
+print("");
+
+// Benchmark 4: Array iteration (1M ops)
+print("Test 4: Array iteration - 1 Million operations");
+var arr4 = [];
+for (var i = 0; i < 1000; i = i + 1) {
+    push(arr4, i);
+}
+var start4 = ucoreTimer.now();
+var sum4 = 0;
+for (var iter = 0; iter < 1000; iter = iter + 1) {
+    for (var val : arr4) {
+        sum4 = sum4 + val;
+    }
+}
+var end4 = ucoreTimer.now();
+var elapsed4 = end4 - start4;
+var opsPerSec4 = 1000000 / (elapsed4 / 1000);
+
+print("Sum: " + sum4);
+print("Time: " + elapsed4 + " ms");
+print("Operations/sec: " + opsPerSec4);
+print("");
+
+// Benchmark 5: Array length checks (10M ops)
+print("Test 5: Array length() calls - 10 Million operations");
+var arr5 = [1, 2, 3, 4, 5];
+var start5 = ucoreTimer.now();
+var count5 = 0;
+for (var i = 0; i < 10000000; i = i + 1) {
+    count5 = length(arr5);
+}
+var end5 = ucoreTimer.now();
+var elapsed5 = end5 - start5;
+var opsPerSec5 = 10000000 / (elapsed5 / 1000);
+
+print("Length: " + count5);
+print("Time: " + elapsed5 + " ms");
+print("Operations/sec: " + opsPerSec5);
+print("");
+
+print("=== Benchmark Complete ===");
