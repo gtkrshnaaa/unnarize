@@ -114,19 +114,18 @@ function factorial(n) {
 print("Factorial of 5: " + factorial(5));
 ```
 
-### Async & Await
-Unnarize supports syntax for asynchronous programming.
-
-> **Note**: This feature is experimental in the current build.
+### Async & Await (First-Class Support)
+Unnarize treats asynchronous programming as a first-class citizen. You can mark functions as `async` and use `await` to handle results cleanly.
 
 ```javascript
 async function compute() {
-    // Simulate work
-    return 42;
+    print("Async task running...");
+    return "Done";
 }
 
-// Use await to get the result
-// var result = await compute();
+// Await directly gets the result
+var result = await compute();
+print("Async Result: " + result);
 ```
 
 ---
