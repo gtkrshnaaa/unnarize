@@ -1,0 +1,36 @@
+var temperature = 25;
+
+if (temperature > 30) {
+    print("It's hot!");
+} else if (temperature > 20) {
+    print("It's warm!");
+} else {
+    print("It's cold!");
+}
+
+var score = 85;
+var passed = score >= 60;
+
+if (passed) {
+    print("Congratulations! You passed.");
+} else {
+    print("Sorry, you failed.");
+}
+
+var age = 18;
+var hasLicense = true;
+
+if (age >= 18 and hasLicense) {
+    print("You can drive!");
+} else {
+    print("You cannot drive yet.");
+}
+
+var isWeekend = false;
+var isHoliday = true;
+
+if (isWeekend or isHoliday) {
+    print("Time to relax!");
+} else {
+    print("Time to work!");
+}

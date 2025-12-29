@@ -1,0 +1,35 @@
+print("=== While Loop ===");
+var count = 1;
+while (count <= 5) {
+    print("Count: " + count);
+    count = count + 1;
+}
+
+print("");
+print("=== For Loop ===");
+for (var i = 1; i <= 5; i = i + 1) {
+    print("i = " + i);
+}
+
+print("");
+print("=== Countdown ===");
+for (var num = 10; num >= 1; num = num - 1) {
+    print(num);
+}
+print("Blast off!");
+
+print("");
+print("=== Multiplication Table ===");
+var number = 7;
+for (var i = 1; i <= 10; i = i + 1) {
+    var result = number * i;
+    print(number + " x " + i + " = " + result);
+}
+
+print("");
+print("=== Sum of Numbers ===");
+var sum = 0;
+for (var i = 1; i <= 100; i = i + 1) {
+    sum = sum + i;
+}
+print("Sum of 1 to 100: " + sum);

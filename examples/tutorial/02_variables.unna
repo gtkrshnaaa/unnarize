@@ -1,0 +1,26 @@
+var age = 25;
+var price = 99.99;
+var name = "Alice";
+var isActive = true;
+
+print("Age: " + age);
+print("Price: $" + price);
+print("Name: " + name);
+print("Active: " + isActive);
+
+var sum = 10 + 5;
+var difference = 20 - 8;
+var product = 6 * 7;
+var quotient = 100 / 4;
+
+print("Sum: " + sum);
+print("Difference: " + difference);
+print("Product: " + product);
+print("Quotient: " + quotient);
+
+var a = 10;
+a = a + 5;
+print("a after addition: " + a);
+
+a += 10;
+print("a after += : " + a);

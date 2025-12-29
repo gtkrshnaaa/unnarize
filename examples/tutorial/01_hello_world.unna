@@ -1,0 +1,12 @@
+print("Hello, Unnarize!");
+print("Welcome to your first program!");
+
+var name = "World";
+print("Hello, " + name + "!");
+
+var x = 42;
+var y = 3.14;
+var message = "The answer is";
+
+print(message + " " + x);
+print("Pi is approximately " + y);

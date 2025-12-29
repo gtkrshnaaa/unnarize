@@ -1,0 +1,67 @@
+print("=== Creating Maps ===");
+var user = map();
+user["name"] = "Alice";
+user["age"] = 25;
+user["email"] = "alice@example.com";
+
+print("Name: " + user["name"]);
+print("Age: " + user["age"]);
+print("Email: " + user["email"]);
+
+print("");
+print("=== Integer Keys ===");
+var data = map();
+data[1] = "first";
+data[2] = "second";
+data[100] = "hundredth";
+
+print("data[1]: " + data[1]);
+print("data[100]: " + data[100]);
+
+print("");
+print("=== Map Functions ===");
+var config = map();
+config["debug"] = true;
+config["port"] = 8080;
+config["host"] = "localhost";
+
+print("Has 'debug': " + has(config, "debug"));
+print("Has 'timeout': " + has(config, "timeout"));
+
+var allKeys = keys(config);
+print("All keys: " + allKeys);
+
+delete(config, "port");
+print("After deleting 'port':");
+print("Has 'port': " + has(config, "port"));
+
+print("");
+print("=== Iterating Maps ===");
+var scores = map();
+scores["Alice"] = 95;
+scores["Bob"] = 87;
+scores["Charlie"] = 92;
+
+var names = keys(scores);
+for (var name : names) {
+    print(name + ": " + scores[name]);
+}
+
+print("");
+print("=== Practical Example ===");
+var inventory = map();
+inventory["apples"] = 50;
+inventory["oranges"] = 30;
+inventory["bananas"] = 45;
+
+print("=== Inventory ===");
+var items = keys(inventory);
+for (var item : items) {
+    var quantity = inventory[item];
+    print(item + ": " + quantity + " units");
+}
+
+inventory["apples"] = inventory["apples"] - 10;
+print("");
+print("After selling 10 apples:");
+print("Apples remaining: " + inventory["apples"]);

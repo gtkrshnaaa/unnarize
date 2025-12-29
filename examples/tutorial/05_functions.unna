@@ -1,0 +1,53 @@
+function greet() {
+    print("Hello from a function!");
+}
+
+greet();
+greet();
+
+function sayHello(name) {
+    print("Hello, " + name + "!");
+}
+
+sayHello("Alice");
+sayHello("Bob");
+
+function add(a, b) {
+    return a + b;
+}
+
+var result = add(10, 20);
+print("10 + 20 = " + result);
+
+function multiply(x, y) {
+    return x * y;
+}
+
+var product = multiply(6, 7);
+print("6 * 7 = " + product);
+
+function isEven(number) {
+    return number % 2 == 0;
+}
+
+print("Is 4 even? " + isEven(4));
+print("Is 7 even? " + isEven(7));
+
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+print("Factorial of 5: " + factorial(5));
+print("Factorial of 6: " + factorial(6));
+
+function fibonacci(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print("Fibonacci(10): " + fibonacci(10));

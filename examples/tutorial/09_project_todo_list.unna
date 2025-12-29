@@ -1,0 +1,76 @@
+struct Task {
+    id;
+    title;
+    completed;
+}
+
+var tasks = [];
+var nextId = 1;
+
+function addTask(title) {
+    var task = Task(nextId, title, false);
+    push(tasks, task);
+    nextId = nextId + 1;
+    print("Added: " + title);
+}
+
+function listTasks() {
+    print("");
+    print("=== Task List ===");
+    if (length(tasks) == 0) {
+        print("No tasks yet!");
+        return;
+    }
+    
+    for (var task : tasks) {
+        var status = "[ ]";
+        if (task.completed) {
+            status = "[x]";
+        }
+        print(status + " " + task.id + ". " + task.title);
+    }
+}
+
+function completeTask(taskId) {
+    for (var task : tasks) {
+        if (task.id == taskId) {
+            task.completed = true;
+            print("Completed: " + task.title);
+            return;
+        }
+    }
+    print("Task not found!");
+}
+
+function countCompleted() {
+    var count = 0;
+    for (var task : tasks) {
+        if (task.completed) {
+            count = count + 1;
+        }
+    }
+    return count;
+}
+
+print("=== Todo List Manager ===");
+
+addTask("Learn Unnarize basics");
+addTask("Build a simple program");
+addTask("Read documentation");
+addTask("Create a project");
+
+listTasks();
+
+print("");
+print("Completing some tasks...");
+completeTask(1);
+completeTask(3);
+
+listTasks();
+
+print("");
+var completed = countCompleted();
+var total = length(tasks);
+var remaining = total - completed;
+print("Progress: " + completed + "/" + total + " completed");
+print("Remaining: " + remaining + " tasks");

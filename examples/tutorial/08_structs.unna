@@ -1,0 +1,79 @@
+print("=== Defining Structs ===");
+struct Point {
+    x;
+    y;
+}
+
+var p1 = Point(10, 20);
+print("Point: (" + p1.x + ", " + p1.y + ")");
+
+p1.x = 30;
+p1.y = 40;
+print("Updated: (" + p1.x + ", " + p1.y + ")");
+
+print("");
+print("=== Struct with Multiple Fields ===");
+struct Person {
+    name;
+    age;
+    email;
+}
+
+var alice = Person("Alice", 25, "alice@example.com");
+print("Name: " + alice.name);
+print("Age: " + alice.age);
+print("Email: " + alice.email);
+
+alice.age = alice.age + 1;
+print("After birthday: " + alice.age);
+
+print("");
+print("=== Nested Structs ===");
+struct Address {
+    street;
+    city;
+    zipcode;
+}
+
+struct Employee {
+    name;
+    position;
+    address;
+}
+
+var addr = Address("123 Main St", "New York", "10001");
+var emp = Employee("Bob", "Developer", addr);
+
+print("Employee: " + emp.name);
+print("Position: " + emp.position);
+print("City: " + emp.address.city);
+print("Street: " + emp.address.street);
+
+print("");
+print("=== Structs in Arrays ===");
+struct Product {
+    id;
+    name;
+    price;
+}
+
+var products = [
+    Product(1, "Laptop", 999),
+    Product(2, "Mouse", 25),
+    Product(3, "Keyboard", 75)
+];
+
+print("=== Product Catalog ===");
+for (var product : products) {
+    print("ID: " + product.id);
+    print("  Name: " + product.name);
+    print("  Price: $" + product.price);
+}
+
+print("");
+print("=== Calculating Total ===");
+var total = 0;
+for (var product : products) {
+    total = total + product.price;
+}
+print("Total value: $" + total);
