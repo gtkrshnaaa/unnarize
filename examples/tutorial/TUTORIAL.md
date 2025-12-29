@@ -114,18 +114,31 @@ function factorial(n) {
 print("Factorial of 5: " + factorial(5));
 ```
 
-### Async & Await (First-Class Support)
-Unnarize treats asynchronous programming as a first-class citizen. You can mark functions as `async` and use `await` to handle results cleanly.
+### Async & Await (Parallel Execution)
+Unnarize's `async`/`await` system allows for powerful parallel execution patterns.
 
 ```javascript
-async function compute() {
-    print("Async task running...");
-    return "Done";
+async function slowTask(id) {
+    print("Task " + id + " started...");
+    // Simulate complex work
+    var sum = 0;
+    for(var i=0; i<1000000; i=i+1) sum = sum + i; 
+    return "Task " + id + " Done";
 }
 
-// Await directly gets the result
-var result = await compute();
-print("Async Result: " + result);
+print("Main: Starting tasks...");
+
+// 1. Start tasks in parallel (Executes immediately)
+var future1 = slowTask(1);
+var future2 = slowTask(2);
+
+print("Main: Doing other work while tasks run...");
+
+// 2. Await results when needed
+var r1 = await future1;
+var r2 = await future2;
+
+print("Results: " + r1 + ", " + r2);
 ```
 
 ---
