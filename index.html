@@ -635,7 +635,7 @@ print(count);                 // 2
 </code></pre>
 
                     <h5>Iterating Over Arrays</h5>
-                    <p>Use <strong>for loops</strong> or <strong>foreach</strong> to iterate through array elements:</p>
+                    <p>Use <strong>for loops</strong> to iterate through array elements:</p>
                     <pre><code class="language-unnarize">var colors = ["red", "green", "blue", "yellow"];
 
 // Method 1: Traditional for loop with index
@@ -643,8 +643,8 @@ for (var i = 0; i < length(colors); i = i + 1) {
     print("Color " + i + ": " + colors[i]);
 }
 
-// Method 2: Foreach loop (cleaner syntax)
-foreach (var color : colors) {
+// Method 2: For-each style loop (cleaner syntax)
+for (var color : colors) {
     print("Color: " + color);
 }
 </code></pre>
@@ -698,7 +698,7 @@ print(users[1].id);           // 2
 print(users[2].active);       // true
 
 // Iterate over struct array
-foreach (var user : users) {
+for (var user : users) {
     if (user.active) {
         print("Active user: " + user.name);
     }
