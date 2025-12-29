@@ -2,8 +2,6 @@ print("=== System Module (ucoreSystem) ===");
 print("");
 
 print("1. Command Line Arguments");
-// Note: Arguments depend on how you run the program
-// Example: ./bin/unnarize examples/tutorial/corelib/system/system_demo.unna arg1 arg2
 var cliArgs = ucoreSystem.args();
 print("Arguments: " + cliArgs);
 print("Argument count: " + length(cliArgs));
@@ -14,7 +12,6 @@ var path = ucoreSystem.getenv("PATH");
 var user = ucoreSystem.getenv("USER");
 var shell = ucoreSystem.getenv("SHELL");
 
-// Truncate PATH for display if too long (simulated truncation manually as we don't have substring yet)
 print("USER: " + user);
 print("SHELL: " + shell);
 if (length(path) > 0) {
@@ -37,8 +34,4 @@ print("Exists: " + existsMissing);
 
 print("");
 print("4. User Input");
-// We skip actual input in automated tests to avoid blocking, 
-// but here is how you would use it:
-// var name = ucoreSystem.input("Enter your name: ");
-// print("Hello, " + name + "!");
 print("(Skipping interactive input for this demo)");

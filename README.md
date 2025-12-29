@@ -16,6 +16,7 @@
       * [Prerequisites](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#prerequisites)
       * [Build Instructions](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#build-instructions)
       * [Installation](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#installation)
+  * [📚 Learning Unnarize (Tutorial)](examples/tutorial/TUTORIAL.md)
   * [Usage](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#usage)
   * [Plugin System](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#plugin-system)
   * [Language Syntax Showcase](https://github.com/gtkrshnaaa/unnarize?tab=readme-ov-file#language-syntax-showcase)
@@ -54,6 +55,19 @@ Optional system-wide installation:
 ```bash
 sudo make install
 ```
+
+```
+
+## 📚 Learning Unnarize (Zero to Hero)
+
+We provide a comprehensive, step-by-step tutorial series to take you from writing your first "Hello World" to building complex modular projects and web servers.
+
+[**👉 Start the Tutorial Here**](examples/tutorial/TUTORIAL.md)
+
+1.  **Basics**: Variables, Conditionals, Loops, Functions.
+2.  **Data Structures**: Arrays, Maps, Structs.
+3.  **Real Projects**: To-Do List, Banking System.
+4.  **Advanced**: Core Libraries (Timer, System, UON, HTTP) and Modularity.
 
 ## Quick Start
 

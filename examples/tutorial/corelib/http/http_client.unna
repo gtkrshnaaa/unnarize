@@ -1,6 +1,6 @@
 print("=== HTTP Client Helper Demo ===");
 
-// 1. JSON Serialization
+
 print("--- JSON Serialization ---");
 var userData = map();
 userData["id"] = 101;
@@ -17,17 +17,18 @@ print("--- HTTP Requests ---");
 print("Note: To run these requests, start the server in a separate terminal:");
 print("      ./bin/unnarize examples/tutorial/corelib/http/http_server.unna");
 
-// Example calls (Commented out to prevent hanging if server is down)
-/*
-print("Fetching / ...");
-var html = ucoreHttp.get("http://localhost:8080/");
-print("Response: " + html);
+var shouldRunRequests = false; 
 
-print("Fetching /api/data ...");
-var apiRes = ucoreHttp.get("http://localhost:8080/api/data");
-print("API Response: " + apiRes);
+if (shouldRunRequests) {
+    print("Fetching / ...");
+    var html = ucoreHttp.get("http://localhost:8080/");
+    print("Response: " + html);
 
-print("Posting to /api/update ...");
-var postRes = ucoreHttp.post("http://localhost:8080/api/update", "{\"foo\":\"bar\"}");
-print("POST Response: " + postRes);
-*/
+    print("Fetching /api/data ...");
+    var apiRes = ucoreHttp.get("http://localhost:8080/api/data");
+    print("API Response: " + apiRes);
+
+    print("Posting to /api/update ...");
+    var postRes = ucoreHttp.post("http://localhost:8080/api/update", "{\"foo\":\"bar\"}");
+    print("POST Response: " + postRes);
+}

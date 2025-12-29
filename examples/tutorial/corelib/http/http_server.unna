@@ -1,7 +1,7 @@
 print("=== HTTP Server Demo ===");
 print("Starting server on port 8080...");
 
-// 1. Define Handler Functions
+
 function homeHandler(req) {
     print("[LOG] Request: " + req["method"] + " " + req["path"]);
     return "Welcome to Unnarize Web Server!\nChecked route: /";
@@ -10,13 +10,13 @@ function homeHandler(req) {
 function apiDataHandler(req) {
     print("[LOG] API Request received");
     
-    // Create response data
+
     var data = map();
     data["status"] = "success";
     data["timestamp"] = ucoreTimer.now();
     data["message"] = "Data from Unnarize";
     
-    // Return JSON string
+
     return ucoreHttp.json(data);
 }
 
@@ -26,14 +26,11 @@ function postHandler(req) {
     return "Received update: " + req["body"];
 }
 
-// 2. Register Routes
-// route(Method, Path, FunctionName)
+
 ucoreHttp.route("GET", "/", "homeHandler");
 ucoreHttp.route("GET", "/api/data", "apiDataHandler");
 ucoreHttp.route("POST", "/api/update", "postHandler");
 
-// 3. Start Server
-// listen(port) - blocks indefinitely
 print("Navigate to http://localhost:8080/ in your browser");
 print("Press Ctrl+C to stop");
 
