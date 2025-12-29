@@ -567,19 +567,203 @@ print(result); // 120
 
                     <h3 id="data-structures" class="font-display font-bold text-2xl tracking-tight">3.6 Data Structures (Arrays & Maps)</h3>
                     <h4>Arrays</h4>
-                    <p>Arrays are ordered, dynamic lists of values.</p>
-                    <pre><code class="language-unnarize">var fruits = array();
-push(fruits, "apple");
-push(fruits, "banana");
+                    <p><strong>Arrays are ordered, dynamic lists</strong> that can hold values of any type. Unnarize provides full array support with modern literal syntax, indexing, and powerful built-in operations.</p>
+                    
+                    <h5>Creating Arrays</h5>
+                    <p>Unnarize supports <strong>two ways to create arrays</strong>:</p>
+                    
+                    <p><strong>1. Array Literal Syntax (Recommended)</strong> - Modern, concise syntax:</p>
+                    <pre><code class="language-unnarize">// Empty array
+var empty = [];
 
-var firstFruit = fruits[0];
-print(firstFruit); // apple
-fruits[1] = "mango";
-var arrayLength = length(fruits);
-print("Array length: " + arrayLength); // 2
+// Array with initial values
+var numbers = [1, 2, 3, 4, 5];
+var fruits = ["apple", "banana", "orange"];
 
-var lastItem = pop(fruits);
-print("Last item: " + lastItem); // mango
+// Mixed types (dynamic typing)
+var mixed = [42, "hello", 3.14, true];
+
+// Nested arrays
+var matrix = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+];
+</code></pre>
+
+                    <p><strong>2. Function Constructor</strong> - Alternative method:</p>
+                    <pre><code class="language-unnarize">// Create empty array
+var arr = array();
+
+// Add elements dynamically
+push(arr, "first");
+push(arr, "second");
+push(arr, "third");
+</code></pre>
+
+                    <h5>Accessing and Modifying Elements</h5>
+                    <pre><code class="language-unnarize">var scores = [85, 90, 78, 92, 88];
+
+// Read by index (zero-based)
+var first = scores[0];        // 85
+var third = scores[2];        // 78
+print("First score: " + first);
+
+// Modify by index
+scores[1] = 95;               // Change 90 to 95
+scores[4] = 100;              // Change 88 to 100
+
+// Get array length
+var total = length(scores);   // 5
+print("Total scores: " + total);
+</code></pre>
+
+                    <h5>Built-in Array Functions</h5>
+                    <pre><code class="language-unnarize">var items = ["apple", "banana"];
+
+// push(array, value) - Add to end, returns new length
+var newLen = push(items, "orange");
+print(newLen);                // 3
+
+// pop(array) - Remove from end, returns removed item
+var last = pop(items);
+print(last);                  // "orange"
+
+// length(array) - Get number of elements
+var count = length(items);
+print(count);                 // 2
+</code></pre>
+
+                    <h5>Iterating Over Arrays</h5>
+                    <p>Use <strong>for loops</strong> or <strong>foreach</strong> to iterate through array elements:</p>
+                    <pre><code class="language-unnarize">var colors = ["red", "green", "blue", "yellow"];
+
+// Method 1: Traditional for loop with index
+for (var i = 0; i < length(colors); i = i + 1) {
+    print("Color " + i + ": " + colors[i]);
+}
+
+// Method 2: Foreach loop (cleaner syntax)
+foreach (var color : colors) {
+    print("Color: " + color);
+}
+</code></pre>
+
+                    <h5>Nested Arrays & Multi-dimensional Data</h5>
+                    <pre><code class="language-unnarize">// 2D array (matrix)
+var grid = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+];
+
+// Access nested elements
+print(grid[0][0]);            // 1
+print(grid[1][2]);            // 6
+print(grid[2][1]);            // 8
+
+// Modify nested elements
+grid[1][1] = 50;
+print(grid[1][1]);            // 50
+
+// Array of arrays with mixed data
+var data = [
+    ["Alice", 25, true],
+    ["Bob", 30, false],
+    ["Charlie", 28, true]
+];
+
+print(data[0][0]);            // "Alice"
+print(data[1][1]);            // 30
+</code></pre>
+
+                    <h5>Working with Structs in Arrays</h5>
+                    <pre><code class="language-unnarize">// Define a struct
+struct User {
+    id;
+    name;
+    active;
+}
+
+// Create array of struct instances
+var users = [
+    User(1, "Alice", true),
+    User(2, "Bob", false),
+    User(3, "Charlie", true)
+];
+
+// Access struct fields in array
+print(users[0].name);         // "Alice"
+print(users[1].id);           // 2
+print(users[2].active);       // true
+
+// Iterate over struct array
+foreach (var user : users) {
+    if (user.active) {
+        print("Active user: " + user.name);
+    }
+}
+</code></pre>
+
+                    <h5>Array Truthiness & Equality</h5>
+                    <pre><code class="language-unnarize">var arr1 = [1, 2, 3];
+var arr2 = [1, 2, 3];
+var empty = [];
+
+// Truthiness: non-empty arrays are truthy
+if (arr1) {
+    print("arr1 is truthy!");     // ✓ Executed
+}
+
+if (!empty) {
+    print("Empty array is falsy!"); // ✓ Executed
+}
+
+// Equality: identity-based (pointer comparison)
+if (arr1 == arr2) {
+    print("Same array!");         // ✗ NOT executed (different objects)
+}
+
+var arr3 = arr1;
+if (arr1 == arr3) {
+    print("Same reference!");     // ✓ Executed (same object)
+}
+</code></pre>
+
+                    <h5>String Representation</h5>
+                    <pre><code class="language-unnarize">var numbers = [10, 20, 30];
+
+// When printed or concatenated, shows compact descriptor
+print(numbers);                   // Output: [array length=3]
+print("My array: " + numbers);    // Output: My array: [array length=3]
+</code></pre>
+
+                    <h5>Complete Example: Shopping Cart</h5>
+                    <pre><code class="language-unnarize">// Shopping cart with array literal
+var cart = [
+    ["Laptop", 999],
+    ["Mouse", 25],
+    ["Keyboard", 75]
+];
+
+print("=== Shopping Cart ===");
+
+// Calculate total
+var total = 0;
+for (var i = 0; i < length(cart); i = i + 1) {
+    var item = cart[i];
+    var name = item[0];
+    var price = item[1];
+    
+    print(name + ": $" + price);
+    total = total + price;
+}
+
+print("Total: $" + total);        // Total: $1099
+
+// Add new item
+push(cart, ["Monitor", 299]);
+print("Items in cart: " + length(cart)); // 4
 </code></pre>
 
                     <h4>Maps</h4>
