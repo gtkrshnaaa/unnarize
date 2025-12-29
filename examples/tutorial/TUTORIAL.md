@@ -17,6 +17,8 @@ Welcome to the complete Unnarize tutorial! This guide will take you from absolut
 11. [Core Libraries](#11-core-libraries)
     - [Timer](#timer-module)
     - [System](#system-module)
+    - [UON Database](#uon-module)
+    - [HTTP Web Server](#http-module)
 
 ---
 
@@ -984,12 +986,39 @@ Interact with the system environment.
 ./bin/unnarize examples/tutorial/corelib/system/system_demo.unna
 ```
 
----
+### UON Module
 
-## 12. Modularity
+**Folder**: `examples/tutorial/corelib/uon/`
 
-For modularity, Unnarize currently supports **Native Plugins**. 
-See `examples/tutorial/modularity/README.md` for details on how to use `loadextern` to load C-compiled shared objects.
+Read structured data from `.uon` files efficiently.
+
+**Features**:
+- `ucoreUon.load(path)`: Load database file
+- `ucoreUon.get(table)`: Get table cursor
+- `ucoreUon.next(cursor)`: Iterate records
+
+**Run it**:
+```bash
+./bin/unnarize examples/tutorial/corelib/uon/uon_demo.unna
+```
+
+### HTTP Module
+
+**Folder**: `examples/tutorial/corelib/http/`
+
+Build web servers and make API requests.
+
+**Features**:
+- `ucoreHttp.listen(port)`: Start server
+- `ucoreHttp.route(method, path, handler)`: Define routes
+- `ucoreHttp.json(data)`: Serialize data
+- `ucoreHttp.get(url)`: HTTP Client
+
+**Run it**:
+```bash
+# Start Server
+./bin/unnarize examples/tutorial/corelib/http/http_server.unna
+```
 
 ---
 
@@ -1047,7 +1076,7 @@ Ideas to practice:
 - **Output**: `print(value)`
 - **Array**: `push()`, `pop()`, `length()`
 - **Map**: `has()`, `keys()`
-- **Timer**: `ucoreTimer.now()`
+- **CoreLibs**: `ucoreTimer`, `ucoreSystem`, `ucoreUon`, `ucoreHttp`
 
 ---
 

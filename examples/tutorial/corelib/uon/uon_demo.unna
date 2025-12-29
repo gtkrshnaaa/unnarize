@@ -1,0 +1,40 @@
+print("=== UON Database Demo ===");
+
+// 1. Load schema/file
+var path = "examples/tutorial/corelib/uon/data.uon";
+print("Loading: " + path);
+var loaded = ucoreUon.load(path);
+print("Loaded: " + loaded);
+
+if (!loaded) {
+    print("Failed to load UON file!");
+    // Try absolute path if relative failed (simplified check)
+}
+
+// 2. Query 'users' table
+print("");
+print("=== Querying Users ===");
+// get(tableName) uses the last loaded file path
+var cursor = ucoreUon.get("users"); 
+
+if (!cursor) {
+    print("Could not get users cursor");
+} else {
+    print("Iterating users:");
+    var user = ucoreUon.next(cursor);
+    // Iterate through stream
+    while (user) {
+        print("  User #" + user["id"] + ": " + user["name"] + " (Active: " + user["active"] + ")");
+        user = ucoreUon.next(cursor);
+    }
+}
+
+// 3. Query 'products' table
+print("");
+print("=== Querying Products ===");
+var pCursor = ucoreUon.get("products");
+var product = ucoreUon.next(pCursor);
+while (product) {
+    print("  " + product["sku"] + ": $" + product["price"] + " (Stock: " + product["stock"] + ")");
+    product = ucoreUon.next(pCursor);
+}
