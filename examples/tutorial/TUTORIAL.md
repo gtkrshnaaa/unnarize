@@ -14,6 +14,7 @@ Welcome to the complete Unnarize tutorial! This guide will take you from absolut
 8. [Structs](#8-structs)
 9. [Project: Todo List](#9-project-todo-list)
 10. [Project: Banking System](#10-project-banking-system)
+11. [Core Library: Timer](#11-core-library-timer)
 
 ---
 
@@ -942,6 +943,88 @@ Balance: $700
 
 ---
 
+## 11. Core Library: Timer
+
+**File**: `examples/tutorial/11_corelib_timer.unna`
+
+Learn to use Unnarize's built-in timer module for measuring performance.
+
+**What you'll learn**:
+- Using `ucoreTimer.now()` to get timestamps
+- Measuring elapsed time
+- Benchmarking code performance
+- Practical timing applications
+
+**Code**:
+
+```c
+print("=== Timer Module (ucoreTimer) ===");
+print("");
+
+print("Getting current timestamp:");
+var start = ucoreTimer.now();
+print("Start time: " + start + " ms");
+
+print("");
+print("Doing some work...");
+var sum = 0;
+for (var i = 0; i < 100000; i = i + 1) {
+    sum = sum + i;
+}
+print("Sum: " + sum);
+
+var end = ucoreTimer.now();
+print("End time: " + end + " ms");
+
+var elapsed = end - start;
+print("");
+print("Elapsed time: " + elapsed + " ms");
+
+print("");
+print("=== Practical Example: Benchmark ===");
+
+var startLoop = ucoreTimer.now();
+var count = 0;
+for (var i = 0; i < 1000000; i = i + 1) {
+    count = count + 1;
+}
+var endLoop = ucoreTimer.now();
+
+print("Counted to: " + count);
+print("Time for 1M iterations: " + (endLoop - startLoop) + " ms");
+```
+
+**Run it**:
+```bash
+./bin/unnarize examples/tutorial/11_corelib_timer.unna
+```
+
+**Expected output**:
+```
+=== Timer Module (ucoreTimer) ===
+
+Getting current timestamp:
+Start time: 69232600 ms
+
+Doing some work...
+Sum: 704982704
+End time: 69232679 ms
+
+Elapsed time: 79.1686 ms
+
+=== Practical Example: Benchmark ===
+Counted to: 1000000
+Time for 1M iterations: 753.697 ms
+```
+
+**Use cases**:
+- Performance benchmarking
+- Measuring function execution time
+- Profiling code sections
+- Creating timed operations
+
+---
+
 ## 🎓 Next Steps
 
 Congratulations! You've completed the Unnarize tutorial. Here's what to do next:
@@ -996,6 +1079,7 @@ Ideas to practice:
 - **Output**: `print(value)`
 - **Array**: `push()`, `pop()`, `length()`
 - **Map**: `has()`, `keys()`
+- **Timer**: `ucoreTimer.now()`
 
 ---
 
