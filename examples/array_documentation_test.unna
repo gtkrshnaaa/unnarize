@@ -237,9 +237,9 @@ print("---");
 
 var nums = [10, 20, 30];
 
-// When printed or concatenated, shows compact descriptor
-print(nums);
-print("My array: " + nums);
+// When printed or concatenated, shows as object descriptor
+print(nums);                          // Output: <array> or [object]
+print("My array: " + nums);           // Output: My array: [object]
 print("");
 
 // ==========================================
