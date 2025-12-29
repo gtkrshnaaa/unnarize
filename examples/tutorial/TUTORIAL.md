@@ -114,6 +114,21 @@ function factorial(n) {
 print("Factorial of 5: " + factorial(5));
 ```
 
+### Async & Await
+Unnarize supports syntax for asynchronous programming.
+
+> **Note**: This feature is experimental in the current build.
+
+```javascript
+async function compute() {
+    // Simulate work
+    return 42;
+}
+
+// Use await to get the result
+// var result = await compute();
+```
+
 ---
 
 ## 2. Data Structures
