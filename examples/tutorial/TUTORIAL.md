@@ -19,6 +19,7 @@ Welcome to the complete Unnarize tutorial! This guide will take you from absolut
     - [System](#system-module)
     - [UON Database](#uon-module)
     - [HTTP Web Server](#http-module)
+12. [Modularity](#12-modularity)
 
 ---
 
@@ -1021,6 +1022,32 @@ Build web servers and make API requests.
 ```
 
 ---
+
+## 12. Modularity
+
+Unnarize supports breaking code into multiple files using the `import` statement.
+
+**Concept**:
+Logic is separated into module files and imported into the main script with an alias.
+
+**Example**:
+
+`math_utils.unna`:
+```c
+function add(a, b) {
+    return a + b;
+}
+```
+
+`main.unna`:
+```c
+import math_utils as math;
+
+var res = math.add(10, 5);
+```
+
+**Note**: The module resolution system depends on the specific VM implementation and search paths.
+
 
 ## 🎓 Next Steps
 

@@ -1,0 +1,15 @@
+// Import the math_utils module found in the same directory (conceptually)
+import math_utils as math;
+
+print("=== Modularity Demo ===");
+
+var a = 10;
+var b = 2;
+
+print("Values: a=" + a + ", b=" + b);
+
+// Access module functions using the alias 'math'
+print("Add: " + math.add(a, b));
+print("Sub: " + math.sub(a, b));
+print("Mul: " + math.mul(a, b));
+print("Div: " + math.div(a, b));
