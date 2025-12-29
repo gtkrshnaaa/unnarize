@@ -260,6 +260,10 @@ Unnarize delivers exceptional performance for a tree-walking interpreter:
 
 **Overall Peak: ~17.8 million operations per second**
 
+> **Note**: Benchmarks above were measured on **Intel Core i5** processor. Performance scales with CPU capabilities:
+> - On **Intel Celeron**: ~2-3M ops/sec (5-8x slower, expected due to lower clock speed and cache)
+> - See `examples/benchmarks/` for detailed benchmarks and hardware comparisons
+
 ### Performance Features
 
 - **Stack-Based Local Resolution:** O(1) array access for local variables (vs O(n) hash lookups).
