@@ -72,7 +72,7 @@ function checkBalance(accountNumber) {
 }
 
 function transfer(fromAccount, toAccount, amount) {
-    if (!has(accounts, fromAccount) or !has(accounts, toAccount)) {
+    if (!has(accounts, fromAccount) || !has(accounts, toAccount)) {
         print("Error: One or both accounts not found!");
         return;
     }

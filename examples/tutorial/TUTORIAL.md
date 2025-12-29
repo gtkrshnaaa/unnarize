@@ -141,7 +141,7 @@ Control program flow with if/else statements.
 **What you'll learn**:
 - `if`, `else if`, `else` statements
 - Comparison operators (`>`, `<`, `>=`, `<=`, `==`)
-- Logical operators (`and`, `or`, `not`)
+- Logical operators (`&&`, `||`, `!`)
 - Boolean expressions
 
 **Code**:
@@ -169,7 +169,7 @@ if (passed) {
 var age = 18;
 var hasLicense = true;
 
-if (age >= 18 and hasLicense) {
+if (age >= 18 && hasLicense) {
     print("You can drive!");
 } else {
     print("You cannot drive yet.");
@@ -178,7 +178,7 @@ if (age >= 18 and hasLicense) {
 var isWeekend = false;
 var isHoliday = true;
 
-if (isWeekend or isHoliday) {
+if (isWeekend || isHoliday) {
     print("Time to relax!");
 } else {
     print("Time to work!");
@@ -295,7 +295,9 @@ var product = multiply(6, 7);
 print("6 * 7 = " + product);
 
 function isEven(number) {
-    return number % 2 == 0;
+    var half = number / 2;
+    var doubled = half * 2;
+    return doubled == number;
 }
 
 print("Is 4 even? " + isEven(4));
@@ -432,7 +434,7 @@ Store key-value pairs with maps (dictionaries).
 **What you'll learn**:
 - Creating maps with `map()`
 - String and integer keys
-- Map functions: `has()`, `keys()`, `delete()`
+- Map functions: `has()`, `keys()`
 - Iterating over maps
 
 **Code**:
@@ -470,10 +472,7 @@ print("Has 'timeout': " + has(config, "timeout"));
 
 var allKeys = keys(config);
 print("All keys: " + allKeys);
-
-delete(config, "port");
-print("After deleting 'port':");
-print("Has 'port': " + has(config, "port"));
+print("Number of keys: " + length(allKeys));
 
 print("");
 print("=== Iterating Maps ===");
@@ -851,7 +850,7 @@ function checkBalance(accountNumber) {
 }
 
 function transfer(fromAccount, toAccount, amount) {
-    if (!has(accounts, fromAccount) or !has(accounts, toAccount)) {
+    if (!has(accounts, fromAccount) || !has(accounts, toAccount)) {
         print("Error: One or both accounts not found!");
         return;
     }
@@ -996,7 +995,7 @@ Ideas to practice:
 ### Built-in Functions
 - **Output**: `print(value)`
 - **Array**: `push()`, `pop()`, `length()`
-- **Map**: `has()`, `keys()`, `delete()`
+- **Map**: `has()`, `keys()`
 
 ---
 

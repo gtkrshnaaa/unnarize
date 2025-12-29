@@ -30,10 +30,7 @@ print("Has 'timeout': " + has(config, "timeout"));
 
 var allKeys = keys(config);
 print("All keys: " + allKeys);
-
-delete(config, "port");
-print("After deleting 'port':");
-print("Has 'port': " + has(config, "port"));
+print("Number of keys: " + length(allKeys));
 
 print("");
 print("=== Iterating Maps ===");

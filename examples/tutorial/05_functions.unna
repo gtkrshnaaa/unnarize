@@ -27,7 +27,9 @@ var product = multiply(6, 7);
 print("6 * 7 = " + product);
 
 function isEven(number) {
-    return number % 2 == 0;
+    var half = number / 2;
+    var doubled = half * 2;
+    return doubled == number;
 }
 
 print("Is 4 even? " + isEven(4));
