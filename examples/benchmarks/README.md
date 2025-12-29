@@ -144,16 +144,37 @@ This means: **~17.8 million operations per second**
 
 ## 🎯 Performance Targets
 
-Based on Unnarize's design goals:
+Based on Unnarize's design goals and actual testing:
 
-| Operation Type | Target | Typical |
-|----------------|--------|---------|
+### Reference Hardware: Intel Core i5
+
+| Operation Type | Target | Typical (i5) |
+|----------------|--------|--------------|
 | Simple Loops | 15-20M ops/sec | ~17.8M |
 | Arithmetic | 10-15M ops/sec | ~15M |
 | Array Access | 5-10M ops/sec | ~8M |
 | Function Calls | 1-3M ops/sec | ~2M |
 | String Ops | 0.5-2M ops/sec | ~1M |
 | Struct Access | 5-10M ops/sec | ~7M |
+
+### Tested Hardware: Intel Celeron
+
+| Operation Type | Actual (Celeron) | vs i5 Ratio |
+|----------------|------------------|-------------|
+| Simple Loops | ~2.2M ops/sec | ~8x slower |
+| Arithmetic (Addition) | ~3.0M ops/sec | ~5x slower |
+| Arithmetic (Multiplication) | ~3.2M ops/sec | ~5x slower |
+| Arithmetic (Division) | ~2.7M ops/sec | ~5-6x slower |
+
+**Note**: Performance scales with CPU capabilities. The ~5-8x difference between Celeron and Core i5 is expected due to:
+- Clock speed differences (Celeron: 1.1-2.4 GHz vs i5: 2.4-4.2 GHz)
+- Cache size (Celeron: smaller L2/L3 vs i5: larger caches)
+- Architecture improvements (i5 has better IPC and branch prediction)
+
+**Your results will vary** based on your hardware. Use these benchmarks to:
+- Measure relative performance between operations
+- Track performance regressions
+- Set realistic expectations for your target hardware
 
 ---
 
