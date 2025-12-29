@@ -14,7 +14,9 @@ Welcome to the complete Unnarize tutorial! This guide will take you from absolut
 8. [Structs](#8-structs)
 9. [Project: Todo List](#9-project-todo-list)
 10. [Project: Banking System](#10-project-banking-system)
-11. [Core Library: Timer](#11-core-library-timer)
+11. [Core Libraries](#11-core-libraries)
+    - [Timer](#timer-module)
+    - [System](#system-module)
 
 ---
 
@@ -943,85 +945,51 @@ Balance: $700
 
 ---
 
-## 11. Core Library: Timer
+## 11. Core Libraries
 
-**File**: `examples/tutorial/11_corelib_timer.unna`
+Unnarize comes with built-in modules for system operations and timing.
+
+### Timer Module
+
+**File**: `examples/tutorial/corelib/timer/timer_demo.unna`
 
 Learn to use Unnarize's built-in timer module for measuring performance.
 
-**What you'll learn**:
-- Using `ucoreTimer.now()` to get timestamps
-- Measuring elapsed time
-- Benchmarking code performance
-- Practical timing applications
-
 **Code**:
-
 ```c
 print("=== Timer Module (ucoreTimer) ===");
-print("");
-
-print("Getting current timestamp:");
 var start = ucoreTimer.now();
-print("Start time: " + start + " ms");
-
-print("");
-print("Doing some work...");
-var sum = 0;
-for (var i = 0; i < 100000; i = i + 1) {
-    sum = sum + i;
-}
-print("Sum: " + sum);
-
-var end = ucoreTimer.now();
-print("End time: " + end + " ms");
-
-var elapsed = end - start;
-print("");
-print("Elapsed time: " + elapsed + " ms");
-
-print("");
-print("=== Practical Example: Benchmark ===");
-
-var startLoop = ucoreTimer.now();
-var count = 0;
-for (var i = 0; i < 1000000; i = i + 1) {
-    count = count + 1;
-}
-var endLoop = ucoreTimer.now();
-
-print("Counted to: " + count);
-print("Time for 1M iterations: " + (endLoop - startLoop) + " ms");
+// ... (see file for full example)
 ```
 
 **Run it**:
 ```bash
-./bin/unnarize examples/tutorial/11_corelib_timer.unna
+./bin/unnarize examples/tutorial/corelib/timer/timer_demo.unna
 ```
 
-**Expected output**:
+### System Module
+
+**File**: `examples/tutorial/corelib/system/system_demo.unna`
+
+Interact with the system environment.
+
+**Features**:
+- `ucoreSystem.args()`: Get command line arguments
+- `ucoreSystem.getenv(name)`: Get environment variables
+- `ucoreSystem.fileExists(path)`: Check file existence
+- `ucoreSystem.input(prompt)`: Read user input
+
+**Run it**:
+```bash
+./bin/unnarize examples/tutorial/corelib/system/system_demo.unna
 ```
-=== Timer Module (ucoreTimer) ===
 
-Getting current timestamp:
-Start time: 69232600 ms
+---
 
-Doing some work...
-Sum: 704982704
-End time: 69232679 ms
+## 12. Modularity
 
-Elapsed time: 79.1686 ms
-
-=== Practical Example: Benchmark ===
-Counted to: 1000000
-Time for 1M iterations: 753.697 ms
-```
-
-**Use cases**:
-- Performance benchmarking
-- Measuring function execution time
-- Profiling code sections
-- Creating timed operations
+For modularity, Unnarize currently supports **Native Plugins**. 
+See `examples/tutorial/modularity/README.md` for details on how to use `loadextern` to load C-compiled shared objects.
 
 ---
 
