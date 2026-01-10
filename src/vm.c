@@ -1743,14 +1743,14 @@ static void defineInEnv(VM* vm, Environment* env, Token name, Value value) {
 void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int arity) {
     ObjString* keyObj = internString(vm, name, (int)strlen(name));
     char* key = keyObj->chars;
-    unsigned int h = hashPointer(key) % TABLE_SIZE;
+    unsigned int h = keyObj->hash % TABLE_SIZE;
     
     FuncEntry* fe = malloc(sizeof(FuncEntry));
     fe->key = key;
     fe->next = env->funcBuckets[h];
     env->funcBuckets[h] = fe;
     
-    Function* func = malloc(sizeof(Function));
+    Function* func = ALLOCATE_OBJ(vm, Function, OBJ_FUNCTION);
     func->isNative = true;
     func->native = fn;
     func->paramCount = arity;
@@ -1759,4 +1759,74 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     func->closure = NULL;
     
     fe->function = func;
+
+    // ALSO register as a variable for Bytecode VM (OP_LOAD_GLOBAL checks variable buckets)
+    // We treat the function as a first-class object value
+    Value funcVal = OBJ_VAL(func);
+    
+    // Check/Update existing in this env
+    VarEntry* ve = env->buckets[h];
+    while (ve) {
+        if (ve->key == key) {
+            ve->value = funcVal;
+            return;
+        }
+        ve = ve->next;
+    }
+    
+    // Create new variable entry
+    ve = malloc(sizeof(VarEntry));
+    ve->key = key;
+    ve->keyLength = (int)strlen(key);
+    ve->ownsKey = false;
+    ve->value = funcVal;
+    ve->next = env->buckets[h];
+    env->buckets[h] = ve;
+    
+    // printf("DEBUG: Registered native global '%s' (Hash %u)\n", key, h);
+}
+
+// --- Built-in Natives Implementation ---
+
+static Value nativeHas(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount < 2) return NIL_VAL;
+    if (!IS_MAP(args[0])) return BOOL_VAL(false);
+    
+    Map* map = (Map*)AS_OBJ(args[0]);
+    
+    if (IS_STRING(args[1])) {
+        ObjString* key = AS_STRING(args[1]);
+        int bucket;
+        MapEntry* e = mapFindEntry(map, key->chars, key->length, &bucket);
+        return BOOL_VAL(e != NULL);
+    } 
+    return BOOL_VAL(false);
+}
+
+static Value nativeKeys(VM* vm, Value* args, int argCount) {
+    if (argCount < 1) return NIL_VAL;
+    if (!IS_MAP(args[0])) return NIL_VAL;
+    
+    Map* map = (Map*)AS_OBJ(args[0]);
+    Array* keys = newArray(vm);
+    
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        MapEntry* e = map->buckets[i];
+        while (e) {
+            if (e->key) {
+                 ObjString* s = internString(vm, e->key, (int)strlen(e->key));
+                 arrayPush(vm, keys, OBJ_VAL(s));
+            } else if (e->isIntKey) {
+                 arrayPush(vm, keys, INT_VAL(e->intKey));
+            }
+            e = e->next;
+        }
+    }
+    return OBJ_VAL(keys);
+}
+
+void registerBuiltins(VM* vm) {
+    defineNative(vm, vm->globalEnv, "has", nativeHas, 2);
+    defineNative(vm, vm->globalEnv, "keys", nativeKeys, 1);
 }

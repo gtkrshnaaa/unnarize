@@ -344,6 +344,7 @@ int main(int argc, char** argv) {
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
     registerUCoreSystem(&vm); // Register System
+    registerBuiltins(&vm);    // Register built-in natives (has, keys)
     
     // JIT Execution Path (Default or with --jit)
     // For now, let's use --jit flag or defaulting if enabled via define, but let's stick to explicit flag or make it default if requested.

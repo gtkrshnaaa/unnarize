@@ -343,4 +343,7 @@ void collectGarbage(VM* vm);
 Obj* allocateObject(VM* vm, size_t size, ObjType type);
 void freeObject(VM* vm, Obj* object);
 
+// Register core built-in functions (has, keys, len, etc.)
+void registerBuiltins(VM* vm);
+
 #endif // VM_H

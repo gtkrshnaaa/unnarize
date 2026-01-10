@@ -684,11 +684,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     do_call: {
         Value funcVal = sp[-argCount - 1];
         if (!IS_OBJ(funcVal)) {
-            printf("Runtime Error: Attempt to call non-function value.\n");
+            printf("Runtime Error: Attempt to call non-function value. (Val Type: %d)\n", funcVal.type);
             exit(1);
         }
         
         Obj* obj = AS_OBJ(funcVal);
+        // printf("DEBUG: Call object type: %d (Expected %d, OBJ_FUNCTION)\n", obj->type, OBJ_FUNCTION);
         if (obj->type == OBJ_FUNCTION) {
              Function* func = (Function*)obj;
              if (func->isNative) {
@@ -720,7 +721,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  NEXT();
              }
         } else {
-             printf("Runtime Error: Call on non-function object.\n");
+             printf("Runtime Error: Call on non-function object. (Type: %d)\n", obj->type);
              exit(1);
         }
     }
@@ -757,9 +758,44 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
     
     // === OBJECTS ===
-    op_load_property: 
+    op_load_property: {
+        Value target = *(--sp);
+        uint8_t constIdx = *ip++;
+        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+        
+        if (IS_OBJ(target)) {
+             if (AS_OBJ(target)->type == OBJ_MODULE) {
+                 Module* mod = (Module*)AS_OBJ(target);
+                 unsigned int h = name->hash % TABLE_SIZE;
+                 VarEntry* e = mod->env->buckets[h];
+                 while (e) {
+                     if (e->key == name->chars) { // Pointer equality safe due to interning
+                         *sp++ = e->value;
+                         goto property_loaded;
+                     }
+                     e = e->next;
+                 }
+                 // Not found
+                 printf("Runtime Error: Undefined property '%s' in module '%s'\n", name->chars, mod->name);
+                 exit(1);
+             } else if (AS_OBJ(target)->type == OBJ_STRUCT_INSTANCE) {
+                 // TODO: Struct property access
+                 *sp++ = NIL_VAL; 
+             } else {
+                 printf("Runtime Error: Only instances and modules have properties.\n");
+                 exit(1);
+             }
+        } else {
+             printf("Runtime Error: Only instances and modules have properties.\n");
+             exit(1);
+        }
+        
+        property_loaded:
+        NEXT();
+    }
+
     op_store_property:
-        // TODO: Implement property access
+        // TODO: Implement property assignment
         NEXT();
     
     op_load_index: {
@@ -778,8 +814,15 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                 *sp++ = NIL_VAL;
             }
         } else if (IS_MAP(target)) {
-            // TODO: Map indexing
-            *sp++ = NIL_VAL;
+            Map* map = (Map*)AS_OBJ(target);
+            if (IS_STRING(index)) {
+                ObjString* key = AS_STRING(index);
+                int bucket;
+                MapEntry* e = mapFindEntry(map, key->chars, key->length, &bucket);
+                *sp++ = e ? e->value : NIL_VAL;
+            } else {
+                *sp++ = NIL_VAL;
+            }
         } else {
             *sp++ = NIL_VAL;
         }
@@ -812,6 +855,14 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                     arr->count = idx + 1;
                 }
                 arr->items[idx] = value;
+            }
+        } else if (IS_MAP(target)) {
+            Map* map = (Map*)AS_OBJ(target);
+            if (IS_STRING(index)) {
+                ObjString* key = AS_STRING(index);
+                mapSetStr(map, key->chars, key->length, value);
+            } else if (IS_INT(index)) {
+                mapSetInt(map, (int)AS_INT(index), value);
             }
         }
         // Map indexing handled separately
