@@ -1,6 +1,7 @@
 #include "vm.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "bytecode/chunk.h"
 
 // GC Helpers
 void markObject(VM* vm, Obj* object);
@@ -87,15 +88,13 @@ static void blackenObject(VM* vm, Obj* object) {
             // So AST might remain manual?
             // Keep AST manual. Runtime values are GC'd.
             if (function->closure) {
-                 // Environment is NOT an Obj in my definition yet!
-                 // struct Environment { Environment* enclosing ... }
-                 // Environment should be an Obj if we want to GC it.
-                 // But I defined Environment separate in struct.
-                 // I should check if I made Environment an Obj.
-                 // Did I? No.
-                 // So Environment must be manually managed or trace through it?
-                 // If Environment holds Values (VarEntry), we must trace it.
                  markObject(vm, (Obj*)function->closure); 
+            }
+            if (function->bytecodeChunk) {
+                BytecodeChunk* chunk = function->bytecodeChunk;
+                for (int i = 0; i < chunk->constantCount; i++) {
+                    markValue(vm, chunk->constants[i]);
+                }
             }
             break;
         }
@@ -141,6 +140,12 @@ static void blackenObject(VM* vm, Obj* object) {
             break;
         }
 
+        case OBJ_MODULE: {
+            Module* mod = (Module*)object;
+            markObject(vm, (Obj*)mod->env);
+            break;
+        }
+
         default: break;
     }
 }
@@ -153,6 +158,7 @@ static void markRoots(VM* vm) {
     // Mark Call Frames and their environments
     for (int i = 0; i < vm->callStackTop; i++) {
         markObject(vm, (Obj*)vm->callStack[i].env);
+        if (vm->callStack[i].function) markObject(vm, (Obj*)vm->callStack[i].function);
     }
     
     // Mark Global Environment
