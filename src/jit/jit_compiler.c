@@ -27,8 +27,8 @@ typedef struct {
     VM* vm;
     int stackDepth;
     int maxStackDepth;
-    size_t* jumpTargets;  // Array of jump target positions
-    int jumpTargetCount;
+    size_t* bytecodeToNative;  // Map: bytecode IP -> native code offset
+    int offsetMapSize;
 } CompileContext;
 
 static void initCompileContext(CompileContext* ctx, VM* vm, BytecodeChunk* chunk) {
@@ -37,14 +37,14 @@ static void initCompileContext(CompileContext* ctx, VM* vm, BytecodeChunk* chunk
     ctx->vm = vm;
     ctx->stackDepth = 0;
     ctx->maxStackDepth = 0;
-    ctx->jumpTargets = NULL;
-    ctx->jumpTargetCount = 0;
+    ctx->offsetMapSize = chunk->codeSize + 1;
+    ctx->bytecodeToNative = calloc(ctx->offsetMapSize, sizeof(size_t));
 }
 
 static void freeCompileContext(CompileContext* ctx) {
     freeAssembler(&ctx->as);
-    if (ctx->jumpTargets) {
-        free(ctx->jumpTargets);
+    if (ctx->bytecodeToNative) {
+        free(ctx->bytecodeToNative);
     }
 }
 
@@ -96,17 +96,16 @@ static void emitEpilog(CompileContext* ctx) {
 }
 
 // Compile a single bytecode instruction
-static bool compileInstruction(CompileContext* ctx, int* ip) {
+static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets) {
     uint8_t* code = ctx->chunk->code;
+    int startIP = *ip;
     OpCode op = (OpCode)code[*ip];
     (*ip)++;
     
-    // Debug: print opcode being compiled
-    // static int debugCount = 0;
-    // if (debugCount < 20) {
-    //     fprintf(stderr, "JIT: Compiling opcode %d at ip=%d\n", op, *ip - 1);
-    //     debugCount++;
-    // }
+    // Record bytecode-to-native offset mapping
+    if (recordOffsets && startIP < ctx->offsetMapSize) {
+        ctx->bytecodeToNative[startIP] = getCurrentPosition(&ctx->as);
+    }
     
     switch (op) {
         case OP_LOAD_IMM: {
@@ -621,11 +620,11 @@ JITFunction* compileFunction(VM* vm, BytecodeChunk* chunk) {
     // Emit function prolog
     emitProlog(&ctx);
     
-    // Compile bytecode instructions
+    // Compile bytecode instructions (Pass 1: record offsets)
     int ip = 0;
     bool success = true;
     while (ip < chunk->codeSize && success) {
-        success = compileInstruction(&ctx, &ip);
+        success = compileInstruction(&ctx, &ip, true);  // Record offsets
     }
     
     if (!success) {
