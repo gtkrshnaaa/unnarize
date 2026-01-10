@@ -780,7 +780,7 @@ bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     
 #ifdef DEBUG_PRINT_CODE
     if (!compiler.hadError) {
-        disassembleChunk(chunk, "code");
+        // disassembleChunk(chunk, "code");
     }
 #endif
     
