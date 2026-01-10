@@ -249,9 +249,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
         int oldCap = vm->stringPool.capacity;
         vm->stringPool.capacity = oldCap < 8 ? 8 : oldCap * 2;
         vm->stringPool.strings = (char**)realloc(vm->stringPool.strings, sizeof(char*) * vm->stringPool.capacity);
-    }
-        vm->stringPool.strings = realloc(vm->stringPool.strings, sizeof(char*) * vm->stringPool.capacity); 
-        vm->stringPool.hashes = realloc(vm->stringPool.hashes, sizeof(unsigned int) * vm->stringPool.capacity);
+        vm->stringPool.hashes = (unsigned int*)realloc(vm->stringPool.hashes, sizeof(unsigned int) * vm->stringPool.capacity);
         if (!vm->stringPool.strings || !vm->stringPool.hashes) error("Memory allocation failed for string pool.", 0);
     }
     vm->stringPool.strings[vm->stringPool.count] = (char*)strObj; // Hack cast
@@ -939,7 +937,7 @@ void printValue(Value val) {
     if (val.type == VAL_NIL) { printf("nil"); return; }
     switch (val.type) {
         case VAL_BOOL: printf(val.boolVal ? "true" : "false"); break;
-        case VAL_INT: printf("%d", val.intVal); break;
+        case VAL_INT: printf("%ld", val.intVal); break;
         case VAL_FLOAT: printf("%.6g", val.floatVal); break;
         case VAL_OBJ: {
             Obj* o = AS_OBJ(val);
@@ -1365,7 +1363,7 @@ static Value evaluate(VM* vm, Node* node) {
 
                  if (IS_STRING(left)) lStr = AS_CSTRING(left);
                  else {
-                     if (left.type == VAL_INT) { snprintf(lBuf, 64, "%d", left.intVal); lStr = lBuf; }
+                     if (left.type == VAL_INT) { snprintf(lBuf, 64, "%ld", left.intVal); lStr = lBuf; }
                      else if (left.type == VAL_FLOAT) { snprintf(lBuf, 64, "%.6g", left.floatVal); lStr = lBuf; }
                      else if (left.type == VAL_BOOL) lStr = left.boolVal ? "true" : "false"; 
                      else if (left.type == VAL_NIL) lStr = "nil";
@@ -1374,7 +1372,7 @@ static Value evaluate(VM* vm, Node* node) {
 
                  if (IS_STRING(right)) rStr = AS_CSTRING(right);
                  else {
-                     if (right.type == VAL_INT) { snprintf(rBuf, 64, "%d", right.intVal); rStr = rBuf; }
+                     if (right.type == VAL_INT) { snprintf(rBuf, 64, "%ld", right.intVal); rStr = rBuf; }
                      else if (right.type == VAL_FLOAT) { snprintf(rBuf, 64, "%.6g", right.floatVal); rStr = rBuf; }
                      else if (right.type == VAL_BOOL) rStr = right.boolVal ? "true" : "false";
                      else if (right.type == VAL_NIL) rStr = "nil";
