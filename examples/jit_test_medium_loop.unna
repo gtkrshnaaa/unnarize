@@ -1,0 +1,17 @@
+// Medium loop test - 1000 iterations
+function mediumLoop() {
+    var sum = 0;
+    var i = 0;
+    
+    while (i < 1000) {
+        sum = sum + i;
+        i = i + 1;
+    }
+    
+    return sum;
+}
+
+var result = mediumLoop();
+print("Result: ");
+print(result);
+print("Expected: 499500");
