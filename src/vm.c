@@ -1678,8 +1678,9 @@ void initVM(VM* vm) {
     vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
     
     // Initialize JIT state (Phase 2 - Full Native JIT)
-    vm->jitEnabled = true;           // Enable JIT by default
-    vm->jitThreshold = 100;          // Compile after 100 iterations (aggressive)
+    // TEMPORARY: Disable JIT execution until execution issue is resolved
+    vm->jitEnabled = false;  // Disabled - compilation works but execution hangs
+    vm->jitThreshold = 100;
     vm->jitCache = NULL;
     vm->jitCacheSize = 0;
     vm->jitCacheCapacity = 0;
