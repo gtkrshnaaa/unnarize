@@ -771,7 +771,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  VarEntry* e = mod->env->buckets[h];
                  while (e) {
                      if (e->key == name->chars) { // Pointer equality safe due to interning
-                         printf("DEBUG: Loaded property '%s' from module '%s' -> Type %d\n", name->chars, mod->name, e->value.type);
                          *sp++ = e->value;
                          goto property_loaded;
                      }

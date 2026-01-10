@@ -1783,8 +1783,6 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     ve->value = funcVal;
     ve->next = env->buckets[h];
     env->buckets[h] = ve;
-    
-    printf("DEBUG: Registered native '%s' as ValueType %d (Ptr %p) in Env %p Bucket %u\n", key, funcVal.type, funcVal.obj, env, h);
 }
 
 // --- Built-in Natives Implementation ---
