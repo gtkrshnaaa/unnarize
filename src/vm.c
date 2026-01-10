@@ -958,11 +958,11 @@ void printValue(Value val) {
                 printf("%s", AS_CSTRING(val));
             } else if (o->type == OBJ_ARRAY) {
                 // Print array contents
-                ObjArray* arr = (ObjArray*)o;
+                Array* arr = (Array*)o;
                 printf("[");
                 for (int i = 0; i < arr->count; i++) {
                     if (i > 0) printf(", ");
-                    printValue(arr->values[i]);
+                    printValue(arr->items[i]);
                 }
                 printf("]");
             } else if (o->type == OBJ_MAP) {
