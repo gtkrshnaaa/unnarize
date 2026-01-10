@@ -1,5 +1,6 @@
 #include "bytecode/interpreter.h"
 #include "bytecode/opcodes.h"
+#include "jit/jit_compiler.h"  // For JIT compilation
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -657,7 +658,35 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_loop_header: {
-        // Loop header marker - JIT uses this
+        // Hotspot detection for JIT compilation (Phase 2 - Full Native JIT)
+        int offset = (int)(ip - chunk->code - 1);
+        if (offset >= 0 && offset < chunk->hotspotCapacity) {
+            chunk->hotspots[offset]++;
+            
+            // Check if we should JIT compile this function
+            if (vm->jitEnabled && chunk->hotspots[offset] >= vm->jitThreshold) {
+                if (!chunk->isCompiled) {
+                    // Compile entire function to native code
+                    JITFunction* jitFunc = compileFunction(vm, chunk);
+                    if (jitFunc) {
+                        // Store compiled function
+                        if (!chunk->jitCode) {
+                            chunk->jitCode = malloc(sizeof(void*));
+                        }
+                        chunk->jitCode[0] = jitFunc;
+                        chunk->isCompiled = true;
+                        chunk->tierLevel = 1;
+                        vm->jitCompilations++;
+                        
+                        // Switch to JIT execution immediately
+                        vm->jitExecutions++;
+                        Value result = executeJIT(vm, jitFunc);
+                        *sp++ = result;
+                        goto done;
+                    }
+                }
+            }
+        }
         NEXT();
     }
     

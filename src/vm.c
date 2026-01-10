@@ -9,6 +9,7 @@
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
+#include "jit/jit_compiler.h"  // For JIT cleanup
 
 // TABLE_SIZE and CALL_STACK_MAX are in vm.h
 
@@ -159,6 +160,17 @@ void freeVM(VM* vm) {
         vm->externHandles[i] = NULL;
     }
     vm->externHandleCount = 0;
+
+    // Free JIT cache (Phase 2 - Full Native JIT)
+    if (vm->jitCache) {
+        for (int i = 0; i < vm->jitCacheSize; i++) {
+            if (vm->jitCache[i]) {
+                freeJITFunction((JITFunction*)vm->jitCache[i]);
+            }
+        }
+        free(vm->jitCache);
+        vm->jitCache = NULL;
+    }
 
     if (vm->stringPool.strings) {
          // strings are ObjStrings which are in vm->objects list and freed there?
@@ -1665,7 +1677,14 @@ void initVM(VM* vm) {
     }
     vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
     
-    vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
+    // Initialize JIT state (Phase 2 - Full Native JIT)
+    vm->jitEnabled = true;           // Enable JIT by default
+    vm->jitThreshold = 100;          // Compile after 100 iterations (aggressive)
+    vm->jitCache = NULL;
+    vm->jitCacheSize = 0;
+    vm->jitCacheCapacity = 0;
+    vm->jitCompilations = 0;
+    vm->jitExecutions = 0;
 }
 
 // Free VM memory

@@ -290,10 +290,19 @@ struct VM {
     int argc;
     char** argv;
     
-    // JIT Infrastructure (Phase 1)
+    // JIT Infrastructure (Phase 2 - Full Native JIT)
     ExecutionMode execMode;              // Current execution mode
     PerformanceCounters perfCounters;    // Performance tracking
     bool enableOptimizations;            // Optimization flag
+    
+    // JIT Compilation State
+    bool jitEnabled;                     // Enable JIT compilation
+    int jitThreshold;                    // Hotspot threshold (iterations before compile)
+    void** jitCache;                     // Cache of compiled JITFunction pointers
+    int jitCacheSize;                    // Number of cached functions
+    int jitCacheCapacity;                // Capacity of JIT cache
+    uint64_t jitCompilations;            // Stats: number of compilations
+    uint64_t jitExecutions;              // Stats: number of JIT executions
 };
 
 // VM function prototypes
