@@ -248,6 +248,8 @@ ObjString* internString(VM* vm, const char* str, int length) {
     if (vm->stringPool.count == vm->stringPool.capacity) {
         int oldCap = vm->stringPool.capacity;
         vm->stringPool.capacity = oldCap < 8 ? 8 : oldCap * 2;
+        vm->stringPool.strings = (char**)realloc(vm->stringPool.strings, sizeof(char*) * vm->stringPool.capacity);
+    }
         vm->stringPool.strings = realloc(vm->stringPool.strings, sizeof(char*) * vm->stringPool.capacity); 
         vm->stringPool.hashes = realloc(vm->stringPool.hashes, sizeof(unsigned int) * vm->stringPool.capacity);
         if (!vm->stringPool.strings || !vm->stringPool.hashes) error("Memory allocation failed for string pool.", 0);
