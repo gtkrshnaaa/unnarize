@@ -991,15 +991,8 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     // === SPECIAL ===
     op_print: {
         Value val = *(--sp);
-        if (IS_INT(val)) {
-            printf("%ld\n", AS_INT(val));
-        } else if (IS_BOOL(val)) {
-            printf("%s\n", AS_BOOL(val) ? "true" : "false");
-        } else if (IS_STRING(val)) {
-            printf("%s\n", AS_CSTRING(val));
-        } else if (IS_NIL(val)) {
-            printf("nil\n");
-        }
+        printValue(val);
+        printf("\n");
         NEXT();
     }
     
