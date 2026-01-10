@@ -213,6 +213,13 @@ static void compileStatement(Compiler* c, Node* node) {
                 // Global variable
                 char* varName = strndup(name.start, name.length);
                 ObjString* nameStr = internString(c->vm, varName, name.length);
+                // free(varName); // internString may or may not take ownership, but Unnarize vm.c seems to copy?
+                // View vm.c Step 244: memcpy(strObj->chars, str, length);
+                // So internString COPIES. Thus, free(varName) IS CORRECT.
+                // Wait.
+                // Step 240: allocates ObjString.
+                // Step 244: copies chars.
+                // So free(varName) IS correct.
                 free(varName);
                 
                 int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
@@ -322,7 +329,11 @@ static void compileStatement(Compiler* c, Node* node) {
 static void compileNode(Compiler* c, Node* node) {
     if (!node) return;
     
-    if (node->type >= NODE_STMT_PRINT && node->type <= NODE_STMT_LOADEXTERN) {
+    // Fix dispatch: check for ANY statement type
+    // In parser.h, VAR_DECL is before PRINT.
+    // We should check if it's a statement vs expression.
+    // Simplest is to check if it's NOT an expression.
+    if (node->type >= NODE_STMT_VAR_DECL && node->type <= NODE_STMT_PROP_ASSIGN) {
         compileStatement(c, node);
     } else {
         compileExpression(c, node);
