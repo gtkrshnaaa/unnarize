@@ -24,24 +24,14 @@ function listTasks() {
     }
     
     // print("Debug: tasks count " + length(tasks));
-    if (0 < 4) {
-        print("Debug: Sanity Check 0 < 4 is True");
-    } else {
-        print("Debug: Sanity Check 0 < 4 is FALSE");
-    }
-    
-    print("Debug: tasks count " + length(tasks));
     
     for (var task : tasks) {
-        print("Debug: task value: " + task);
         if (task.completed) {
             print("[X] " + task.title + " (ID: " + task.id + ")");
         } else {
             print("[ ] " + task.title + " (ID: " + task.id + ")");
         }
     }
-    
-    print("Debug: Manual Loop End");
 }
 
 function completeTask(taskId) {
