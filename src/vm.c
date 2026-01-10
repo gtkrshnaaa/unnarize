@@ -1644,8 +1644,8 @@ void initVM(VM* vm) {
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
     vm->nextGC = 1024 * 1024; // Start GC at 1MB
-    vm->jitEnabled = false; // Disable JIT for stability until finished
-    vm->jitThreshold = 50; // Low threshold for testing, but disabled now
+    vm->jitEnabled = true;  // FORCE ENABLE - FULL JIT MODE ONLY
+    vm->jitThreshold = 1;   // Compile immediately - no interpreter warm-up
 
     vm->stackTop = 0;
     vm->callStackTop = 0;
@@ -1696,9 +1696,9 @@ void initVM(VM* vm) {
     vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
     
     // Initialize JIT state (Phase 2 - Full Native JIT)
-    // TEMPORARY: Disable JIT execution until execution issue is resolved
-    vm->jitEnabled = false;  // Disabled - compilation works but execution hangs
-    vm->jitThreshold = 100;
+    // FULL JIT MODE - NO BYTECODE INTERPRETER
+    vm->jitEnabled = true;   // ENABLED - Native JIT execution only
+    vm->jitThreshold = 1;    // Compile on first execution
     vm->jitCache = NULL;
     vm->jitCacheSize = 0;
     vm->jitCacheCapacity = 0;

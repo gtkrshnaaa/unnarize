@@ -274,17 +274,12 @@ int main(int argc, char** argv) {
         return 1;
     }
     
-    // Parse arguments
-    bool enableOpt = false;
-    bool enableJit = true; // DEFAULT: Enable JIT
+    
+    // Parse arguments (keeping for future flags if needed)
     char* filename = NULL;
     
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--opt") == 0) {
-            enableOpt = true;
-        } else if (strcmp(argv[i], "--jit") == 0) {
-            enableJit = true;
-        } else if (filename == NULL) {
+        if (filename == NULL) {
             filename = argv[i];
         }
     }
@@ -318,18 +313,11 @@ int main(int argc, char** argv) {
     // Parse
     Node* ast = parse(&parser);
 
-    // VM
+    // VM - FULL JIT MODE ENABLED  
     VM vm;
     initVM(&vm);
     vm.argc = argc;
     vm.argv = argv;
-    
-    // Enable JIT optimizations if --opt flag passed
-    if (enableOpt) {
-        vm.enableOptimizations = true;
-        enableJit = true; // Auto-enable JIT with optimizations
-        fprintf(stderr, "[JIT Phase 2] Inline optimizations ENABLED\n");
-    }
 
     char* projectRoot = getenv("UNNARIZE_ROOT");
     if (projectRoot) {
@@ -355,49 +343,49 @@ int main(int argc, char** argv) {
     // Wait, I didn't modify arg parsing for --jit yet. I'll do it in a separate edit or assume --opt implies JIT for now?)
     // Let's modify arg parsing too.
     
-        if (enableJit) {
-        // Bytecode VM execution (silent mode - use ucoreTimer for benchmarking)
-        BytecodeChunk* chunk = malloc(sizeof(BytecodeChunk));
-        initChunk(chunk);
-        
-        // Allocate script function to root constants during compilation
-        Function* script = (Function*)ALLOCATE_OBJ(&vm, Function, OBJ_FUNCTION);
-        script->paramCount = 0;
-        script->name.start = "<script>";
-        script->name.length = 8;
-        script->name.line = 0;
-        script->body = NULL;
-        script->closure = NULL;
-        script->isNative = false;
-        script->bytecodeChunk = chunk;
-        
-        // Root script on stack
-        vm.stack[vm.stackTop++] = OBJ_VAL(script);
-        
-        if (compileToBytecode(&vm, ast, chunk)) {
-            // Setup CallFrame
-            if (vm.callStackTop < CALL_STACK_MAX) {
-                CallFrame* frame = &vm.callStack[vm.callStackTop++];
-                frame->function = script;
-                frame->chunk = chunk;
-                frame->ip = chunk->code;
-                frame->env = vm.globalEnv; // Bind global env
-                frame->fp = 0;
-            }
-            
-            executeBytecode(&vm, chunk);
-            
-            vm.callStackTop--; // Pop frame
-        } else {
-            fprintf(stderr, "Bytecode compilation failed.\n");
-            exit(1);
+    
+    // FULL JIT MODE - NO FALLBACK TO INTERPRETER
+    // Always use bytecode VM with JIT compilation
+    BytecodeChunk* chunk = malloc(sizeof(BytecodeChunk));
+    initChunk(chunk);
+    
+    // Allocate script function to root constants during compilation
+    Function* script = (Function*)ALLOCATE_OBJ(&vm, Function, OBJ_FUNCTION);
+    script->paramCount = 0;
+    script->name.start = "<script>";
+    script->name.length = 8;
+    script->name.line = 0;
+    script->body = NULL;
+    script->closure = NULL;
+    script->isNative = false;
+    script->bytecodeChunk = chunk;
+    
+    // Root script on stack
+    vm.stack[vm.stackTop++] = OBJ_VAL(script);
+    
+    if (compileToBytecode(&vm, ast, chunk)) {
+        // Setup CallFrame
+        if (vm.callStackTop < CALL_STACK_MAX) {
+            CallFrame* frame = &vm.callStack[vm.callStackTop++];
+            frame->function = script;
+            frame->chunk = chunk;
+            frame->ip = chunk->code;
+            frame->env = vm.globalEnv; // Bind global env
+            frame->fp = 0;
         }
         
-        vm.stackTop--; // Pop script (script will be freed by freeVM -> freeObject)
-        // Don't free chunk here - it will be freed when script Function is freed
+        // Execute with JIT compiler - will auto-compile hot code
+        executeBytecode(&vm, chunk);
+        
+        vm.callStackTop--; // Pop frame
     } else {
-        interpret(&vm, ast);
+        fprintf(stderr, "Bytecode compilation failed.\n");
+        exit(1);
     }
+    
+    vm.stackTop--; // Pop script (script will be freed by freeVM -> freeObject)
+    // Don't free chunk here - it will be freed when script Function is freed
+
 
     // Cleanup
     freeAST(ast);
