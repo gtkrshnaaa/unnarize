@@ -60,7 +60,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         #define DISPATCH() do { \
             instructionCount++; \
             const OpcodeInfo* info = getOpcodeInfo(*ip); \
-            printf("Exec: %s (StackDepth: %ld)\n", info ? info->name : "???", sp - stack); fflush(stdout); \
+            printf("Exec: %s (StackDepth: %ld)\n", info ? info->name : "???", sp - vm->stack); fflush(stdout); \
             goto *dispatchTable[*ip++]; \
         } while(0)
     #else
@@ -712,6 +712,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  frame->ip = ip;
                  frame->chunk = chunk;
                  frame->fp = vm->fp; 
+                 frame->function = func; // Root the function 
                  
                  vm->fp = (int)((sp - argCount) - vm->stack);
                  fp = vm->stack + vm->fp;
@@ -770,6 +771,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  VarEntry* e = mod->env->buckets[h];
                  while (e) {
                      if (e->key == name->chars) { // Pointer equality safe due to interning
+                         printf("DEBUG: Loaded property '%s' from module '%s' -> Type %d\n", name->chars, mod->name, e->value.type);
                          *sp++ = e->value;
                          goto property_loaded;
                      }
@@ -890,9 +892,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_array_push: {
-        // Assumes: stack has [array, value]
+        // Stack: [array, value] -> [] (Compiler emits LOAD_NIL after)
         Value val = *(--sp);
-        Value arrVal = sp[-1];  // Peek array
+        Value arrVal = *(--sp); // Pop array too
         
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
@@ -902,21 +904,24 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_array_pop: {
-        Value arrVal = sp[-1];  // Peek array
+        // Stack: [array] -> [result] (Overwrite)
+        Value arrVal = sp[-1];  // Use top value
         
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
             if (arr->count > 0) {
                 arr->count--;
-                *sp++ = arr->items[arr->count];
+                sp[-1] = arr->items[arr->count]; // Overwrite array with popped value
             } else {
-                *sp++ = NIL_VAL;
+                sp[-1] = NIL_VAL;
             }
         } else {
-            *sp++ = NIL_VAL;
+            sp[-1] = NIL_VAL;
         }
         NEXT();
     }
+    
+
     
     op_array_len: {
         Value arrVal = sp[-1];  // Peek
