@@ -355,18 +355,45 @@ int main(int argc, char** argv) {
     // Wait, I didn't modify arg parsing for --jit yet. I'll do it in a separate edit or assume --opt implies JIT for now?)
     // Let's modify arg parsing too.
     
-    if (enableJit) {
+        if (enableJit) {
         printf("[Unnarize] Running with Bytecode VM (Tier 1)...\n");
         BytecodeChunk chunk;
         initChunk(&chunk);
         
+        // Allocate script function to root constants during compilation
+        Function* script = (Function*)ALLOCATE_OBJ(&vm, Function, OBJ_FUNCTION);
+        script->paramCount = 0;
+        script->name.start = "<script>";
+        script->name.length = 8;
+        script->name.line = 0;
+        script->body = NULL;
+        script->closure = NULL;
+        script->isNative = false;
+        script->bytecodeChunk = &chunk;
+        
+        // Root script on stack
+        vm.stack[vm.stackTop++] = OBJ_VAL(script);
+        
         if (compileToBytecode(&vm, ast, &chunk)) {
+            // Setup CallFrame
+            if (vm.callStackTop < CALL_STACK_MAX) {
+                CallFrame* frame = &vm.callStack[vm.callStackTop++];
+                frame->function = script;
+                frame->chunk = &chunk;
+                frame->ip = chunk.code;
+                frame->env = vm.globalEnv; // Bind global env
+                frame->fp = 0;
+            }
+            
             executeBytecode(&vm, &chunk);
+            
+            vm.callStackTop--; // Pop frame
         } else {
             fprintf(stderr, "Bytecode compilation failed.\n");
             exit(1);
         }
         
+        vm.stackTop--; // Pop script
         freeChunk(&chunk);
     } else {
         interpret(&vm, ast);
