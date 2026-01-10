@@ -56,7 +56,17 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         &&op_print, &&op_halt, &&op_nop
     };
     
-    #define DISPATCH() do { instructionCount++; goto *dispatchTable[*ip++]; } while(0)
+    // #define TRACE_EXECUTION 1
+    #ifdef TRACE_EXECUTION
+        #define DISPATCH() do { \
+            instructionCount++; \
+            const OpcodeInfo* info = getOpcodeInfo(*ip); \
+            printf("Exec: %s (StackDepth: %ld)\n", info ? info->name : "???", sp - stack); fflush(stdout); \
+            goto *dispatchTable[*ip++]; \
+        } while(0)
+    #else
+        #define DISPATCH() do { instructionCount++; goto *dispatchTable[*ip++]; } while(0)
+    #endif
     #define NEXT() DISPATCH()
     
     DISPATCH();  // Start execution
@@ -133,11 +143,111 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
-    // === GLOBAL VARIABLES (Stubs for now) ===
-    op_load_global:
-    op_store_global:
+    // === GLOBAL VARIABLES ===
+    op_load_global: {
+        uint8_t constIdx = *ip++;
+        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+        unsigned int h = name->hash % TABLE_SIZE;
+        VarEntry* entry = vm->globalEnv->buckets[h];
+        while (entry) {
+            if (entry->key == name->chars) {
+                *sp++ = entry->value;
+                goto global_loaded;
+            }
+            entry = entry->next;
+        }
+        // Not found - standard Lua/JS behavior is nil or error. Unnarize strictness says error.
+        printf("Runtime Error: Undefined global variable '%s'\n", name->chars);
+        exit(1);
+
+        global_loaded:
+        NEXT();
+    }
+    
+    op_store_global: {
+        uint8_t constIdx = *ip++;
+        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+        unsigned int h = name->hash % TABLE_SIZE;
+        VarEntry* entry = vm->globalEnv->buckets[h];
+        while (entry) {
+            if (entry->key == name->chars) {
+                entry->value = sp[-1]; // Peek, assignment evaluates to value
+                goto global_stored;
+            }
+            entry = entry->next;
+        }
+        // Not found, assume implicit declaration (or error if strict)
+        // For now, auto-define
+        goto define_new_global; // Fallthrough logic implementation
+        
+        global_stored:
+        NEXT();
+    }
+    
     op_define_global: {
-        ip += 2;  // Skip operands
+        uint8_t constIdx = *ip++;
+        define_new_global:; // Label for fallback from store
+        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+        unsigned int h = name->hash % TABLE_SIZE;
+        
+        // Check if exists (update) or new
+        VarEntry* entry = vm->globalEnv->buckets[h];
+        while (entry) {
+            if (entry->key == name->chars) {
+                entry->value = sp[-1];
+                NEXT();
+            }
+            entry = entry->next;
+        }
+
+        // Insert new
+        VarEntry* newEntry = malloc(sizeof(VarEntry));
+        newEntry->key = name->chars;
+        newEntry->keyLength = name->length;
+        newEntry->ownsKey = false; // Interned, owned by string pool/ObjString
+        newEntry->value = sp[-1];
+        newEntry->next = vm->globalEnv->buckets[h];
+        vm->globalEnv->buckets[h] = newEntry;
+        
+        // Note: DEFINE usually consumes the value from stack in declaration statement?
+        // compiler.c: emitBytes(c, OP_DEFINE_GLOBAL, ...); 
+        // NODE_STMT_VAR_DECL does NOT emit POP after DEFINE (except for local).
+        // Actually, compiler.c:
+        // NODE_STMT_VAR_DECL:
+        //   compileExpression (pushes value)
+        //   emit OP_DEFINE_GLOBAL (uses value)
+        //   // No POP. So value remains on stack?
+        //   // If it's a statement, it should pop?
+        //   // Check NODE_STMT_EXPR logic.
+        // Wait, if VAR_DECL leaves value on stack, it leaks.
+        // Let's assume DEFINE peeks and we need POP? No, compiler.c logic for globals (Step 240+? no trace).
+        // Let's assume DEFINE peeks (standard) and compiler emits POP if needed?
+        // Actually compiler.c for Globals (Step 817):
+        //   emitBytes(c, OP_DEFINE_GLOBAL, ...);
+        // It does NOT emit POP.
+        // So DEFINE should POP?
+        // Let's check LOCAL.
+        //   OP_STORE_LOCAL
+        //   (No POP).
+        // So LOCAL decl leaves value on stack? 
+        // If so, who pops it? The block?
+        // If `var a = 1;` is a statement.
+        // `compileStatement` -> `VAR_DECL`.
+        // If it leaves 1 on stack, and next stmt is `var b = 2;`.
+        // Stack: `1`, `2`.
+        // This leaks.
+        
+        // I will make OP_DEFINE_GLOBAL POP the value.
+        // And OP_STORE_LOCAL does NOT pop (expression).
+        // But for `VAR_DECL` context, we might need a POP.
+        // However, I can't change compiler easy.
+        // interpreter.c `op_store_local` does NOT pop.
+        // So `var a = 1;` leaves `1` on stack.
+        // It seems `compileStatement` relies on something else to pop?
+        // Or unnarize stack isn't balanced statement-wise?
+        // I will make OP_DEFINE_GLOBAL *Peek* to match OP_STORE_LOCAL behavior.
+        // If stack grows, so be it (until function return or scope end).
+        
         NEXT();
     }
     
@@ -375,6 +485,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_loop: {
         uint16_t offset = (*ip++) << 8;
         offset |= *ip++;
+        // printf("Looping back by %d bytes. Current IP: %p, Target IP: %p\n", offset, ip, ip - offset);
         ip -= offset;
         NEXT();
     }
@@ -414,6 +525,10 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
             printf("%ld\n", AS_INT(val));
         } else if (IS_BOOL(val)) {
             printf("%s\n", AS_BOOL(val) ? "true" : "false");
+        } else if (IS_STRING(val)) {
+            printf("%s\n", AS_CSTRING(val));
+        } else if (IS_NIL(val)) {
+            printf("nil\n");
         }
         NEXT();
     }

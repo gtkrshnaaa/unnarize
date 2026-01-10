@@ -193,9 +193,8 @@ static void compileStatement(Compiler* c, Node* node) {
         
         case NODE_STMT_VAR_DECL: {
             // Add local
+            // Node: varDecl
             Token name = node->varDecl.name;
-            char* varName = strndup(name.start, name.length);
-            int slot = addLocal(c, varName);
             
             // Compile initializer
             if (node->varDecl.initializer) {
@@ -203,10 +202,22 @@ static void compileStatement(Compiler* c, Node* node) {
             } else {
                 emitByte(c, OP_LOAD_NIL, line);
             }
-            
-            // Store to local
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
-            // emitByte(c, OP_POP, line);  // DO NOT POP for local declaration! Keep it on stack.
+
+            if (c->scopeDepth > 0) {
+                // Local variable
+                char* varName = strndup(name.start, name.length);
+                int slot = addLocal(c, varName);
+                // Note: varName is stored in c->locals, do NOT free it here!
+                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+            } else {
+                // Global variable
+                char* varName = strndup(name.start, name.length);
+                ObjString* nameStr = internString(c->vm, varName, name.length);
+                free(varName);
+                
+                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
+                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)constIdx, line);
+            }
             break;
         }
         
@@ -264,7 +275,7 @@ static void compileStatement(Compiler* c, Node* node) {
             emitByte(c, OP_LOOP_HEADER, line);
             
             // Hotspot check
-            emitByte(c, OP_HOTSPOT_CHECK, line);
+            // emitByte(c, OP_HOTSPOT_CHECK, line); // TEMPORARY DISABLE FOR DEBUGGING
             
             // Condition
             compileExpression(c, node->whileStmt.condition);
