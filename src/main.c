@@ -266,13 +266,30 @@ int main(int argc, char** argv) {
     }
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <file.unna>\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--opt] <file.unna>\n", argv[0]);
         fprintf(stderr, "       %s -v | --version\n", argv[0]);
         return 1;
     }
+    
+    // Parse arguments
+    bool enableOpt = false;
+    const char* filename = NULL;
+    
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--opt") == 0) {
+            enableOpt = true;
+        } else if (filename == NULL) {
+            filename = argv[i];
+        }
+    }
+    
+    if (!filename) {
+        fprintf(stderr, "Error: No input file specified\n");
+        return 1;
+    }
 
-    g_filename = argv[1];
-    char* source = readFile(argv[1]);
+    g_filename = filename;
+    char* source = readFile(filename);
     g_source = source;
 
     // Lexer
@@ -300,6 +317,12 @@ int main(int argc, char** argv) {
     initVM(&vm);
     vm.argc = argc;
     vm.argv = argv;
+    
+    // Enable JIT optimizations if --opt flag passed
+    if (enableOpt) {
+        vm.enableOptimizations = true;
+        fprintf(stderr, "[JIT Phase 2] Inline optimizations ENABLED\n");
+    }
 
     char* projectRoot = getenv("UNNARIZE_ROOT");
     if (projectRoot) {
