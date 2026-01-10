@@ -954,15 +954,26 @@ void printValue(Value val) {
         case VAL_FLOAT: printf("%.6g", val.floatVal); break;
         case VAL_OBJ: {
             Obj* o = AS_OBJ(val);
-            if (IS_STRING(val)) printf("%s", AS_CSTRING(val));
-            else if (o->type == OBJ_ARRAY) printf("<array>");
-            else if (o->type == OBJ_MAP) printf("<map>");
-            else if (o->type == OBJ_FUNCTION) {
+            if (IS_STRING(val)) {
+                printf("%s", AS_CSTRING(val));
+            } else if (o->type == OBJ_ARRAY) {
+                // Print array contents
+                ObjArray* arr = (ObjArray*)o;
+                printf("[");
+                for (int i = 0; i < arr->count; i++) {
+                    if (i > 0) printf(", ");
+                    printValue(arr->values[i]);
+                }
+                printf("]");
+            } else if (o->type == OBJ_MAP) {
+                printf("<map>");
+            } else if (o->type == OBJ_FUNCTION) {
                  Function* f = (Function*)o;
                  if(f->name.start) printf("<fn %.*s>", f->name.length, f->name.start); 
                  else printf("<script>");
+            } else {
+                printf("<obj>");
             }
-            else printf("<obj>");
             break;
         }
         default: printf("<unknown>"); break;
