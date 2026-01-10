@@ -69,7 +69,7 @@ static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
     
     switch (v.type) {
         case VAL_INT:
-            snprintf(temp, sizeof(temp), "%d", v.intVal);
+            snprintf(temp, sizeof(temp), "%lld", (long long)v.intVal);
             json_append(buf, len, cap, temp);
             break;
         case VAL_FLOAT:
