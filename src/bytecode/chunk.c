@@ -157,7 +157,11 @@ int disassembleInstruction(BytecodeChunk* chunk, int offset) {
     }
     
     // Show hotspot counter
-    printf("[%6u] ", chunk->hotspots[offset]);
+    if (chunk->hotspots && offset < chunk->hotspotCapacity) {
+        printf("[%6u] ", chunk->hotspots[offset]);
+    } else {
+        printf("[     -] ");
+    }
     
     uint8_t instruction = chunk->code[offset];
     const OpcodeInfo* info = getOpcodeInfo(instruction);

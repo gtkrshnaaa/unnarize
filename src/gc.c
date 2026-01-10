@@ -205,6 +205,18 @@ void freeObject(VM* vm, Obj* object) {
             break;
         }
         case OBJ_FUNCTION: {
+            Function* func = (Function*)object;
+            // Free bytecode chunk if it exists
+            if (func->bytecodeChunk) {
+                freeChunk(func->bytecodeChunk);
+                free(func->bytecodeChunk);
+                func->bytecodeChunk = NULL;
+            }
+            // Free params array if allocated
+            if (func->params) {
+                // params is allocated in parser, typically part of AST
+                // Don't free here as it's part of AST lifecycle
+            }
             free(object);
             break;
         }

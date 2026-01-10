@@ -357,8 +357,8 @@ int main(int argc, char** argv) {
     
         if (enableJit) {
         // Bytecode VM execution (silent mode - use ucoreTimer for benchmarking)
-        BytecodeChunk chunk;
-        initChunk(&chunk);
+        BytecodeChunk* chunk = malloc(sizeof(BytecodeChunk));
+        initChunk(chunk);
         
         // Allocate script function to root constants during compilation
         Function* script = (Function*)ALLOCATE_OBJ(&vm, Function, OBJ_FUNCTION);
@@ -369,23 +369,23 @@ int main(int argc, char** argv) {
         script->body = NULL;
         script->closure = NULL;
         script->isNative = false;
-        script->bytecodeChunk = &chunk;
+        script->bytecodeChunk = chunk;
         
         // Root script on stack
         vm.stack[vm.stackTop++] = OBJ_VAL(script);
         
-        if (compileToBytecode(&vm, ast, &chunk)) {
+        if (compileToBytecode(&vm, ast, chunk)) {
             // Setup CallFrame
             if (vm.callStackTop < CALL_STACK_MAX) {
                 CallFrame* frame = &vm.callStack[vm.callStackTop++];
                 frame->function = script;
-                frame->chunk = &chunk;
-                frame->ip = chunk.code;
+                frame->chunk = chunk;
+                frame->ip = chunk->code;
                 frame->env = vm.globalEnv; // Bind global env
                 frame->fp = 0;
             }
             
-            executeBytecode(&vm, &chunk);
+            executeBytecode(&vm, chunk);
             
             vm.callStackTop--; // Pop frame
         } else {
@@ -393,8 +393,8 @@ int main(int argc, char** argv) {
             exit(1);
         }
         
-        vm.stackTop--; // Pop script
-        freeChunk(&chunk);
+        vm.stackTop--; // Pop script (script will be freed by freeVM -> freeObject)
+        // Don't free chunk here - it will be freed when script Function is freed
     } else {
         interpret(&vm, ast);
     }

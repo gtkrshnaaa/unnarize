@@ -131,6 +131,7 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             // Load from constant pool
             uint8_t constIdx = code[*ip];
             (*ip)++;
+            (void)constIdx; // TODO: Use this to load from chunk->constants
             
             // For now, treat constants as immediates (simplified)
             // In full implementation, would load from chunk->constants

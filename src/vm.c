@@ -1864,6 +1864,7 @@ static Value nativeKeys(VM* vm, Value* args, int argCount) {
 }
 
 static Value nativeLength(VM* vm, Value* args, int argCount) {
+    (void)vm; // Unused parameter
     if (argCount != 1) return NIL_VAL;
     if (IS_STRING(args[0])) return INT_VAL(((ObjString*)AS_OBJ(args[0]))->length);
     if (IS_ARRAY(args[0])) return INT_VAL(((Array*)AS_OBJ(args[0]))->count);
@@ -1879,6 +1880,7 @@ static Value nativePush(VM* vm, Value* args, int argCount) {
 }
 
 static Value nativePop(VM* vm, Value* args, int argCount) {
+    (void)vm; // Unused parameter
     if (argCount != 1) return NIL_VAL;
     if (!IS_ARRAY(args[0])) return NIL_VAL;
     Value v;

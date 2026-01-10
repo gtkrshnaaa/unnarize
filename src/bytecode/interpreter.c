@@ -703,11 +703,19 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_loop_header: {
         // Hotspot detection for JIT compilation (Phase 2 - Full Native JIT)
         int offset = (int)(ip - chunk->code - 1);
+        
+        // DEBUG: Print offset calculation
+        #ifdef DEBUG_LOOP_HEADER
+        printf("DEBUG: OP_LOOP_HEADER offset=%d, capacity=%d, hasHotspots=%d\n", 
+               offset, chunk->hotspotCapacity, chunk->hotspots != NULL);
+        fflush(stdout);
+        #endif
+        
         if (chunk->hotspots && offset >= 0 && offset < chunk->hotspotCapacity) {
             chunk->hotspots[offset]++;
             
             // Check if we should JIT compile this function
-            if (vm->jitEnabled && chunk->hotspots[offset] >= vm->jitThreshold) {
+            if (vm->jitEnabled && (int)chunk->hotspots[offset] >= vm->jitThreshold) {
                 if (!chunk->isCompiled) {
                     // Compile entire function to native code
                     JITFunction* jitFunc = compileFunction(vm, chunk);
@@ -729,6 +737,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                     }
                 }
             }
+        } else if (offset < 0 || offset >= chunk->hotspotCapacity) {
+            // Safety: Invalid offset - this shouldn't happen
+            printf("ERROR: OP_LOOP_HEADER invalid offset %d (capacity: %d)\n", 
+                   offset, chunk->hotspotCapacity);
+            fflush(stdout);
         }
         NEXT();
     }
