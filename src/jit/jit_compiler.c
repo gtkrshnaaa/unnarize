@@ -102,11 +102,11 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
     (*ip)++;
     
     // Debug: print opcode being compiled
-    static int debugCount = 0;
-    if (debugCount < 20) {
-        fprintf(stderr, "JIT: Compiling opcode %d at ip=%d\n", op, *ip - 1);
-        debugCount++;
-    }
+    // static int debugCount = 0;
+    // if (debugCount < 20) {
+    //     fprintf(stderr, "JIT: Compiling opcode %d at ip=%d\n", op, *ip - 1);
+    //     debugCount++;
+    // }
     
     switch (op) {
         case OP_LOAD_IMM: {
@@ -135,6 +135,36 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             
             // For now, treat constants as immediates (simplified)
             // In full implementation, would load from chunk->constants
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
+        case OP_LOAD_NIL: {
+            // Load nil (0)
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
+        case OP_LOAD_TRUE: {
+            // Load true (1)
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
+        case OP_LOAD_FALSE: {
+            // Load false (0)
             emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
