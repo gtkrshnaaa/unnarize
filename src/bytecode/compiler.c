@@ -418,7 +418,81 @@ static void compileStatement(Compiler* c, Node* node) {
             // Pop locals
             while (c->localCount > 0 &&
                    c->locals[c->localCount - 1].depth > c->scopeDepth) {
+                // emitByte(c, OP_POP, line); // Runtime pop
+                // Unnarize bytecode uses manual POP for locals going out of scope?
+                // Or does it just reset stack top on return?
+                // Block scope locals need explicit pop.
+                emitByte(c, OP_POP, line); 
                 c->localCount--;
+            }
+            break;
+        }
+
+        case NODE_STMT_FUNCTION: {
+            // Manually allocate to avoid private macro dependency
+            Function* func = malloc(sizeof(Function));
+            func->obj.type = OBJ_FUNCTION;
+            func->obj.isMarked = false;
+            // Link to GC
+            func->obj.next = c->vm->objects;
+            c->vm->objects = (Obj*)func;
+            
+            func->name = node->function.name;
+            func->params = node->function.params;
+            func->paramCount = node->function.paramCount;
+            func->isNative = false;
+            func->isAsync = false;
+            
+            // Create independent chunk for function
+            func->bytecodeChunk = malloc(sizeof(BytecodeChunk));
+            initChunk(func->bytecodeChunk);
+            
+            // Compile function body in new context
+            Compiler funcCompiler;
+            initCompiler(&funcCompiler, c->vm, func->bytecodeChunk);
+            
+            // Add parameters as locals (slot 0..N)
+            for (int i = 0; i < func->paramCount; i++) {
+                Token p = func->params[i];
+                char* pname = strndup(p.start, p.length);
+                addLocal(&funcCompiler, pname);
+            }
+            
+            // Compile body
+            compileNode(&funcCompiler, node->function.body);
+            
+            // Ensure return at end
+            emitByte(&funcCompiler, OP_LOAD_NIL, line);
+            emitByte(&funcCompiler, OP_RETURN, line);
+            
+            // Store function object in parent
+            int constIdx = addConstant(c->chunk, OBJ_VAL(func));
+            
+            if (c->scopeDepth == 0) {
+                // Global function
+                char* funcNameStr = strndup(node->function.name.start, node->function.name.length);
+                ObjString* nameObj = internString(c->vm, funcNameStr, node->function.name.length);
+                free(funcNameStr);
+                int nameIdx = addConstant(c->chunk, OBJ_VAL(nameObj));
+                
+                emitBytes(c, OP_LOAD_CONST, (uint8_t)constIdx, line);
+                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)nameIdx, line);
+            } else {
+                // Local function
+                char* funcNameStr = strndup(node->function.name.start, node->function.name.length);
+                int slot = addLocal(c, funcNameStr);
+                emitBytes(c, OP_LOAD_CONST, (uint8_t)constIdx, line);
+                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+            }
+            break;
+        }
+        
+        case NODE_STMT_RETURN: {
+            if (node->returnStmt.value) {
+                compileExpression(c, node->returnStmt.value);
+                emitByte(c, OP_RETURN, line);
+            } else {
+                emitByte(c, OP_RETURN_NIL, line);
             }
             break;
         }
@@ -452,7 +526,15 @@ bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     Compiler compiler;
     initCompiler(&compiler, vm, chunk);
     
-    compileNode(&compiler, ast);
+    // Parser wraps program in a BLOCK. We must compile contents as global scope (0).
+    // Do not call compileNode(BLOCK) because it increments scope depth.
+    if (ast && ast->type == NODE_STMT_BLOCK) {
+        for (int i = 0; i < ast->block.count; i++) {
+            compileNode(&compiler, ast->block.statements[i]);
+        }
+    } else {
+        compileNode(&compiler, ast);
+    }
     
     // Emit halt
     emitByte(&compiler, OP_HALT, 1);
