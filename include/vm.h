@@ -4,6 +4,7 @@
 #include "common.h"
 #include "parser.h"
 #include <pthread.h>
+#include <stdint.h>
 
 // Object types
 typedef enum {
@@ -221,6 +222,21 @@ struct ModuleEntry {
     struct ModuleEntry* next;
 };
 
+// Execution mode for performance optimization
+typedef enum {
+    EXEC_MODE_INTERPRETED,  // Standard tree-walking (current)
+    EXEC_MODE_OPTIMIZED     // JIT-compiled (future)
+} ExecutionMode;
+
+// Performance tracking structure
+typedef struct {
+    uint64_t instructionsExecuted;   // Total operations executed
+    uint64_t loopsExecuted;          // Loop iterations
+    uint64_t functionCalls;          // Function invocations
+    uint64_t startTimeMicros;        // Execution start time
+    uint64_t totalTimeMicros;        // Total execution time
+} PerformanceCounters;
+
 // Virtual Machine structure
 struct VM {
     Value stack[STACK_MAX];         // Value stack
@@ -248,6 +264,11 @@ struct VM {
     // CLI Arguments
     int argc;
     char** argv;
+    
+    // JIT Infrastructure (Phase 1)
+    ExecutionMode execMode;              // Current execution mode
+    PerformanceCounters perfCounters;    // Performance tracking
+    bool enableOptimizations;            // Optimization flag
 };
 
 // VM function prototypes
