@@ -533,11 +533,22 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         case OP_JUMP: {
             // Unconditional jump - read 2-byte offset
             int16_t bytecodeOffset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
+            int targetBytecodeIP = *ip + 2 + bytecodeOffset;
             *ip += 2;
             
-            // For now, emit a short forward jump (will be patched later)
-            // JMP with placeholder offset
-            emit_jmp(&ctx->as, 5);  // Skip 5 bytes (placeholder)
+            // Calculate native code offset if we have the map
+            if (recordOffsets && targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize) {
+                size_t currentNativePos = getCurrentPosition(&ctx->as);
+                size_t targetNativePos = ctx->bytecodeToNative[targetBytecodeIP];
+                
+                // Calculate relative offset for JMP instruction
+                // JMP uses relative offset from end of instruction (5 bytes)
+                int32_t nativeOffset = (int32_t)(targetNativePos - currentNativePos - 5);
+                emit_jmp(&ctx->as, nativeOffset);
+            } else {
+                // Fallback: emit placeholder
+                emit_jmp(&ctx->as, 0);
+            }
             break;
         }
         
@@ -556,16 +567,7 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
-        case OP_LOOP: {
-            // Backward jump for loops
-            int16_t offset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
-            *ip += 2;
-            
-            // Emit backward jump
-            // Calculate relative offset (negative)
-            emit_jmp(&ctx->as, -(int32_t)offset);
-            break;
-        }
+
         
         case OP_LOOP_HEADER: {
             // Loop header marker - just a NOP in JIT
