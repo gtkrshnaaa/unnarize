@@ -12,7 +12,7 @@
  * Optimized for cache-friendly sequential execution
  */
 
-typedef struct {
+typedef struct BytecodeChunk {
     // === Code Stream ===
     uint8_t* code;              // Bytecode instructions
     int codeSize;               // Number of bytes
