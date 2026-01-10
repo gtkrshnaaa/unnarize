@@ -930,10 +930,10 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
 }
 
 // Helper for print (forward decl)
-static void printValue(Value val);
+
 
 // printValue implementation
-static void printValue(Value val) {
+void printValue(Value val) {
     if (val.type == VAL_NIL) { printf("nil"); return; }
     switch (val.type) {
         case VAL_BOOL: printf(val.boolVal ? "true" : "false"); break;

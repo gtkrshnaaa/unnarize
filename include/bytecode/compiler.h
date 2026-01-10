@@ -10,6 +10,6 @@
  */
 
 // Compile AST to bytecode chunk
-bool compileToBytecode(Node* ast, BytecodeChunk* chunk);
+bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk);
 
 #endif // BYTECODE_COMPILER_H

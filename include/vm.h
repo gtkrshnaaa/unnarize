@@ -50,6 +50,8 @@ typedef struct {
     };
 } Value;
 
+void printValue(Value val);
+
 // Helpers
 #define AS_OBJ(value)     ((value).obj)
 #define AS_STRING(value)  ((ObjString*)AS_OBJ(value))

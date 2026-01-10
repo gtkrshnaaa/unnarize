@@ -10,6 +10,7 @@
  */
 
 typedef struct {
+    VM* vm;
     BytecodeChunk* chunk;
     
     // Local variable tracking
@@ -25,7 +26,8 @@ typedef struct {
     bool hadError;
 } Compiler;
 
-static void initCompiler(Compiler* c, BytecodeChunk* chunk) {
+static void initCompiler(Compiler* c, VM* vm, BytecodeChunk* chunk) {
+    c->vm = vm;
     c->chunk = chunk;
     c->localCount = 0;
     c->scopeDepth = 0;
@@ -108,7 +110,16 @@ static void compileExpression(Compiler* c, Node* node) {
                 emitByte(c, OP_LOAD_FALSE, line);
             } else if (tok.type == TOKEN_NIL) {
                 emitByte(c, OP_LOAD_NIL, line);
+            } else if (tok.type == TOKEN_STRING) {
+                // Handle string literal
+                char* str = strndup(tok.start + 1, tok.length - 2); // Strip quotes
+                
+                ObjString* objStr = internString(c->vm, str, strlen(str));
+                free(str); // internString makes its own copy (or interns)
+                
+                emitConstant(c, OBJ_VAL(objStr), line);
             }
+            break;
             break;
         }
         
@@ -191,7 +202,7 @@ static void compileStatement(Compiler* c, Node* node) {
             
             // Store to local
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
-            emitByte(c, OP_POP, line);  // Pop the value
+            // emitByte(c, OP_POP, line);  // DO NOT POP for local declaration! Keep it on stack.
             break;
         }
         
@@ -305,9 +316,9 @@ static void compileNode(Compiler* c, Node* node) {
     }
 }
 
-bool compileToBytecode(Node* ast, BytecodeChunk* chunk) {
+bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     Compiler compiler;
-    initCompiler(&compiler, chunk);
+    initCompiler(&compiler, vm, chunk);
     
     compileNode(&compiler, ast);
     

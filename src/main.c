@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
     
     // Parse arguments
     bool enableOpt = false;
-    bool enableJit = false;
+    bool enableJit = true; // DEFAULT: Enable JIT
     char* filename = NULL;
     
     for (int i = 1; i < argc; i++) {
@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
         BytecodeChunk chunk;
         initChunk(&chunk);
         
-        if (compileToBytecode(ast, &chunk)) {
+        if (compileToBytecode(&vm, ast, &chunk)) {
             executeBytecode(&vm, &chunk);
         } else {
             fprintf(stderr, "Bytecode compilation failed.\n");
