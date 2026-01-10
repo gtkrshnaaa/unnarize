@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include "vm.h"
 #include "resolver.h"
-#include "jit/inline_opt.h"
 #include <dlfcn.h>
 #include <time.h>
 #include <math.h>
@@ -1339,16 +1338,6 @@ static Value evaluate(VM* vm, Node* node) {
         }
 
         case NODE_EXPR_BINARY: {
-             // Phase 2: Try inline optimization first (fast path)
-             if (vm->enableOptimizations) {
-                 bool success = false;
-                 Value inlined = tryInlineEvaluate(vm, node, &success);
-                 if (success) {
-                     return inlined; // Fast path - no function calls!
-                 }
-             }
-             
-             // Fallback: Normal evaluation
              // Logical AND
              if (node->binary.op.type == TOKEN_AND) {
                  Value left = evaluate(vm, node->binary.left);

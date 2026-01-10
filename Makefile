@@ -13,10 +13,10 @@ DESTDIR ?=
 
 SOURCES_SRC = $(wildcard $(SRCDIR)/*.c)
 SOURCES_CORE = $(wildcard corelib/src/*.c)
-SOURCES_JIT = $(wildcard $(SRCDIR)/jit/*.c)
+SOURCES_BYTECODE = $(wildcard $(SRCDIR)/bytecode/*.c)
 OBJECTS = $(SOURCES_SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o) \
           $(SOURCES_CORE:corelib/src/%.c=$(OBJDIR)/%.o) \
-          $(SOURCES_JIT:$(SRCDIR)/jit/%.c=$(OBJDIR)/%.o)
+          $(SOURCES_BYTECODE:$(SRCDIR)/bytecode/%.c=$(OBJDIR)/%.o)
 
 EXECUTABLE = $(BINDIR)/unnarize
 

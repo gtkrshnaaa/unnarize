@@ -2,7 +2,7 @@
 #define BYTECODE_CHUNK_H
 
 #include <stdint.h>
-#include "vm/value.h"
+#include "vm.h"
 #include "bytecode/opcodes.h"
 
 /**
