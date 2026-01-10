@@ -29,9 +29,14 @@ typedef struct {
 static void initCompiler(Compiler* c, VM* vm, BytecodeChunk* chunk) {
     c->vm = vm;
     c->chunk = chunk;
-    c->localCount = 0;
-    c->scopeDepth = 0;
     c->hadError = false;
+    c->scopeDepth = 0;
+    
+    // Reserve slot 0 for the function/script itself
+    c->localCount = 1;
+    c->locals[0].depth = 0;
+    c->locals[0].name = ""; 
+    c->locals[0].slot = 0;
 }
 
 // Emit single byte
@@ -289,6 +294,7 @@ static void compileExpression(Compiler* c, Node* node) {
                 int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
                 emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
             }
+            emitByte(c, OP_POP, line); // Pop assignment value
             break;
         }
         
@@ -436,6 +442,96 @@ static void compileStatement(Compiler* c, Node* node) {
             break;
         }
         
+
+
+
+        case NODE_STMT_FOREACH: {
+            // foreach (var item : collection) body
+            c->scopeDepth++;
+            
+            // 1. Evaluate collection -> local ".col"
+            compileExpression(c, node->foreachStmt.collection);
+            addLocal(c, strdup(".col"));
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
+            // Since STORE_LOCAL peeks, value is still on stack? No, REVERT to not assume.
+            // If STORE_LOCAL peeks, we have [val, val].
+            // DECLARATION: Do NOT pop! Reserve slot.
+            // emitByte(c, OP_POP, line); 
+
+            // 2. Index -> local ".idx" = 0
+            int zeroIdx = addConstant(c->chunk, (Value){VAL_INT, .intVal=0});
+            emitBytes(c, OP_LOAD_CONST, (uint8_t)zeroIdx, line);
+            addLocal(c, strdup(".idx"));
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
+            // DECLARATION: Do NOT pop! Reserve slot.
+            // emitByte(c, OP_POP, line);
+
+            // 3. Loop Start
+            int loopStart = c->chunk->codeSize;
+            emitByte(c, OP_LOOP_HEADER, line);
+
+            // 4. Condition: .idx < len(.col)
+            // Load .idx
+            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -1), line); 
+            
+            // Load .col
+            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -2), line);
+            emitByte(c, OP_ARRAY_LEN, line);
+            emitByte(c, OP_LT, line);
+            
+            // 5. Exit if false
+            int exitJump = emitJump(c, OP_JUMP_IF_FALSE, line);
+            emitByte(c, OP_POP, line); // Pop condition
+
+            // 6. Load item: .col[.idx] -> userVar
+            // Load .col
+            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -2), line);
+            // Load .idx
+            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -1), line);
+            emitByte(c, OP_LOAD_INDEX, line);
+            
+            // Assign to user variable
+            // New scope for body? No, scopeDepth++ handled it.
+            // Declare user variable
+            Token iterator = node->foreachStmt.iterator;
+            char* iterName = strndup(iterator.start, iterator.length);
+            addLocal(c, iterName); // New slot
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
+            emitByte(c, OP_POP, line);
+
+            // 7. Body
+            compileStatement(c, node->foreachStmt.body);
+
+            // 8. Increment .idx
+            int idxLocal = resolveLocal(c, ".idx", 4);
+            if (idxLocal == -1) { printf("Compiler Error: .idx missing\n"); exit(1); }
+            
+            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)idxLocal, line);
+            int oneIdx = addConstant(c->chunk, (Value){VAL_INT, .intVal=1});
+            emitBytes(c, OP_LOAD_CONST, (uint8_t)oneIdx, line);
+            emitByte(c, OP_ADD, line);
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)idxLocal, line);
+            emitByte(c, OP_POP, line);
+            
+            // Loop back
+            int offset = c->chunk->codeSize - loopStart + 3;
+            emitByte(c, OP_LOOP, line);
+            emitByte(c, (offset >> 8) & 0xff, line);
+            emitByte(c, offset & 0xff, line);
+            
+            // Patch exit
+            patchJump(c->chunk, exitJump);
+            emitByte(c, OP_POP, line);
+
+            // Pop .col and .idx
+            c->scopeDepth--; // Exit foreach scope
+            emitByte(c, OP_POP, line); // .idx
+            emitByte(c, OP_POP, line); // .col
+            c->localCount -= 2;
+
+            break; 
+        }
+
         case NODE_STMT_FOR: {
             // New scope for loop variable
             c->scopeDepth++;
@@ -580,7 +676,58 @@ static void compileStatement(Compiler* c, Node* node) {
             }
             break;
         }
+
+        case NODE_STMT_STRUCT_DECL: {
+            // struct Name { f1; f2; ... }
+            Token name = node->structDecl.name;
+            
+            // Push name
+            char* nameStr = strndup(name.start, name.length);
+            ObjString* nameObj = internString(c->vm, nameStr, name.length);
+            free(nameStr);
+            int nameIdx = addConstant(c->chunk, OBJ_VAL(nameObj));
+            emitBytes(c, OP_LOAD_CONST, (uint8_t)nameIdx, line);
+            
+            // Push fields
+            int fieldCount = node->structDecl.fieldCount;
+            for (int i = 0; i < fieldCount; i++) {
+                Token ft = node->structDecl.fields[i];
+                char* fStr = strndup(ft.start, ft.length);
+                ObjString* fObj = internString(c->vm, fStr, ft.length);
+                free(fStr);
+                int fIdx = addConstant(c->chunk, OBJ_VAL(fObj));
+                emitBytes(c, OP_LOAD_CONST, (uint8_t)fIdx, line);
+            }
+            
+            // Emit struct definition opcode
+            emitByte(c, OP_STRUCT_DEF, line);
+            emitByte(c, (uint8_t)fieldCount, line);
+            
+            // Define variable
+            if (c->scopeDepth == 0) {
+                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)nameIdx, line);
+            } else {
+                int slot = addLocal(c, strndup(name.start, name.length));
+                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+            }
+            break;
+        }
         
+        case NODE_STMT_PROP_ASSIGN: {
+             compileExpression(c, node->propAssign.object);
+             compileExpression(c, node->propAssign.value);
+             
+             Token name = node->propAssign.name;
+             char* propName = strndup(name.start, name.length);
+             ObjString* nameStr = internString(c->vm, propName, name.length);
+             free(propName);
+             int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
+             
+             emitBytes(c, OP_STORE_PROPERTY, (uint8_t)constIdx, line);
+             emitByte(c, OP_POP, line); 
+             break;
+        }
+
         default:
             break;
     }
@@ -622,6 +769,12 @@ bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     
     // Emit halt
     emitByte(&compiler, OP_HALT, 1);
+    
+#ifdef DEBUG_PRINT_CODE
+    if (!compiler.hadError) {
+        // disassembleChunk(chunk, "code");
+    }
+#endif
     
     return !compiler.hadError;
 }

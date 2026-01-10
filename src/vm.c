@@ -687,7 +687,12 @@ void arrayPush(VM* vm, Array* a, Value v) {
     if (a->count + 1 > a->capacity) {
         int oldCapacity = a->capacity;
         a->capacity = GROW_CAPACITY(oldCapacity);
-        a->items = (Value*)reallocate(vm, a->items, sizeof(Value) * oldCapacity, sizeof(Value) * a->capacity);
+        Value* newItems = (Value*)reallocate(vm, a->items, sizeof(Value) * oldCapacity, sizeof(Value) * a->capacity);
+        if (!newItems) {
+            printf("Fatal Error: Array allocation failed.\n");
+            exit(1);
+        }
+        a->items = newItems;
     }
     a->items[a->count++] = v;
 }
@@ -698,7 +703,7 @@ static bool arrayPop(Array* a, Value* out) {
     return true;
 }
 */
-static bool arrayPop(Array* a, Value* out) {
+bool arrayPop(Array* a, Value* out) {
     if (a->count == 0) return false;
     *out = a->items[a->count - 1];
     a->count--;
@@ -721,7 +726,7 @@ MapEntry* mapFindEntry(Map* m, const char* skey, int slen, int* bucketOut) {
     }
     return NULL;
 }
-static MapEntry* mapFindEntryInt(Map* m, int ikey, int* bucketOut) {
+MapEntry* mapFindEntryInt(Map* m, int ikey, int* bucketOut) {
     unsigned int h = hashIntKey(ikey);
     if (bucketOut) *bucketOut = (int)h;
     MapEntry* e = m->buckets[h];
@@ -1639,6 +1644,8 @@ void initVM(VM* vm) {
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
     vm->nextGC = 1024 * 1024; // Start GC at 1MB
+    vm->jitEnabled = false; // Disable JIT for stability until finished
+    vm->jitThreshold = 50; // Low threshold for testing, but disabled now
 
     vm->stackTop = 0;
     vm->callStackTop = 0;
@@ -1856,7 +1863,33 @@ static Value nativeKeys(VM* vm, Value* args, int argCount) {
     return OBJ_VAL(keys);
 }
 
+static Value nativeLength(VM* vm, Value* args, int argCount) {
+    if (argCount != 1) return NIL_VAL;
+    if (IS_STRING(args[0])) return INT_VAL(((ObjString*)AS_OBJ(args[0]))->length);
+    if (IS_ARRAY(args[0])) return INT_VAL(((Array*)AS_OBJ(args[0]))->count);
+    return INT_VAL(0);
+}
+
+static Value nativePush(VM* vm, Value* args, int argCount) {
+    if (argCount != 2) return NIL_VAL;
+    if (!IS_ARRAY(args[0])) return NIL_VAL;
+    Array* arr = (Array*)AS_OBJ(args[0]);
+    arrayPush(vm, arr, args[1]);
+    return INT_VAL(arr->count);
+}
+
+static Value nativePop(VM* vm, Value* args, int argCount) {
+    if (argCount != 1) return NIL_VAL;
+    if (!IS_ARRAY(args[0])) return NIL_VAL;
+    Value v;
+    if (arrayPop((Array*)AS_OBJ(args[0]), &v)) return v;
+    return NIL_VAL;
+}
+
 void registerBuiltins(VM* vm) {
     defineNative(vm, vm->globalEnv, "has", nativeHas, 2);
     defineNative(vm, vm->globalEnv, "keys", nativeKeys, 1);
+    defineNative(vm, vm->globalEnv, "length", nativeLength, 1);
+    defineNative(vm, vm->globalEnv, "push", nativePush, 2);
+    defineNative(vm, vm->globalEnv, "pop", nativePop, 1);
 }

@@ -17,22 +17,38 @@ function addTask(title) {
 function listTasks() {
     print("");
     print("=== Task List ===");
+    print("");
+    
     if (length(tasks) == 0) {
         print("No tasks yet!");
-        return;
     }
     
-    for (var task : tasks) {
-        var status = "[ ]";
-        if (task.completed) {
-            status = "[x]";
-        }
-        print(status + " " + task.id + ". " + task.title);
+    // print("Debug: tasks count " + length(tasks));
+    if (0 < 4) {
+        print("Debug: Sanity Check 0 < 4 is True");
+    } else {
+        print("Debug: Sanity Check 0 < 4 is FALSE");
     }
+    
+    print("Debug: tasks count " + length(tasks));
+    
+    for (var task : tasks) {
+        print("Debug: task value: " + task);
+        if (task.completed) {
+            print("[X] " + task.title + " (ID: " + task.id + ")");
+        } else {
+            print("[ ] " + task.title + " (ID: " + task.id + ")");
+        }
+    }
+    
+    print("Debug: Manual Loop End");
 }
 
 function completeTask(taskId) {
+    print("Completing some tasks...");
+    // print("Debug: Completing ID " + taskId);
     for (var task : tasks) {
+        print("Debug: Checking task ID " + task.id);
         if (task.id == taskId) {
             task.completed = true;
             print("Completed: " + task.title);
