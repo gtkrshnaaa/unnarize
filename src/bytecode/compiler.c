@@ -172,6 +172,97 @@ static void compileExpression(Compiler* c, Node* node) {
             }
             break;
         }
+
+        case NODE_EXPR_CALL: {
+            // Check for built-ins first (optimization)
+            if (node->call.callee->type == NODE_EXPR_VAR) {
+                Token name = node->call.callee->var.name;
+                char* funcName = strndup(name.start, name.length);
+                
+                bool isBuiltin = false;
+                if (strcmp(funcName, "array") == 0) {
+                    emitByte(c, OP_NEW_ARRAY, line);
+                    isBuiltin = true;
+                } else if (strcmp(funcName, "map") == 0) {
+                    emitByte(c, OP_NEW_MAP, line);
+                    isBuiltin = true;
+                } else if (strcmp(funcName, "push") == 0) {
+                    Node* arg = node->call.arguments;
+                    if (arg && arg->next) { // Ensure 2 args
+                        compileExpression(c, arg);       // Array
+                        compileExpression(c, arg->next); // Value
+                        emitByte(c, OP_ARRAY_PUSH, line);
+                        emitByte(c, OP_LOAD_NIL, line); 
+                    }
+                    isBuiltin = true;
+                } else if (strcmp(funcName, "pop") == 0) {
+                    Node* arg = node->call.arguments;
+                    if (arg) {
+                        compileExpression(c, arg);
+                        emitByte(c, OP_ARRAY_POP, line);
+                    }
+                    isBuiltin = true;
+                } else if (strcmp(funcName, "length") == 0) {
+                    Node* arg = node->call.arguments;
+                    if (arg) {
+                        compileExpression(c, arg); 
+                        emitByte(c, OP_ARRAY_LEN, line);
+                    }
+                    isBuiltin = true;
+                }
+                
+                free(funcName);
+                if (isBuiltin) break;
+            }
+            
+            // Regular function call
+            compileExpression(c, node->call.callee);
+            
+            int argCount = 0;
+            Node* arg = node->call.arguments;
+            while (arg) {
+                compileExpression(c, arg);
+                argCount++;
+                arg = arg->next;
+            }
+            
+            if (argCount == 0) emitByte(c, OP_CALL_0, line);
+            else if (argCount == 1) emitByte(c, OP_CALL_1, line);
+            else if (argCount == 2) emitByte(c, OP_CALL_2, line);
+            else {
+                emitByte(c, OP_CALL, line);
+                emitByte(c, (uint8_t)argCount, line);
+            }
+            break;
+        }
+
+        case NODE_EXPR_INDEX: {
+            // target[index]
+            compileExpression(c, node->index.target);
+            compileExpression(c, node->index.index);
+            emitByte(c, OP_LOAD_INDEX, line);
+            break;
+        }
+        
+        case NODE_EXPR_ARRAY_LITERAL: {
+            // [1, 2, 3] -> new array then push each
+            emitByte(c, OP_NEW_ARRAY, line);
+            
+            Node* element = node->arrayLiteral.elements;
+            while (element) {
+                emitByte(c, OP_DUP, line); // Stack: [array, array]
+                compileExpression(c, element); // Stack: [array, array, val]
+                emitByte(c, OP_ARRAY_PUSH, line); 
+                emitByte(c, OP_POP, line); // Remove push result (or duplicate array ref depending on implementation)
+                // My OP_ARRAY_PUSH peeks array, pops value. Stack remains: [array, array].
+                // So we need POP to remove duplicate array ref.
+                
+                element = element->next;
+            }
+            break;
+        }
+
+
         
         default:
             break;
@@ -246,6 +337,17 @@ static void compileStatement(Compiler* c, Node* node) {
                 emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
             }
             emitByte(c, OP_POP, line);
+            break;
+        }
+
+        case NODE_STMT_INDEX_ASSIGN: {
+            // target[index] = value;
+            compileExpression(c, node->indexAssign.target);
+            compileExpression(c, node->indexAssign.index);
+            compileExpression(c, node->indexAssign.value);
+            
+            emitByte(c, OP_STORE_INDEX, line);
+            emitByte(c, OP_POP, line); // Statement should not leave value on stack
             break;
         }
         
