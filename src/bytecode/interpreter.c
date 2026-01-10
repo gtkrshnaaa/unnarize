@@ -63,7 +63,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_load_imm: {
         // Load 32-bit immediate (4 bytes)
         int32_t value = (ip[0] << 24) | (ip[1] << 16) | (ip[2] << 8) | ip[3];
-        *sp++ = INT_VAL(value);
+        *sp++ = ((Value){VAL_INT, .intVal = value);
         ip += 4;
         NEXT();
     }
@@ -75,17 +75,20 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_load_nil: {
-        *sp++ = NIL_VAL;
+        Value nil = {VAL_NIL, .intVal = 0};
+        *sp++ = nil;
         NEXT();
     }
     
     op_load_true: {
-        *sp++ = BOOL_VAL(true);
+        Value v = {VAL_BOOL, .boolVal = true};
+        *sp++ = v;
         NEXT();
     }
     
     op_load_false: {
-        *sp++ = BOOL_VAL(false);
+        Value v = {VAL_BOOL, .boolVal = false};
+        *sp++ = v;
         NEXT();
     }
     
@@ -140,40 +143,40 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_add_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a + b);
+        *sp++ = ((Value){VAL_INT, .intVal = a + b);
         NEXT();
     }
     
     op_sub_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a - b);
+        *sp++ = ((Value){VAL_INT, .intVal = a - b);
         NEXT();
     }
     
     op_mul_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a * b);
+        *sp++ = ((Value){VAL_INT, .intVal = a * b);
         NEXT();
     }
     
     op_div_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a / b);
+        *sp++ = ((Value){VAL_INT, .intVal = a / b);
         NEXT();
     }
     
     op_mod_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a % b);
+        *sp++ = ((Value){VAL_INT, .intVal = a % b);
         NEXT();
     }
     
     op_neg_i: {
-        sp[-1] = INT_VAL(-AS_INT(sp[-1]));
+        sp[-1] = ((Value){VAL_INT, .intVal = -AS_INT(sp[-1]));
         NEXT();
     }
     
@@ -181,33 +184,33 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_add_ff: {
         double b = AS_FLOAT(*(--sp));
         double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a + b);
+        *sp++ = ((Value){VAL_FLOAT, .floatVal = a + b);
         NEXT();
     }
     
     op_sub_ff: {
         double b = AS_FLOAT(*(--sp));
         double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a - b);
+        *sp++ = ((Value){VAL_FLOAT, .floatVal = a - b);
         NEXT();
     }
     
     op_mul_ff: {
         double b = AS_FLOAT(*(--sp));
         double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a * b);
+        *sp++ = ((Value){VAL_FLOAT, .floatVal = a * b);
         NEXT();
     }
     
     op_div_ff: {
         double b = AS_FLOAT(*(--sp));
         double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a / b);
+        *sp++ = ((Value){VAL_FLOAT, .floatVal = a / b);
         NEXT();
     }
     
     op_neg_f: {
-        sp[-1] = FLOAT_VAL(-AS_FLOAT(sp[-1]));
+        sp[-1] = ((Value){VAL_FLOAT, .floatVal = -AS_FLOAT(sp[-1]));
         NEXT();
     }
     
@@ -216,9 +219,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = INT_VAL(AS_INT(a) + AS_INT(b));
+            *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) + AS_INT(b));
         } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
-            *sp++ = FLOAT_VAL(AS_FLOAT(a) + AS_FLOAT(b));
+            *sp++ = ((Value){VAL_FLOAT, .floatVal = AS_FLOAT(a) + AS_FLOAT(b));
         }
         NEXT();
     }
@@ -227,7 +230,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = INT_VAL(AS_INT(a) - AS_INT(b));
+            *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) - AS_INT(b));
         }
         NEXT();
     }
@@ -236,7 +239,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = INT_VAL(AS_INT(a) * AS_INT(b));
+            *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) * AS_INT(b));
         }
         NEXT();
     }
@@ -245,7 +248,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = INT_VAL(AS_INT(a) / AS_INT(b));
+            *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) / AS_INT(b));
         }
         NEXT();
     }
@@ -254,14 +257,14 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = INT_VAL(AS_INT(a) % AS_INT(b));
+            *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) % AS_INT(b));
         }
         NEXT();
     }
     
     op_neg: {
         if (IS_INT(sp[-1])) {
-            sp[-1] = INT_VAL(-AS_INT(sp[-1]));
+            sp[-1] = ((Value){VAL_INT, .intVal = -AS_INT(sp[-1]));
         }
         NEXT();
     }
@@ -270,49 +273,49 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_lt_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a < b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a < b);
         NEXT();
     }
     
     op_le_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a <= b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a <= b);
         NEXT();
     }
     
     op_gt_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a > b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a > b);
         NEXT();
     }
     
     op_ge_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a >= b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a >= b);
         NEXT();
     }
     
     op_eq_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a == b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a == b);
         NEXT();
     }
     
     op_ne_ii: {
         int64_t b = AS_INT(*(--sp));
         int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a != b);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a != b);
         NEXT();
     }
     
     // === FLOAT COMPARISONS (Stubs) ===
     op_lt_ff: op_le_ff: op_gt_ff: op_ge_ff: op_eq_ff: op_ne_ff:
         sp -= 2;
-        *sp++ = BOOL_VAL(false);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = false);
         NEXT();
     
     // === GENERIC COMPARISONS ===
@@ -320,19 +323,19 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value b = *(--sp);
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
-            *sp++ = BOOL_VAL(AS_INT(a) < AS_INT(b));
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) < AS_INT(b));
         }
         NEXT();
     }
     
     op_le: op_gt: op_ge: op_eq: op_ne:
         sp -= 2;
-        *sp++ = BOOL_VAL(false);
+        *sp++ = ((Value){VAL_BOOL, .boolVal = false);
         NEXT();
     
     // === LOGICAL ===
     op_not: {
-        sp[-1] = BOOL_VAL(IS_INT(sp[-1]) && AS_INT(sp[-1]) == 0);
+        sp[-1] = ((Value){VAL_BOOL, .boolVal = IS_INT(sp[-1]) && AS_INT(sp[-1]) == 0);
         NEXT();
     }
     
