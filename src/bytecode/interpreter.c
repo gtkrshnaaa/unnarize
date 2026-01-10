@@ -392,11 +392,48 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
-    // === FLOAT COMPARISONS (Stubs) ===
-    op_lt_ff: op_le_ff: op_gt_ff: op_ge_ff: op_eq_ff: op_ne_ff:
-        sp -= 2;
-        *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+    // === FLOAT COMPARISONS ===
+    op_lt_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a < b});
         NEXT();
+    }
+    
+    op_le_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a <= b});
+        NEXT();
+    }
+    
+    op_gt_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a > b});
+        NEXT();
+    }
+    
+    op_ge_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a >= b});
+        NEXT();
+    }
+    
+    op_eq_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a == b});
+        NEXT();
+    }
+    
+    op_ne_ff: {
+        double b = AS_FLOAT(*(--sp));
+        double a = AS_FLOAT(*(--sp));
+        *sp++ = ((Value){VAL_BOOL, .boolVal = a != b});
+        NEXT();
+    }
     
     // === GENERIC COMPARISONS ===
     op_lt: {
@@ -404,14 +441,86 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value a = *(--sp);
         if (IS_INT(a) && IS_INT(b)) {
             *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) < AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) < AS_FLOAT(b)});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
         }
         NEXT();
     }
     
-    op_le: op_gt: op_ge: op_eq: op_ne:
-        sp -= 2;
-        *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+    op_le: {
+        Value b = *(--sp);
+        Value a = *(--sp);
+        if (IS_INT(a) && IS_INT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) <= AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) <= AS_FLOAT(b)});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+        }
         NEXT();
+    }
+    
+    op_gt: {
+        Value b = *(--sp);
+        Value a = *(--sp);
+        if (IS_INT(a) && IS_INT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) > AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) > AS_FLOAT(b)});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+        }
+        NEXT();
+    }
+    
+    op_ge: {
+        Value b = *(--sp);
+        Value a = *(--sp);
+        if (IS_INT(a) && IS_INT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) >= AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) >= AS_FLOAT(b)});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+        }
+        NEXT();
+    }
+    
+    op_eq: {
+        Value b = *(--sp);
+        Value a = *(--sp);
+        if (IS_INT(a) && IS_INT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) == AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) == AS_FLOAT(b)});
+        } else if (IS_BOOL(a) && IS_BOOL(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_BOOL(a) == AS_BOOL(b)});
+        } else if (IS_NIL(a) && IS_NIL(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = true});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+        }
+        NEXT();
+    }
+    
+    op_ne: {
+        Value b = *(--sp);
+        Value a = *(--sp);
+        if (IS_INT(a) && IS_INT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_INT(a) != AS_INT(b)});
+        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_FLOAT(a) != AS_FLOAT(b)});
+        } else if (IS_BOOL(a) && IS_BOOL(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = AS_BOOL(a) != AS_BOOL(b)});
+        } else if (IS_NIL(a) && IS_NIL(b)) {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = false});
+        } else {
+            *sp++ = ((Value){VAL_BOOL, .boolVal = true});
+        }
+        NEXT();
+    }
     
     // === LOGICAL ===
     op_not: {
@@ -433,8 +542,21 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_jump_if_false: {
         uint16_t offset = (*ip++) << 8;
         offset |= *ip++;
-        Value cond = sp[-1];
-        if (IS_INT(cond) && AS_INT(cond) == 0) {
+        Value cond = sp[-1];  // Peek (compiler will emit OP_POP)
+        
+        // Truthiness: false if: int(0), bool(false), nil
+        bool isFalse = false;
+        if (IS_NIL(cond)) {
+            isFalse = true;
+        } else if (IS_BOOL(cond)) {
+            isFalse = !AS_BOOL(cond);
+        } else if (IS_INT(cond)) {
+            isFalse = (AS_INT(cond) == 0);
+        } else if (IS_FLOAT(cond)) {
+            isFalse = (AS_FLOAT(cond) == 0.0);
+        }
+        
+        if (isFalse) {
             ip += offset;
         }
         NEXT();
@@ -443,8 +565,21 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_jump_if_true: {
         uint16_t offset = (*ip++) << 8;
         offset |= *ip++;
-        Value cond = sp[-1];
-        if (IS_INT(cond) && AS_INT(cond) != 0) {
+        Value cond = sp[-1];  // Peek (compiler will emit OP_POP)
+        
+        // Truthiness: true if: int(!=0), bool(true), any object
+        bool isTrue = false;
+        if (IS_BOOL(cond)) {
+            isTrue = AS_BOOL(cond);
+        } else if (IS_INT(cond)) {
+            isTrue = (AS_INT(cond) != 0);
+        } else if (IS_FLOAT(cond)) {
+            isTrue = (AS_FLOAT(cond) != 0.0);
+        } else if (IS_OBJ(cond)) {
+            isTrue = true;  // Objects are truthy
+        }
+        
+        if (isTrue) {
             ip += offset;
         }
         NEXT();
