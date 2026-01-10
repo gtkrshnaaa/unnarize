@@ -131,7 +131,11 @@ static void compileExpression(Compiler* c, Node* node) {
                 emitBytes(c, OP_LOAD_LOCAL, (uint8_t)local, line);
             } else {
                 // Global variable
-                int constIdx = addConstant(c->chunk, OBJ_VAL(NULL));  // TODO: proper string
+                char* varName = strndup(name.start, name.length);
+                ObjString* nameStr = internString(c->vm, varName, name.length);
+                free(varName);
+                
+                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
                 emitBytes(c, OP_LOAD_GLOBAL, (uint8_t)constIdx, line);
             }
             break;
@@ -216,7 +220,11 @@ static void compileStatement(Compiler* c, Node* node) {
             if (local != -1) {
                 emitBytes(c, OP_STORE_LOCAL, (uint8_t)local, line);
             } else {
-                int constIdx = addConstant(c->chunk, OBJ_VAL(NULL));
+                char* varName = strndup(name.start, name.length);
+                ObjString* nameStr = internString(c->vm, varName, name.length);
+                free(varName);
+
+                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
                 emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
             }
             emitByte(c, OP_POP, line);
