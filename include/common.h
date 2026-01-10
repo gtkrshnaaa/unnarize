@@ -10,7 +10,7 @@
 // Unnarize interpreter version
 // Update this string when making a release.
 #ifndef UNNARIZE_VERSION
-#define UNNARIZE_VERSION "0.1.0-beta"
+#define UNNARIZE_VERSION "0.1.1-beta"
 #endif
 
 // Define token types for lexer
