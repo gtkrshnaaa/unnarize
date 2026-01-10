@@ -326,6 +326,25 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                 strA = AS_BOOL(a) ? "true" : "false";
             } else if (IS_NIL(a)) {
                 strA = "nil";
+            } else if (IS_ARRAY(a)) {
+                // Convert array to string representation
+                Array* arr = (Array*)AS_OBJ(a);
+                char* arrStr = malloc(1024); // Temp buffer for array string
+                int pos = 0;
+                pos += snprintf(arrStr + pos, 1024 - pos, "[");
+                for (int i = 0; i < arr->count && pos < 1000; i++) {
+                    if (i > 0) pos += snprintf(arrStr + pos, 1024 - pos, ", ");
+                    Value item = arr->items[i];
+                    if (IS_INT(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%ld", AS_INT(item));
+                    } else if (IS_STRING(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_CSTRING(item));
+                    } else if (IS_BOOL(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_BOOL(item) ? "true" : "false");
+                    }
+                }
+                snprintf(arrStr + pos, 1024 - pos, "]");
+                strA = arrStr;
             } else {
                 strA = "[object]";
             }
@@ -343,22 +362,43 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                 strB = AS_BOOL(b) ? "true" : "false";
             } else if (IS_NIL(b)) {
                 strB = "nil";
+            } else if (IS_ARRAY(b)) {
+                // Convert array to string representation
+                Array* arr = (Array*)AS_OBJ(b);
+                char* arrStr = malloc(1024); // Temp buffer for array string
+                int pos = 0;
+                pos += snprintf(arrStr + pos, 1024 - pos, "[");
+                for (int i = 0; i < arr->count && pos < 1000; i++) {
+                    if (i > 0) pos += snprintf(arrStr + pos, 1024 - pos, ", ");
+                    Value item = arr->items[i];
+                    if (IS_INT(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%ld", AS_INT(item));
+                    } else if (IS_STRING(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_CSTRING(item));
+                    } else if (IS_BOOL(item)) {
+                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_BOOL(item) ? "true" : "false");
+                    }
+                }
+                snprintf(arrStr + pos, 1024 - pos, "]");
+                strB = arrStr;
             } else {
                 strB = "[object]";
             }
             
             // Concatenate
-            int lenA = strlen(strA);
-            int lenB = strlen(strB);
-            int totalLen = lenA + lenB;
-            
-            char* result = malloc(totalLen + 1);
+            size_t lenA = strlen(strA);
+            size_t lenB = strlen(strB);
+            char* result = malloc(lenA + lenB + 1);
             memcpy(result, strA, lenA);
             memcpy(result + lenA, strB, lenB);
-            result[totalLen] = '\0';
+            result[lenA + lenB] = '\0';
             
-            // Intern the result string
-            ObjString* str = internString(vm, result, totalLen);
+            // Intern result string
+            ObjString* str = internString(vm, result, lenA + lenB);
+            
+            // Free temp buffers if allocated
+            if (IS_ARRAY(a) && strA != bufferA) free((void*)strA);
+            if (IS_ARRAY(b) && strB != bufferB) free((void*)strB);
             free(result);
             
             *sp++ = OBJ_VAL(str);
