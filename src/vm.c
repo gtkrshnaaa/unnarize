@@ -877,6 +877,7 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     frame->fp = vm->fp;
     frame->hasReturned = false;
     frame->returnValue = (Value){VAL_NIL, .intVal=0};
+    frame->function = func; // Root the function
     
     // Setup new frame
     vm->fp = oldStackTop; // New frame starts where arguments began
@@ -1688,7 +1689,7 @@ void interpret(VM* vm, Node* ast) {
 void defineGlobal(VM* vm, const char* name, Value value) {
     ObjString* keyObj = internString(vm, name, (int)strlen(name));
     char* key = keyObj->chars;
-    unsigned int h = hashPointer(key) % TABLE_SIZE;
+    unsigned int h = keyObj->hash % TABLE_SIZE;
     
     // Check if exists
     VarEntry* entry = vm->globalEnv->buckets[h];
@@ -1783,7 +1784,7 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     ve->next = env->buckets[h];
     env->buckets[h] = ve;
     
-    // printf("DEBUG: Registered native global '%s' (Hash %u)\n", key, h);
+    printf("DEBUG: Registered native '%s' as ValueType %d (Ptr %p) in Env %p Bucket %u\n", key, funcVal.type, funcVal.obj, env, h);
 }
 
 // --- Built-in Natives Implementation ---
