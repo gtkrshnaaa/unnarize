@@ -7,6 +7,9 @@
 #include "ucore_http.h"
 #include "ucore_timer.h"
 #include "ucore_system.h"
+#include "bytecode/chunk.h"
+#include "bytecode/compiler.h"
+#include "bytecode/interpreter.h"
 
 const char* g_source = NULL;
 const char* g_filename = NULL;
@@ -273,11 +276,14 @@ int main(int argc, char** argv) {
     
     // Parse arguments
     bool enableOpt = false;
-    const char* filename = NULL;
+    bool enableJit = false;
+    char* filename = NULL;
     
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--opt") == 0) {
             enableOpt = true;
+        } else if (strcmp(argv[i], "--jit") == 0) {
+            enableJit = true;
         } else if (filename == NULL) {
             filename = argv[i];
         }
@@ -321,6 +327,7 @@ int main(int argc, char** argv) {
     // Enable JIT optimizations if --opt flag passed
     if (enableOpt) {
         vm.enableOptimizations = true;
+        enableJit = true; // Auto-enable JIT with optimizations
         fprintf(stderr, "[JIT Phase 2] Inline optimizations ENABLED\n");
     }
 
@@ -338,7 +345,31 @@ int main(int argc, char** argv) {
     registerUCoreTimer(&vm); // Register Timer
     registerUCoreSystem(&vm); // Register System
     
-    interpret(&vm, ast);
+    // JIT Execution Path (Default or with --jit)
+    // For now, let's use --jit flag or defaulting if enabled via define, but let's stick to explicit flag or make it default if requested.
+    // The user said "unnarize now uses JIT Compile". Let's try to detect if we should run JIT.
+    // I will add a --jit flag check in argument parsing above, but for now I'll just check enableOpt or a new boolean.
+    
+    // Check for --jit flag (I need to update arg parsing, but let's just do it here for now if I modified arg parsing earlier. 
+    // Wait, I didn't modify arg parsing for --jit yet. I'll do it in a separate edit or assume --opt implies JIT for now?)
+    // Let's modify arg parsing too.
+    
+    if (enableJit) {
+        printf("[Unnarize] Running with Bytecode VM (Tier 1)...\n");
+        BytecodeChunk chunk;
+        initChunk(&chunk);
+        
+        if (compileToBytecode(ast, &chunk)) {
+            executeBytecode(&vm, &chunk);
+        } else {
+            fprintf(stderr, "Bytecode compilation failed.\n");
+            exit(1);
+        }
+        
+        freeChunk(&chunk);
+    } else {
+        interpret(&vm, ast);
+    }
 
     // Cleanup
     freeAST(ast);

@@ -44,7 +44,7 @@ typedef struct {
     ValueType type;
     union {
         bool boolVal;
-        int intVal;
+        int64_t intVal;
         double floatVal;
         Obj* obj;
     };
@@ -54,8 +54,22 @@ typedef struct {
 #define AS_OBJ(value)     ((value).obj)
 #define AS_STRING(value)  ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
+#define AS_INT(value)     ((value).intVal)
+#define AS_FLOAT(value)   ((value).floatVal)
+#define AS_BOOL(value)    ((value).boolVal)
+
+#define INT_VAL(value)    ((Value){VAL_INT, .intVal = (value)})
+#define FLOAT_VAL(value)  ((Value){VAL_FLOAT, .floatVal = (value)})
+#define BOOL_VAL(value)   ((Value){VAL_BOOL, .boolVal = (value)})
+#define NIL_VAL           ((Value){VAL_NIL, .intVal = 0})
+#define OBJ_VAL(object)   ((Value){VAL_OBJ, .obj = (Obj*)(object)})
 
 #define IS_OBJ(value)     ((value).type == VAL_OBJ)
+#define IS_INT(value)     ((value).type == VAL_INT)
+#define IS_FLOAT(value)   ((value).type == VAL_FLOAT)
+#define IS_BOOL(value)    ((value).type == VAL_BOOL)
+#define IS_NIL(value)     ((value).type == VAL_NIL)
+
 #define IS_STRING(value)  (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_STRING)
 #define IS_ARRAY(value)   (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_ARRAY)
 #define IS_MAP(value)     (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_MAP)

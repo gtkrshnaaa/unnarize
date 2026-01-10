@@ -1,6 +1,9 @@
 #ifndef BYTECODE_OPCODES_H
 #define BYTECODE_OPCODES_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 /**
  * Unnarize Bytecode Instruction Set
  * 
