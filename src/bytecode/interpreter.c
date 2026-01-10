@@ -920,9 +920,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_array_push: {
-        // Stack: [array, value] -> [] (Compiler emits LOAD_NIL after)
-        Value val = *(--sp);
-        Value arrVal = *(--sp); // Pop array too
+        // Stack: [array, value] -> [array]
+        Value val = *(--sp);      // Pop value
+        Value arrVal = sp[-1];    // Peek array (don't pop!)
         
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
