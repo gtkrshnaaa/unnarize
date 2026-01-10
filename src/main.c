@@ -356,7 +356,7 @@ int main(int argc, char** argv) {
     // Let's modify arg parsing too.
     
         if (enableJit) {
-        printf("[Unnarize] Running with Bytecode VM (Tier 1)...\n");
+        // Bytecode VM execution (silent mode - use ucoreTimer for benchmarking)
         BytecodeChunk chunk;
         initChunk(&chunk);
         

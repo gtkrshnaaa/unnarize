@@ -989,14 +989,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
 done:
     uint64_t elapsed = getMicroseconds() - startTime;
     
-    // Print performance stats
-    if (instructionCount > 0) {
-        double seconds = elapsed / 1000000.0;
-        double mops = (instructionCount / 1000000.0) / seconds;
-        printf("\n[Bytecode VM] Executed %lu instructions in %.6f seconds\n",
-               instructionCount, seconds);
-        printf("[Bytecode VM] Performance: %.2f million ops/sec\n", mops);
-    }
+    // Performance stats removed - use ucoreTimer for benchmarking
     
     return elapsed;
 }
