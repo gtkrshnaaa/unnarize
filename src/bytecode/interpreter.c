@@ -298,10 +298,75 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_add: {
         Value b = *(--sp);
         Value a = *(--sp);
+        
+        // Int + Int
         if (IS_INT(a) && IS_INT(b)) {
             *sp++ = ((Value){VAL_INT, .intVal = AS_INT(a) + AS_INT(b)});
-        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
+        } 
+        // Float + Float
+        else if (IS_FLOAT(a) && IS_FLOAT(b)) {
             *sp++ = ((Value){VAL_FLOAT, .floatVal = AS_FLOAT(a) + AS_FLOAT(b)});
+        }
+        // String concatenation
+        else if (IS_STRING(a) || IS_STRING(b)) {
+            // Convert both to strings and concatenate
+            char bufferA[64], bufferB[64];
+            const char* strA;
+            const char* strB;
+            
+            // Convert a to string
+            if (IS_STRING(a)) {
+                strA = AS_CSTRING(a);
+            } else if (IS_INT(a)) {
+                snprintf(bufferA, sizeof(bufferA), "%ld", AS_INT(a));
+                strA = bufferA;
+            } else if (IS_FLOAT(a)) {
+                snprintf(bufferA, sizeof(bufferA), "%g", AS_FLOAT(a));
+                strA = bufferA;
+            } else if (IS_BOOL(a)) {
+                strA = AS_BOOL(a) ? "true" : "false";
+            } else if (IS_NIL(a)) {
+                strA = "nil";
+            } else {
+                strA = "[object]";
+            }
+            
+            // Convert b to string
+            if (IS_STRING(b)) {
+                strB = AS_CSTRING(b);
+            } else if (IS_INT(b)) {
+                snprintf(bufferB, sizeof(bufferB), "%ld", AS_INT(b));
+                strB = bufferB;
+            } else if (IS_FLOAT(b)) {
+                snprintf(bufferB, sizeof(bufferB), "%g", AS_FLOAT(b));
+                strB = bufferB;
+            } else if (IS_BOOL(b)) {
+                strB = AS_BOOL(b) ? "true" : "false";
+            } else if (IS_NIL(b)) {
+                strB = "nil";
+            } else {
+                strB = "[object]";
+            }
+            
+            // Concatenate
+            int lenA = strlen(strA);
+            int lenB = strlen(strB);
+            int totalLen = lenA + lenB;
+            
+            char* result = malloc(totalLen + 1);
+            memcpy(result, strA, lenA);
+            memcpy(result + lenA, strB, lenB);
+            result[totalLen] = '\0';
+            
+            // Intern the result string
+            ObjString* str = internString(vm, result, totalLen);
+            free(result);
+            
+            *sp++ = OBJ_VAL(str);
+        }
+        // Fallback: nil
+        else {
+            *sp++ = NIL_VAL;
         }
         NEXT();
     }
