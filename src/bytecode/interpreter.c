@@ -667,11 +667,139 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_call: op_call_0: op_call_1: op_call_2: op_return: op_return_nil:
         NEXT();
     
-    // === OBJECTS (Stubs) ===
-    op_load_property: op_store_property: op_load_index: op_store_index:
-    op_new_array: op_new_map: op_new_object:
-    op_array_push: op_array_pop: op_array_len:
+    
+    // === OBJECTS ===
+    op_load_property: 
+    op_store_property:
+        // TODO: Implement property access
         NEXT();
+    
+    op_load_index: {
+        // target[index] - read
+        Value index = *(--sp);
+        Value target = *(--sp);
+        
+        if (IS_ARRAY(target) && IS_INT(index)) {
+            Array* arr = (Array*)AS_OBJ(target);
+            int idx = (int)AS_INT(index);
+            
+            if (idx >= 0 && idx < arr->count) {
+                *sp++ = arr->items[idx];
+            } else {
+                // Out of bounds - return nil
+                *sp++ = NIL_VAL;
+            }
+        } else if (IS_MAP(target)) {
+            // TODO: Map indexing
+            *sp++ = NIL_VAL;
+        } else {
+            *sp++ = NIL_VAL;
+        }
+        NEXT();
+    }
+    
+    op_store_index: {
+        // target[index] = value
+        Value value = *(--sp);
+        Value index = *(--sp);
+        Value target = *(--sp);
+        
+        if (IS_ARRAY(target) && IS_INT(index)) {
+            Array* arr = (Array*)AS_OBJ(target);
+            int idx = (int)AS_INT(index);
+            
+            // Auto-grow array if needed
+            if (idx >= 0) {
+                if (idx >= arr->capacity) {
+                    int newCap = idx + 1;
+                    if (newCap < arr->capacity * 2) newCap = arr->capacity * 2;
+                    arr->items = realloc(arr->items, newCap * sizeof(Value));
+                    arr->capacity = newCap;
+                }
+                if (idx >= arr->count) {
+                    // Fill gaps with nil
+                    for (int i = arr->count; i < idx; i++) {
+                        arr->items[i] = NIL_VAL;
+                    }
+                    arr->count = idx + 1;
+                }
+                arr->items[idx] = value;
+            }
+        }
+        // Map indexing handled separately
+        *sp++ = value;  // Assignment evaluates to value
+        NEXT();
+    }
+    
+    op_new_array: {
+        Array* arr = newArray(vm);
+        *sp++ = OBJ_VAL(arr);
+        NEXT();
+    }
+    
+    op_new_map: {
+        Map* m = newMap(vm);
+        *sp++ = OBJ_VAL(m);
+        NEXT();
+    }
+    
+    op_new_object:
+        // TODO: Struct instantiation
+        *sp++ = NIL_VAL;
+        NEXT();
+    
+    op_array_push: {
+        // Assumes: stack has [array, value]
+        Value val = *(--sp);
+        Value arrVal = sp[-1];  // Peek array
+        
+        if (IS_ARRAY(arrVal)) {
+            Array* arr = (Array*)AS_OBJ(arrVal);
+            arrayPush(vm, arr, val);
+        }
+        NEXT();
+    }
+    
+    op_array_pop: {
+        Value arrVal = sp[-1];  // Peek array
+        
+        if (IS_ARRAY(arrVal)) {
+            Array* arr = (Array*)AS_OBJ(arrVal);
+            if (arr->count > 0) {
+                arr->count--;
+                *sp++ = arr->items[arr->count];
+            } else {
+                *sp++ = NIL_VAL;
+            }
+        } else {
+            *sp++ = NIL_VAL;
+        }
+        NEXT();
+    }
+    
+    op_array_len: {
+        Value arrVal = sp[-1];  // Peek
+        
+        if (IS_ARRAY(arrVal)) {
+            Array* arr = (Array*)AS_OBJ(arrVal);
+            sp[-1] = INT_VAL(arr->count);
+        } else if (IS_MAP(arrVal)) {
+            Map* m = (Map*)AS_OBJ(arrVal);
+            // Count map entries
+            int count = 0;
+            for (int i = 0; i < TABLE_SIZE; i++) {
+                MapEntry* e = m->buckets[i];
+                while (e) {
+                    count++;
+                    e = e->next;
+                }
+            }
+            sp[-1] = INT_VAL(count);
+        } else {
+            sp[-1] = INT_VAL(0);
+        }
+        NEXT();
+    }
     
     // === JIT INTEGRATION ===
     op_hotspot_check: {
