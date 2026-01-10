@@ -262,7 +262,35 @@ static void compileExpression(Compiler* c, Node* node) {
             break;
         }
 
+        case NODE_EXPR_GET: {
+            compileExpression(c, node->get.object);
+            
+            Token name = node->get.name;
+            char* propName = strndup(name.start, name.length);
+            ObjString* nameStr = internString(c->vm, propName, name.length);
+            free(propName);
+            
+            int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
+            emitBytes(c, OP_LOAD_PROPERTY, (uint8_t)constIdx, line);
+            break;
+        }
+        
+        case NODE_STMT_ASSIGN: {
+            compileExpression(c, node->assign.value);
+            Token name = node->assign.name;
+            int local = resolveLocal(c, name.start, name.length);
+            if (local != -1) {
+                emitBytes(c, OP_STORE_LOCAL, (uint8_t)local, line);
+            } else {
+                char* varName = strndup(name.start, name.length);
+                ObjString* nameStr = internString(c->vm, varName, name.length);
+                free(varName);
 
+                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
+                emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
+            }
+            break;
+        }
         
         default:
             break;
@@ -397,7 +425,7 @@ static void compileStatement(Compiler* c, Node* node) {
             compileStatement(c, node->whileStmt.body);
             
             // Loop back
-            int offset = c->chunk->codeSize - loopStart + 2;
+            int offset = c->chunk->codeSize - loopStart + 3;
             emitByte(c, OP_LOOP, line);
             emitByte(c, (offset >> 8) & 0xff, line);
             emitByte(c, offset & 0xff, line);
@@ -408,6 +436,62 @@ static void compileStatement(Compiler* c, Node* node) {
             break;
         }
         
+        case NODE_STMT_FOR: {
+            // New scope for loop variable
+            c->scopeDepth++;
+            
+            // Initializer
+            if (node->forStmt.initializer) {
+                if (node->forStmt.initializer->type == NODE_STMT_VAR_DECL) {
+                    compileStatement(c, node->forStmt.initializer);
+                } else {
+                    compileExpression(c, node->forStmt.initializer);
+                    emitByte(c, OP_POP, line); // Expression stmt pops
+                }
+            }
+            
+            int loopStart = c->chunk->codeSize;
+            emitByte(c, OP_LOOP_HEADER, line);
+            
+            // Condition
+            int exitJump = -1;
+            if (node->forStmt.condition) {
+                compileExpression(c, node->forStmt.condition);
+                exitJump = emitJump(c, OP_JUMP_IF_FALSE, line);
+                emitByte(c, OP_POP, line); // Pop condition result
+            }
+            
+            // Body
+            compileStatement(c, node->forStmt.body);
+            
+            // Increment
+            if (node->forStmt.increment) {
+                compileExpression(c, node->forStmt.increment);
+                emitByte(c, OP_POP, line);
+            }
+            
+            // Loop back
+            int offset = c->chunk->codeSize - loopStart + 3;
+            emitByte(c, OP_LOOP, line);
+            emitByte(c, (offset >> 8) & 0xff, line);
+            emitByte(c, offset & 0xff, line);
+            
+            // Patch exit
+            if (exitJump != -1) {
+                patchJump(c->chunk, exitJump);
+                emitByte(c, OP_POP, line); // Pop condition result (if jumped)
+            }
+            
+            // End scope
+            c->scopeDepth--;
+            while (c->localCount > 0 &&
+                   c->locals[c->localCount - 1].depth > c->scopeDepth) {
+                emitByte(c, OP_POP, line);
+                c->localCount--;
+            }
+            break;
+        }
+
         case NODE_STMT_BLOCK: {
             c->scopeDepth++;
             for (int i = 0; i < node->block.count; i++) {
