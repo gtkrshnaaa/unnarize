@@ -101,6 +101,13 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
     OpCode op = (OpCode)code[*ip];
     (*ip)++;
     
+    // Debug: print opcode being compiled
+    static int debugCount = 0;
+    if (debugCount < 20) {
+        fprintf(stderr, "JIT: Compiling opcode %d at ip=%d\n", op, *ip - 1);
+        debugCount++;
+    }
+    
     switch (op) {
         case OP_LOAD_IMM: {
             // Load 32-bit immediate value
@@ -382,7 +389,6 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
         case OP_LE:
         case OP_GT:
         case OP_GE:
-        case OP_NE:
             // Generic comparisons (simplified - treat as integer for now)
             switch (op) {
                 case OP_LT:
@@ -455,6 +461,34 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
             size_t skipTarget = getCurrentPosition(&ctx->as);
             patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
+            ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_NE: {
+            // Generic not equal
+            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            size_t skipPos = getCurrentPosition(&ctx->as);
+            emit_je(&ctx->as, 0);
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
+            size_t skipTarget = getCurrentPosition(&ctx->as);
+            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
+            ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_NOT:
+        case OP_AND:
+        case OP_OR:
+            // Logical operations - simplified implementation
+            // For now, just emit NOP (will implement properly later)
+            emit_nop(&ctx->as);
+            break;
+        
+        case OP_PRINT: {
+            // Print operation - for now, just pop the value
+            // In full implementation, would call native print function
             ctx->stackDepth--;
             break;
         }
