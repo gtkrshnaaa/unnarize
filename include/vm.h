@@ -216,7 +216,11 @@ struct Function {
     bool isNative;
     NativeFn native;
     bool isAsync;
+    struct BytecodeChunk* bytecodeChunk; // Bytecode for this function
 };
+
+// Forward declaration
+struct BytecodeChunk;
 
 // VM constants
 #define STACK_MAX 65536           // Maximum stack size
@@ -225,9 +229,13 @@ struct Function {
 // Call frame structure for function calls
 struct CallFrame {
     Environment* env;       // Previous environment
-    int fp;                 // Previous frame pointer
+    int fp;                 // Previous frame pointer (stack index)
     Value returnValue;      // Function return value
     bool hasReturned;       // Whether function has returned
+    
+    // Bytecode support
+    uint8_t* ip;            // Return address (caller's IP)
+    struct BytecodeChunk* chunk; // Caller's chunk
 };
 
 // Module cache entry
