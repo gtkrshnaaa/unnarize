@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -O3 -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Wextra -std=c11 -O3 -march=native -mtune=native -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl -lpthread -Wl,-export-dynamic
 
 SRCDIR = src
@@ -206,4 +206,23 @@ core_list:
 
 .PHONY: all clean install uninstall run modularity-run arrays-maps-run project-test-run async-demo-run run-all run-docssource list_source core_list \
     build-plugin run-math-lib-demo build-plugin-strings run-string-lib-demo \
-    build-plugin-time run-time-lib-demo build-plugins-all plugins-demo-run
+    build-plugin-time run-time-lib-demo build-plugins-all plugins-demo-run \
+    benchmark-bytecode-vm
+
+# Bytecode VM Benchmark (for 1B ops/sec challenge)
+benchmark-bytecode-vm: all
+	@echo "Building bytecode VM benchmark..."
+	$(CC) $(CFLAGS) -o $(BINDIR)/benchmark_bvm examples/benchmark_bytecode_vm.c \
+		$(OBJDIR)/bytecode.o $(OBJDIR)/bytecode_vm.o $(OBJDIR)/compiler.o \
+		$(OBJDIR)/parser.o $(OBJDIR)/lexer.o $(OBJDIR)/gc.o \
+		$(OBJDIR)/resolver.o $(OBJDIR)/vm.o \
+		$(OBJDIR)/ucore_http.o $(OBJDIR)/ucore_system.o \
+		$(OBJDIR)/ucore_timer.o $(OBJDIR)/ucore_uon.o \
+		$(LDFLAGS)
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════════╗"
+	@echo "║      Running Bytecode VM Performance Benchmark       ║"
+	@echo "║      Target: 60M ops/sec (Milestone 1)              ║"
+	@echo "╚═══════════════════════════════════════════════════════╝"
+	@echo ""
+	@./$(BINDIR)/benchmark_bvm

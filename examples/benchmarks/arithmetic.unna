@@ -1,0 +1,18 @@
+// Benchmark 2: Integer arithmetic heavy
+// Tests arithmetic operations performance
+
+print("=== Benchmark 2: Integer Arithmetic ===");
+print("Computing sum with multiplication...");
+print("");
+
+var iterations = 1000000;
+var sum = 0;
+var i = 0;
+
+while (i < iterations) {
+    sum = sum + i * 2;
+    i = i + 1;
+}
+
+print("Completed!");
+print("Result: " + sum);
