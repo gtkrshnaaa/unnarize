@@ -109,6 +109,9 @@ typedef enum {
     OP_NEW_MAP,         // Create new map
     OP_NEW_OBJECT,      // Create new object/struct
     
+    // === Structs ===
+    OP_STRUCT_DEF,      // Define struct (count byte + fields on stack)
+    
     // === Array Operations ===
     OP_ARRAY_PUSH,      // Push to array
     OP_ARRAY_POP,       // Pop from array
@@ -124,6 +127,7 @@ typedef enum {
     OP_PRINT,           // Built-in print (debug)
     OP_HALT,            // Halt execution
     OP_NOP,             // No operation
+    OP_ARRAY_PUSH_CLEAN, // Push to array and pop array from stack (Net -2)
     
     // === Total: ~100 opcodes for complete coverage ===
     OPCODE_COUNT

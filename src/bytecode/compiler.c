@@ -1,8 +1,12 @@
 #include "bytecode/compiler.h"
 #include "bytecode/opcodes.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "lexer.h"
+
+// #define DEBUG_PRINT_CODE
+
+#ifdef DEBUG_PRINT_CODE
+// #include "bytecode/debug.h"
+#endif
 
 /**
  * AST → Bytecode Compiler
@@ -196,8 +200,10 @@ static void compileExpression(Compiler* c, Node* node) {
                     if (arg && arg->next) { // Ensure 2 args
                         compileExpression(c, arg);       // Array
                         compileExpression(c, arg->next); // Value
-                        emitByte(c, OP_ARRAY_PUSH, line);
+                        emitByte(c, OP_ARRAY_PUSH_CLEAN, line);
+                        // emitByte(c, OP_POP, line); // CLEAN opcode pops array
                         emitByte(c, OP_LOAD_NIL, line); 
+                        emitByte(c, OP_LOAD_NIL, line); // HACK: Compensate for mysterious Drift -1
                     }
                     isBuiltin = true;
                 } else if (strcmp(funcName, "pop") == 0) {
@@ -332,7 +338,7 @@ static void compileStatement(Compiler* c, Node* node) {
                 // Local variable
                 char* varName = strndup(name.start, name.length);
                 int slot = addLocal(c, varName);
-                // Note: varName is stored in c->locals, do NOT free it here!
+                c->locals[slot].depth = c->scopeDepth; // Initialize depth
                 emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
             } else {
                 // Global variable
@@ -491,13 +497,15 @@ static void compileStatement(Compiler* c, Node* node) {
             emitByte(c, OP_LOAD_INDEX, line);
             
             // Assign to user variable
-            // New scope for body? No, scopeDepth++ handled it.
-            // Declare user variable
+            // Create inner scope for loop variable
+            c->scopeDepth++;
             Token iterator = node->foreachStmt.iterator;
             char* iterName = strndup(iterator.start, iterator.length);
             addLocal(c, iterName); // New slot
+            c->locals[c->localCount - 1].depth = c->scopeDepth; // Mark initialized!
+            
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            emitByte(c, OP_POP, line);
+            // NO POP! Keep it on stack to protect slot.ine);
 
             // 7. Body
             compileStatement(c, node->foreachStmt.body);
@@ -772,7 +780,7 @@ bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     
 #ifdef DEBUG_PRINT_CODE
     if (!compiler.hadError) {
-        // disassembleChunk(chunk, "code");
+        disassembleChunk(chunk, "code");
     }
 #endif
     

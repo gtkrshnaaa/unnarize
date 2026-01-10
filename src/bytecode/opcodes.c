@@ -120,7 +120,8 @@ static const OpcodeInfo OPCODE_TABLE[] = {
     // Special
     {"PRINT", 0, true},
     {"HALT", 0, true},
-    {"NOP", 0, false},
+    [OP_NOP] = {"NOP", 0, false},
+    [OP_ARRAY_PUSH_CLEAN] = {"ARRAY_PUSH_CLEAN", 0, true},
 };
 
 const OpcodeInfo* getOpcodeInfo(OpCode op) {

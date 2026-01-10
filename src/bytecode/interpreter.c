@@ -51,9 +51,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         &&op_call, &&op_call_0, &&op_call_1, &&op_call_2, &&op_return, &&op_return_nil,
         &&op_load_property, &&op_store_property, &&op_load_index, &&op_store_index,
         &&op_new_array, &&op_new_map, &&op_new_object,
+        &&op_struct_def, // NEW
         &&op_array_push, &&op_array_pop, &&op_array_len,
         &&op_hotspot_check, &&op_osr_entry, &&op_compiled_call, &&op_deopt,
-        &&op_print, &&op_halt, &&op_nop
+        &&op_print, &&op_halt, &&op_nop,
+        &&op_array_push_clean
     };
     
     // #define TRACE_EXECUTION 1
@@ -124,10 +126,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
     op_store_local: {
         uint8_t slot = *ip++;
-        fp[slot] = sp[-1];
+        fp[slot] = sp[-1]; 
         NEXT();
     }
     
+
     op_load_local_0: {
         *sp++ = fp[0];
         NEXT();
@@ -690,9 +693,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_loop: {
-        uint16_t offset = (*ip++) << 8;
-        offset |= *ip++;
-        // printf("Looping back by %d bytes. Current IP: %p, Target IP: %p\n", offset, ip, ip - offset);
+        uint16_t offset = (uint16_t)(chunk->code[(int)(ip - chunk->code)] << 8);
+        offset |= chunk->code[(int)(ip - chunk->code) + 1];
+        ip += 2;
         ip -= offset;
         NEXT();
     }
@@ -700,7 +703,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_loop_header: {
         // Hotspot detection for JIT compilation (Phase 2 - Full Native JIT)
         int offset = (int)(ip - chunk->code - 1);
-        if (offset >= 0 && offset < chunk->hotspotCapacity) {
+        if (chunk->hotspots && offset >= 0 && offset < chunk->hotspotCapacity) {
             chunk->hotspots[offset]++;
             
             // Check if we should JIT compile this function
@@ -753,7 +756,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     do_call: {
         Value funcVal = sp[-argCount - 1];
         if (!IS_OBJ(funcVal)) {
-            printf("Runtime Error: Attempt to call non-function value. (Val Type: %d)\n", funcVal.type);
+            printf("Runtime Error: Attempt to call non-function value. (Val Type: %d, VAL_OBJ=%d)\n", funcVal.type, VAL_OBJ);
             exit(1);
         }
         
@@ -762,9 +765,14 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         if (obj->type == OBJ_FUNCTION) {
              Function* func = (Function*)obj;
              if (func->isNative) {
+                 vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
                  Value result = func->native(vm, sp - argCount, argCount);
                  sp -= argCount + 1; 
                  *sp++ = result;
+                 // vm->stackTop is potentially modified by native (e.g. if it uses stack)
+                 // But typically native returns value and we manage stack.
+                 // We don't need to reload sp from stackTop unless native messed with it uniquely?
+                 // Standard native contract: uses args pointer, returns Value.
                  NEXT();
              } else {
                  if (argCount != func->paramCount) {
@@ -783,13 +791,37 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  frame->fp = vm->fp; 
                  frame->function = func; // Root the function 
                  
-                 vm->fp = (int)((sp - argCount) - vm->stack);
+                 // Fix: Compiler expects slot 0 to be the function/receiver.
+                 // So FP must point to the Function object on stack (sp - argCount - 1).
+                 vm->fp = (int)((sp - argCount - 1) - vm->stack);
                  fp = vm->stack + vm->fp;
                  
                  chunk = func->bytecodeChunk;
                  ip = chunk->code;
                  NEXT();
              }
+        } else if (obj->type == OBJ_STRUCT_DEF) {
+             StructDef* def = (StructDef*)obj;
+             if (argCount != def->fieldCount) {
+                 printf("Runtime Error: Struct constructor for '%s' expected %d arguments but got %d.\n", 
+                        def->name, def->fieldCount, argCount);
+                 exit(1);
+             }
+             
+             vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
+             StructInstance* inst = ALLOCATE_OBJ(vm, StructInstance, OBJ_STRUCT_INSTANCE);
+             inst->def = def;
+             inst->fields = malloc(sizeof(Value) * def->fieldCount);
+             
+             // Copy args to fields
+             // Stack: [..., func, arg0, arg1, ..., argN] (sp points after argN)
+             for (int i = 0; i < argCount; i++) {
+                 inst->fields[i] = sp[-argCount + i];
+             }
+             
+             sp -= argCount + 1; // Pop func and args
+             *sp++ = OBJ_VAL(inst);
+             NEXT();
         } else {
              printf("Runtime Error: Call on non-function object. (Type: %d)\n", obj->type);
              exit(1);
@@ -829,44 +861,80 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
     // === OBJECTS ===
     op_load_property: {
-        Value target = *(--sp);
-        uint8_t constIdx = *ip++;
-        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+        Value nameVal = chunk->constants[*ip++];
+        ObjString* name = AS_STRING(nameVal);
+        Value objVal = sp[-1]; // Peek
         
-        if (IS_OBJ(target)) {
-             if (AS_OBJ(target)->type == OBJ_MODULE) {
-                 Module* mod = (Module*)AS_OBJ(target);
+        if (IS_OBJ(objVal)) {
+            Obj* obj = AS_OBJ(objVal);
+            
+            // Struct Instance Handling
+            if (obj->type == OBJ_STRUCT_INSTANCE) {
+                StructInstance* inst = (StructInstance*)obj;
+                bool found = false;
+                for (int i = 0; i < inst->def->fieldCount; i++) {
+                    if (strcmp(inst->def->fields[i], name->chars) == 0) {
+                        sp[-1] = inst->fields[i]; // Replace instance with property value
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    sp[-1] = NIL_VAL; // Property not found, replace with NIL
+                }
+                NEXT();
+            }
+            // Module Handling
+            else if (obj->type == OBJ_MODULE) {
+                 Module* mod = (Module*)AS_OBJ(objVal);
                  unsigned int h = name->hash % TABLE_SIZE;
                  VarEntry* e = mod->env->buckets[h];
                  while (e) {
-                     if (e->key == name->chars) { // Pointer equality safe due to interning
+                     if (e->key == name->chars) { // Pointer equality safe
+                         sp--; // Pop instance
                          *sp++ = e->value;
-                         goto property_loaded;
+                         NEXT();
                      }
                      e = e->next;
                  }
-                 // Not found
-                 printf("Runtime Error: Undefined property '%s' in module '%s'\n", name->chars, mod->name);
-                 exit(1);
-             } else if (AS_OBJ(target)->type == OBJ_STRUCT_INSTANCE) {
-                 // TODO: Struct property access
-                 *sp++ = NIL_VAL; 
-             } else {
-                 printf("Runtime Error: Only instances and modules have properties.\n");
-                 exit(1);
-             }
-        } else {
-             printf("Runtime Error: Only instances and modules have properties.\n");
-             exit(1);
+            }
         }
         
-        property_loaded:
-        NEXT();
+        printf("Runtime Error: Only instances and structs have properties.\n");
+        exit(1);
     }
-
-    op_store_property:
-        // TODO: Implement property assignment
-        NEXT();
+    
+    op_store_property: {
+        Value val = *(--sp);      // Value to store
+        Value nameVal = chunk->constants[*ip++]; // Name
+        ObjString* name = AS_STRING(nameVal);
+        Value objVal = sp[-1];    // Target object (peek)
+        
+        if (IS_OBJ(objVal)) {
+            Obj* obj = AS_OBJ(objVal);
+            
+            if (obj->type == OBJ_STRUCT_INSTANCE) {
+                StructInstance* inst = (StructInstance*)obj;
+                int fieldIdx = -1;
+                for (int i = 0; i < inst->def->fieldCount; i++) {
+                    if (strcmp(inst->def->fields[i], name->chars) == 0) {
+                        fieldIdx = i;
+                        break;
+                    }
+                }
+                if (fieldIdx != -1) {
+                    inst->fields[fieldIdx] = val;
+                } else {  printf("Runtime Error: Struct '%s' has no field '%s'.\n", inst->def->name, name->chars);
+                    exit(1);
+                }
+                sp[-1] = val; // Replace instance with value
+                *sp++ = val; // Push value back onto stack
+                NEXT();
+            }
+        }
+        printf("Runtime Error: Only instances and structs have properties.\n");
+        exit(1);
+    }
     
     op_load_index: {
         // target[index] - read
@@ -889,6 +957,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                 ObjString* key = AS_STRING(index);
                 int bucket;
                 MapEntry* e = mapFindEntry(map, key->chars, key->length, &bucket);
+                *sp++ = e ? e->value : NIL_VAL;
+            } else if (IS_INT(index)) {
+                int key = (int)AS_INT(index);
+                int bucket;
+                MapEntry* e = mapFindEntryInt(map, key, &bucket);
                 *sp++ = e ? e->value : NIL_VAL;
             } else {
                 *sp++ = NIL_VAL;
@@ -941,12 +1014,14 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_new_array: {
+        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
         Array* arr = newArray(vm);
         *sp++ = OBJ_VAL(arr);
         NEXT();
     }
     
     op_new_map: {
+        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
         Map* m = newMap(vm);
         *sp++ = OBJ_VAL(m);
         NEXT();
@@ -959,10 +1034,54 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
+    op_struct_def: {
+        uint8_t fieldCount = *ip++;
+        
+        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
+        
+        StructDef* s = ALLOCATE_OBJ(vm, StructDef, OBJ_STRUCT_DEF);
+        s->fieldCount = fieldCount;
+        s->fields = malloc(sizeof(char*) * fieldCount);
+        
+        for (int i = fieldCount - 1; i >= 0; i--) {
+            Value fVal = *(--sp); // Pop field name
+            ObjString* fStr = AS_STRING(fVal);
+            char* f = malloc(fStr->length + 1);
+            memcpy(f, fStr->chars, fStr->length);
+            f[fStr->length] = 0;
+            s->fields[i] = f;
+        }
+        
+        Value nameVal = *(--sp); // Pop name
+        ObjString* nameStr = AS_STRING(nameVal);
+        s->name = nameStr->chars; 
+        
+        // Push StructDef as Value
+        *sp++ = OBJ_VAL(s);
+        
+        NEXT();
+    }
+    
     op_array_push: {
-        // Stack: [array, value] -> [array]
+        // Stack: [array, value] -> [] (Compiler emits OP_LOAD_NIL after this)
         Value val = *(--sp);      // Pop value
-        Value arrVal = sp[-1];    // Peek array (don't pop!)
+        Value arrVal = sp[-1];    // Peek array
+        
+        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
+        
+        if (IS_ARRAY(arrVal)) {
+            Array* arr = (Array*)AS_OBJ(arrVal);
+            arrayPush(vm, arr, val);
+        }
+        NEXT();
+    }
+    
+    op_array_push_clean: {
+        // Stack: [array, value] -> [] (Consumes both)
+        Value val = *(--sp);      // Pop value
+        Value arrVal = *(--sp);   // Pop array
+        
+        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
         
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
@@ -972,14 +1091,15 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_array_pop: {
-        // Stack: [array] -> [result] (Overwrite)
-        Value arrVal = sp[-1];  // Use top value
+        // Stack: [array] -> [result]
+        Value arrVal = sp[-1];  // Peek array (Stack size 1 -> 1)
         
+        // We overwrite the array slot with the result
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
-            if (arr->count > 0) {
-                arr->count--;
-                sp[-1] = arr->items[arr->count]; // Overwrite array with popped value
+            Value result;
+            if (arrayPop(arr, &result)) {
+                sp[-1] = result;
             } else {
                 sp[-1] = NIL_VAL;
             }
@@ -989,18 +1109,17 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
-
-    
     op_array_len: {
+        // Stack: [array] -> [int]
         Value arrVal = sp[-1];  // Peek
+        int count = 0;
         
         if (IS_ARRAY(arrVal)) {
-            Array* arr = (Array*)AS_OBJ(arrVal);
-            sp[-1] = INT_VAL(arr->count);
+            count = ((Array*)AS_OBJ(arrVal))->count;
+        } else if (IS_STRING(arrVal)) {
+            count = ((ObjString*)AS_OBJ(arrVal))->length;
         } else if (IS_MAP(arrVal)) {
             Map* m = (Map*)AS_OBJ(arrVal);
-            // Count map entries
-            int count = 0;
             for (int i = 0; i < TABLE_SIZE; i++) {
                 MapEntry* e = m->buckets[i];
                 while (e) {
@@ -1008,10 +1127,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                     e = e->next;
                 }
             }
-            sp[-1] = INT_VAL(count);
-        } else {
-            sp[-1] = INT_VAL(0);
         }
+        
+        sp[-1] = INT_VAL(count); // Overwrite with result
         NEXT();
     }
     
@@ -1019,8 +1137,10 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_hotspot_check: {
         // Increment hotspot counter
         int offset = (int)(ip - chunk->code - 1);
-        if (offset >= 0 && offset < chunk->hotspotCapacity) {
+        if (chunk->hotspots && offset >= 0 && offset < chunk->hotspotCapacity) {
             chunk->hotspots[offset]++;
+        } else if (!chunk->hotspots) {
+             // Safe guard against missing hotspots array
         }
         NEXT();
     }
