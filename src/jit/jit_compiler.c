@@ -532,27 +532,26 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
         }
         
         case OP_JUMP: {
-            // Unconditional jump
-            // Skip offset bytes in bytecode
+            // Unconditional jump - read 2-byte offset
+            int16_t bytecodeOffset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
             *ip += 2;
             
-            // TODO: Implement proper jump patching
-            // For now, just emit a NOP as placeholder
-            emit_nop(&ctx->as);
+            // For now, emit a short forward jump (will be patched later)
+            // JMP with placeholder offset
+            emit_jmp(&ctx->as, 5);  // Skip 5 bytes (placeholder)
             break;
         }
         
         case OP_JUMP_IF_FALSE: {
-            // Conditional jump
-            // Skip offset bytes in bytecode
+            // Conditional jump - read 2-byte offset
+            int16_t bytecodeOffset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
             *ip += 2;
             
-            // TEST RAX, RAX
+            // TEST RAX, RAX (check if false)
             emit_test_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_0);
             
-            // TODO: Implement proper jump patching
-            // For now, just emit a NOP as placeholder
-            emit_nop(&ctx->as);
+            // JE (jump if zero/false) with placeholder offset
+            emit_je(&ctx->as, 5);  // Skip 5 bytes (placeholder)
             
             ctx->stackDepth--;
             break;
