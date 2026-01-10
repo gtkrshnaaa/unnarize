@@ -237,6 +237,14 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             }
             break;
         
+        case OP_LOAD_GLOBAL:
+        case OP_STORE_GLOBAL:
+        case OP_DEFINE_GLOBAL:
+            // Global variables - fallback to interpreter for now
+            // Requires accessing VM's global environment which is complex
+            fprintf(stderr, "JIT: Global variable ops not implemented - fallback to interpreter\n");
+            return false;
+        
         case OP_NEG_I: {
             // Negate integer: RAX = -RAX
             emit_neg_reg(&ctx->as, STACK_REG_0);
