@@ -19,18 +19,17 @@ static inline uint64_t getMicroseconds() {
 #define STACK_MAX 65536
 
 uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
-    (void)vm; // Silence unused parameter warning for now (used later for Alloc/GC)
-    
     // Performance tracking
     uint64_t startTime = getMicroseconds();
     uint64_t instructionCount = 0;
     
-    // Stack machine
-    Value stack[STACK_MAX];
-    Value* sp = stack;  // Stack pointer in register
+    // Stack machine (Use VM stack properties)
+    Value* sp = vm->stack + vm->stackTop;
+    Value* fp = vm->stack + vm->fp;
     
     // Code pointer
     register uint8_t* ip = chunk->code;  // Instruction pointer in register
+    uint8_t argCount; // For call opcodes
     
 #ifdef __GNUC__
     // === COMPUTED GOTO DISPATCH TABLE ===
@@ -118,28 +117,28 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     // === LOCAL VARIABLES ===
     op_load_local: {
         uint8_t slot = *ip++;
-        *sp++ = stack[slot];
+        *sp++ = fp[slot];
         NEXT();
     }
     
     op_store_local: {
         uint8_t slot = *ip++;
-        stack[slot] = sp[-1];
+        fp[slot] = sp[-1];
         NEXT();
     }
     
     op_load_local_0: {
-        *sp++ = stack[0];
+        *sp++ = fp[0];
         NEXT();
     }
     
     op_load_local_1: {
-        *sp++ = stack[1];
+        *sp++ = fp[1];
         NEXT();
     }
     
     op_load_local_2: {
-        *sp++ = stack[2];
+        *sp++ = fp[2];
         NEXT();
     }
     
@@ -156,7 +155,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
             }
             entry = entry->next;
         }
-        // Not found - standard Lua/JS behavior is nil or error. Unnarize strictness says error.
+        // Not found
         printf("Runtime Error: Undefined global variable '%s'\n", name->chars);
         exit(1);
 
@@ -171,13 +170,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
             if (entry->key == name->chars) {
-                entry->value = sp[-1]; // Peek, assignment evaluates to value
+                entry->value = sp[-1]; 
                 goto global_stored;
             }
             entry = entry->next;
         }
-        // Not found, assume implicit declaration (or error if strict)
-        // Auto-define (fallback)
         
         // Insert new
         VarEntry* newEntry = malloc(sizeof(VarEntry));
@@ -197,12 +194,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         ObjString* name = AS_STRING(chunk->constants[constIdx]);
         unsigned int h = name->hash % TABLE_SIZE;
         
-        // Check if exists (update) or new
+        // Define or Update
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
             if (entry->key == name->chars) {
                 entry->value = sp[-1];
-                NEXT();
+                goto global_defined;
             }
             entry = entry->next;
         }
@@ -216,6 +213,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         newEntry->next = vm->globalEnv->buckets[h];
         vm->globalEnv->buckets[h] = newEntry;
         
+        global_defined:
         NEXT();
     }
     
@@ -664,8 +662,98 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     // === FUNCTION CALLS (Stubs) ===
-    op_call: op_call_0: op_call_1: op_call_2: op_return: op_return_nil:
+    op_call: {
+        argCount = *ip++;
+        goto do_call;
+    }
+        
+    op_call_0: {
+        argCount = 0;
+        goto do_call;
+    }
+        
+    op_call_1: {
+        argCount = 1;
+        goto do_call;
+    }
+        
+    op_call_2: {
+        argCount = 2;
+    }
+        
+    do_call: {
+        Value funcVal = sp[-argCount - 1];
+        if (!IS_OBJ(funcVal)) {
+            printf("Runtime Error: Attempt to call non-function value.\n");
+            exit(1);
+        }
+        
+        Obj* obj = AS_OBJ(funcVal);
+        if (obj->type == OBJ_FUNCTION) {
+             Function* func = (Function*)obj;
+             if (func->isNative) {
+                 Value result = func->native(vm, sp - argCount, argCount);
+                 sp -= argCount + 1; 
+                 *sp++ = result;
+                 NEXT();
+             } else {
+                 if (argCount != func->paramCount) {
+                     printf("Runtime Error: Argument mismatch. Expected %d but got %d.\n", func->paramCount, argCount);
+                     exit(1);
+                 }
+                 
+                 if (vm->callStackTop >= 64) { // hardcoded for now or use CALL_STACK_MAX
+                     printf("Runtime Error: Stack overflow.\n");
+                     exit(1);
+                 }
+                 
+                 CallFrame* frame = &vm->callStack[vm->callStackTop++];
+                 frame->ip = ip;
+                 frame->chunk = chunk;
+                 frame->fp = vm->fp; 
+                 
+                 vm->fp = (int)((sp - argCount) - vm->stack);
+                 fp = vm->stack + vm->fp;
+                 
+                 chunk = func->bytecodeChunk;
+                 ip = chunk->code;
+                 NEXT();
+             }
+        } else {
+             printf("Runtime Error: Call on non-function object.\n");
+             exit(1);
+        }
+    }
+
+    op_return_nil: {
+        Value val; val.type = VAL_NIL; val.intVal = 0;
+        *sp++ = val;
+        goto do_return;
+    }
+        
+    op_return:
+    do_return: {
+        Value retVal = *(--sp);
+        
+        if (vm->callStackTop == 0) {
+            return instructionCount;
+        }
+        
+        // Save pointer to current frame base (Callee args start)
+        Value* calleeFp = vm->stack + vm->fp;
+        
+        vm->callStackTop--;
+        CallFrame* frame = &vm->callStack[vm->callStackTop];
+        vm->fp = frame->fp;
+        fp = vm->stack + vm->fp;
+        chunk = frame->chunk;
+        ip = frame->ip;
+        
+        // Reset SP to where Function object was (CalleeFP - 1)
+        sp = calleeFp - 1; 
+        *sp++ = retVal;
         NEXT();
+    }
     
     
     // === OBJECTS ===
@@ -743,10 +831,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
-    op_new_object:
+    op_new_object: {
         // TODO: Struct instantiation
-        *sp++ = NIL_VAL;
+        Value v; v.type = VAL_NIL; v.intVal = 0;
+        *sp++ = v;
         NEXT();
+    }
     
     op_array_push: {
         // Assumes: stack has [array, value]
