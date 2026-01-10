@@ -236,6 +236,7 @@ struct CallFrame {
     // Bytecode support
     uint8_t* ip;            // Return address (caller's IP)
     struct BytecodeChunk* chunk; // Caller's chunk
+    struct Function* function;   // Executing function (GC Root)
 };
 
 // Module cache entry
