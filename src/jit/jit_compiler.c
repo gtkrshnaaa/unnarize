@@ -121,9 +121,29 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             break;
         }
         
+        case OP_LOAD_CONST: {
+            // Load from constant pool
+            uint8_t constIdx = code[*ip];
+            (*ip)++;
+            
+            // For now, treat constants as immediates (simplified)
+            // In full implementation, would load from chunk->constants
+            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
+        case OP_POP: {
+            // Pop and discard top of stack
+            ctx->stackDepth--;
+            break;
+        }
+        
         case OP_ADD_II: {
             // Integer addition: RAX = RAX + RBX
-            // Assume top two values are in RAX and RBX
             emit_add_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
             ctx->stackDepth--;
             break;
@@ -140,6 +160,31 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             // Integer multiplication: RAX = RAX * RBX
             emit_imul_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
             ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_DIV_II: {
+            // Integer division: RAX = RAX / RBX
+            // x86-64 IDIV uses RDX:RAX, result in RAX
+            // For simplicity, assume no overflow
+            emit_idiv_reg(&ctx->as, STACK_REG_1);
+            ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_MOD_II: {
+            // Integer modulo: RAX = RAX % RBX
+            // IDIV puts remainder in RDX
+            emit_idiv_reg(&ctx->as, STACK_REG_1);
+            // MOV RAX, RDX (move remainder to RAX)
+            emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);
+            ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_NEG_I: {
+            // Negate integer: RAX = -RAX
+            emit_neg_reg(&ctx->as, STACK_REG_0);
             break;
         }
         
@@ -234,6 +279,23 @@ static bool compileInstruction(CompileContext* ctx, int* ip) {
             emit_nop(&ctx->as);
             
             ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_LOOP: {
+            // Backward jump for loops
+            int16_t offset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
+            *ip += 2;
+            
+            // Emit backward jump
+            // Calculate relative offset (negative)
+            emit_jmp(&ctx->as, -(int32_t)offset);
+            break;
+        }
+        
+        case OP_LOOP_HEADER: {
+            // Loop header marker - just a NOP in JIT
+            emit_nop(&ctx->as);
             break;
         }
         
