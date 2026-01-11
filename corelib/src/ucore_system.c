@@ -11,10 +11,10 @@ static Value sys_args(VM* vm, Value* args, int argCount) {
     Array* arr = newArray(vm);
     for (int i = 0; i < vm->argc; i++) {
         ObjString* s = internString(vm, vm->argv[i], strlen(vm->argv[i]));
-        Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
+        Value v = OBJ_VAL(s);
         arrayPush(vm, arr, v);
     }
-    Value vArr; vArr.type = VAL_OBJ; vArr.obj = (Obj*)arr;
+    Value vArr = OBJ_VAL(arr);
     return vArr;
 }
 
@@ -39,7 +39,7 @@ static Value sys_input(VM* vm, Value* args, int argCount) {
         }
         ObjString* s = internString(vm, line, realLen);
         free(line); 
-        Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
+        Value v = OBJ_VAL(s);
         return v;
     }
     
@@ -47,7 +47,7 @@ static Value sys_input(VM* vm, Value* args, int argCount) {
     free(line);
     // Return empty string
     ObjString* empty = internString(vm, "", 0);
-    Value v; v.type = VAL_OBJ; v.obj = (Obj*)empty;
+    Value v = OBJ_VAL(empty);
     return v;
 }
 
@@ -55,28 +55,28 @@ static Value sys_input(VM* vm, Value* args, int argCount) {
 static Value sys_getenv(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_STRING(args[0])) {
         ObjString* empty = internString(vm, "", 0);
-        return (Value){VAL_OBJ, .obj=(Obj*)empty};
+        return OBJ_VAL(empty);
     }
     
     char* val = getenv(AS_CSTRING(args[0]));
     if (val) {
         ObjString* s = internString(vm, val, strlen(val));
-        return (Value){VAL_OBJ, .obj=(Obj*)s};
+        return OBJ_VAL(s);
     }
     ObjString* empty = internString(vm, "", 0);
-    return (Value){VAL_OBJ, .obj=(Obj*)empty};
+    return OBJ_VAL(empty);
 }
 
 // fileExists(path) -> bool
 static Value sys_fileExists(VM* vm, Value* args, int argCount) {
-    if (argCount != 1 || !IS_STRING(args[0])) return (Value){VAL_BOOL, .boolVal=false};
+    if (argCount != 1 || !IS_STRING(args[0])) return BOOL_VAL(false);
     (void)vm;
     
     struct stat st;
     if (stat(AS_CSTRING(args[0]), &st) == 0) {
-        return (Value){VAL_BOOL, .boolVal=true};
+        return BOOL_VAL(true);
     }
-    return (Value){VAL_BOOL, .boolVal=false};
+    return BOOL_VAL(false);
 }
 
 
@@ -98,6 +98,6 @@ void registerUCoreSystem(VM* vm) {
     defineNative(vm, mod->env, "getenv", sys_getenv, 1);
     defineNative(vm, mod->env, "fileExists", sys_fileExists, 1);
 
-    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
+    Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreSystem", vMod);
 }
