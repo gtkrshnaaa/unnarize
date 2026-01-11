@@ -43,10 +43,137 @@ static inline void emitOpPopToBX(Assembler* as) {
     emit_mov_reg_mem(as, REG_RBX, REG_R12, 0);  // RBX = [R12]
     emit_add_reg_imm(as, REG_R12, 8);           // R12 += 8
 }
-
 // Helper: Peek top of operand stack to RAX (don't pop)
 static inline void emitOpPeek(Assembler* as) {
     emit_mov_reg_mem(as, REG_RAX, REG_R12, 0);  // RAX = [R12]
+}
+
+// ============================================================================
+// JIT Runtime Helpers (NanBoxing Compatible)
+// ============================================================================
+
+Value jitAdd(VM* vm, Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) {
+        return INT_VAL(AS_INT(a) + AS_INT(b));
+    }
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return FLOAT_VAL(da + db);
+    }
+    if (IS_STRING(a) || IS_STRING(b)) {
+        // GC Safety: Push operands to VM stack so they are rooted during allocation
+        if (vm->stackTop + 2 >= STACK_MAX) return NIL_VAL; // Stack overflow check?
+        vm->stack[vm->stackTop++] = a;
+        vm->stack[vm->stackTop++] = b;
+        
+        Value result = vm_concatenate(vm, a, b);
+        
+        vm->stackTop -= 2; // Pop
+        return result;
+    }
+    return NIL_VAL;
+}
+
+Value jitSub(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) {
+        return INT_VAL(AS_INT(a) - AS_INT(b));
+    }
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return FLOAT_VAL(da - db);
+    }
+    return NIL_VAL;
+}
+
+Value jitMul(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) {
+        return INT_VAL(AS_INT(a) * AS_INT(b));
+    }
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return FLOAT_VAL(da * db);
+    }
+    return NIL_VAL;
+}
+
+Value jitDiv(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) {
+        int ib = AS_INT(b);
+        if (ib == 0) return NIL_VAL; // TODO: Error
+        return INT_VAL(AS_INT(a) / ib);
+    }
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return FLOAT_VAL(da / db);
+    }
+    return NIL_VAL;
+}
+
+Value jitMod(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) {
+        int ib = AS_INT(b);
+        if (ib == 0) return NIL_VAL;
+        return INT_VAL(AS_INT(a) % ib);
+    }
+    return NIL_VAL;
+}
+
+Value jitNeg(Value a) {
+    if (IS_INT(a)) return INT_VAL(-AS_INT(a));
+    if (IS_FLOAT(a)) return FLOAT_VAL(-AS_FLOAT(a));
+    return NIL_VAL;
+}
+
+Value jitLt(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) return BOOL_VAL(AS_INT(a) < AS_INT(b));
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return BOOL_VAL(da < db);
+    }
+    return BOOL_VAL(false);
+}
+
+Value jitLe(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) return BOOL_VAL(AS_INT(a) <= AS_INT(b));
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return BOOL_VAL(da <= db);
+    }
+    return BOOL_VAL(false);
+}
+
+Value jitGt(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) return BOOL_VAL(AS_INT(a) > AS_INT(b));
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return BOOL_VAL(da > db);
+    }
+    return BOOL_VAL(false);
+}
+
+Value jitGe(Value a, Value b) {
+    if (IS_INT(a) && IS_INT(b)) return BOOL_VAL(AS_INT(a) >= AS_INT(b));
+    if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
+        double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
+        return BOOL_VAL(da >= db);
+    }
+    return BOOL_VAL(false);
+}
+
+Value jitEq(Value a, Value b) {
+    return BOOL_VAL(a == b); // Basic identity for now
+}
+
+Value jitNe(Value a, Value b) {
+    return BOOL_VAL(a != b);
 }
 
 // ============================================================================
@@ -57,6 +184,7 @@ static inline void emitOpPeek(Assembler* as) {
 // Load global variable by constant index
 // Called from JIT: loadGlobalJIT(VM* vm, BytecodeChunk* chunk, uint8_t constIdx)
 // Returns the global variable value as an int64_t (raw bits)
+// Returns the global variable value (NanBoxed)
 int64_t jitLoadGlobal(VM* vm, void* chunkPtr, int constIdx) {
     BytecodeChunk* chunk = (BytecodeChunk*)chunkPtr;
     ObjString* name = AS_STRING(chunk->constants[constIdx]);
@@ -64,13 +192,8 @@ int64_t jitLoadGlobal(VM* vm, void* chunkPtr, int constIdx) {
     VarEntry* entry = vm->globalEnv->buckets[h];
     while (entry) {
         if (entry->key == name->chars) {
-            // Return the raw int value for JIT compatibility
-            if (entry->value.type == VAL_INT) {
-                return entry->value.intVal;
-            } else if (entry->value.type == VAL_BOOL) {
-                return entry->value.boolVal ? 1 : 0;
-            }
-            return 0;  // Other types: return 0 for now
+            // Return the full value (NanBoxed)
+            return (int64_t)entry->value;
         }
         entry = entry->next;
     }
@@ -80,6 +203,7 @@ int64_t jitLoadGlobal(VM* vm, void* chunkPtr, int constIdx) {
 
 // Store global variable by constant index
 // Called from JIT: jitStoreGlobal(VM* vm, BytecodeChunk* chunk, uint8_t constIdx, int64_t value)
+// Store global variable (Value is already NanBoxed)
 void jitStoreGlobal(VM* vm, void* chunkPtr, int constIdx, int64_t value) {
     BytecodeChunk* chunk = (BytecodeChunk*)chunkPtr;
     ObjString* name = AS_STRING(chunk->constants[constIdx]);
@@ -87,7 +211,7 @@ void jitStoreGlobal(VM* vm, void* chunkPtr, int constIdx, int64_t value) {
     VarEntry* entry = vm->globalEnv->buckets[h];
     while (entry) {
         if (entry->key == name->chars) {
-            entry->value = ((Value){VAL_INT, .intVal = value});
+            entry->value = (Value)value;
             return;
         }
         entry = entry->next;
@@ -97,14 +221,15 @@ void jitStoreGlobal(VM* vm, void* chunkPtr, int constIdx, int64_t value) {
     newEntry->key = name->chars;
     newEntry->keyLength = name->length;
     newEntry->ownsKey = false;
-    newEntry->value = ((Value){VAL_INT, .intVal = value});
+    newEntry->value = (Value)value;
     newEntry->next = vm->globalEnv->buckets[h];
     vm->globalEnv->buckets[h] = newEntry;
 }
 
-// Print int64 value from JIT-compiled code
+// Print Value from JIT
 void jitPrint(int64_t value) {
-    printf("%ld\n", (long)value);
+    printValue((Value)value);
+    printf("\n");
 }
 
 // Jump patch entry for forward jumps
@@ -338,127 +463,72 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
-        case OP_ADD_II: {
-            // Pop b to RBX, pop a to RAX, add, push result
-            emitOpPopToBX(&ctx->as);  // RBX = b
-            emitOpPop(&ctx->as);      // RAX = a
-            emit_add_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a + b
-            emitOpPush(&ctx->as);     // Push result
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_SUB_II: {
-            // Pop b to RBX, pop a to RAX, subtract, push result
-            emitOpPopToBX(&ctx->as);  // RBX = b
-            emitOpPop(&ctx->as);      // RAX = a
-            emit_sub_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a - b
-            emitOpPush(&ctx->as);     // Push result
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_MUL_II: {
-            // Pop b to RBX, pop a to RAX, multiply, push result
-            emitOpPopToBX(&ctx->as);  // RBX = b
-            emitOpPop(&ctx->as);      // RAX = a
-            emit_imul_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a * b
-            emitOpPush(&ctx->as);     // Push result
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_DIV_II: {
-            // Pop b to RBX, pop a to RAX, divide, push result
-            // IDIV: RDX:RAX / divisor, quotient in RAX
-            emitOpPopToBX(&ctx->as);  // RBX = b (divisor)
-            emitOpPop(&ctx->as);      // RAX = a (dividend)
-            // Sign-extend RAX to RDX:RAX (CDQ is not in assembler, use XOR then SAR)
-            emit_mov_reg_reg(&ctx->as, REG_RDX, REG_RAX);
-            // SAR RDX, 63 to get sign extension - simplified: just XOR RDX for now (unsigned)
-            emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);  // Simple: unsigned division
-            emit_idiv_reg(&ctx->as, REG_RBX);
-            emitOpPush(&ctx->as);     // Push quotient
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_MOD_II: {
-            // Pop b to RBX, pop a to RAX, modulo, push remainder
-            emitOpPopToBX(&ctx->as);  // RBX = b
-            emitOpPop(&ctx->as);      // RAX = a
-            emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);  // Clear RDX
-            emit_idiv_reg(&ctx->as, REG_RBX);
-            emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);  // Remainder in RDX
-            emitOpPush(&ctx->as);     // Push remainder
-            ctx->stackDepth--;
-            break;
-        }
-        
+        case OP_ADD_II: 
         case OP_ADD_FF:
-        case OP_SUB_FF:
-        case OP_MUL_FF:
-        case OP_DIV_FF:
-        case OP_NEG_F:
-            // Float operations - not implemented yet, fallback to interpreter
-            fprintf(stderr, "JIT: Float ops not implemented yet\n");
-            return false;
-        
-        case OP_ADD:
-        case OP_SUB:
-        case OP_MUL:
-        case OP_DIV:
-        case OP_MOD:
-        case OP_NEG:
-            // Generic arithmetic - use memory stack
-            switch (op) {
-                case OP_ADD:
-                    emitOpPopToBX(&ctx->as);
-                    emitOpPop(&ctx->as);
-                    emit_add_reg_reg(&ctx->as, REG_RAX, REG_RBX);
-                    emitOpPush(&ctx->as);
-                    ctx->stackDepth--;
-                    break;
-                case OP_SUB:
-                    emitOpPopToBX(&ctx->as);
-                    emitOpPop(&ctx->as);
-                    emit_sub_reg_reg(&ctx->as, REG_RAX, REG_RBX);
-                    emitOpPush(&ctx->as);
-                    ctx->stackDepth--;
-                    break;
-                case OP_MUL:
-                    emitOpPopToBX(&ctx->as);
-                    emitOpPop(&ctx->as);
-                    emit_imul_reg_reg(&ctx->as, REG_RAX, REG_RBX);
-                    emitOpPush(&ctx->as);
-                    ctx->stackDepth--;
-                    break;
-                case OP_DIV:
-                    emitOpPopToBX(&ctx->as);
-                    emitOpPop(&ctx->as);
-                    emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);
-                    emit_idiv_reg(&ctx->as, REG_RBX);
-                    emitOpPush(&ctx->as);
-                    ctx->stackDepth--;
-                    break;
-                case OP_MOD:
-                    emitOpPopToBX(&ctx->as);
-                    emitOpPop(&ctx->as);
-                    emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);
-                    emit_idiv_reg(&ctx->as, REG_RBX);
-                    emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);
-                    emitOpPush(&ctx->as);
-                    ctx->stackDepth--;
-                    break;
-                case OP_NEG:
-                    emitOpPop(&ctx->as);
-                    emit_neg_reg(&ctx->as, REG_RAX);
-                    emitOpPush(&ctx->as);
-                    break;
-                default:
-                    break;
-            }
+        case OP_ADD: {
+            // Pop b to RSI, a to RDI
+            // CALL jitAdd(VM* vm, Value a, Value b)
+            // RDI = vm (R15), RSI = a, RDX = b
+            
+            // 1. Pop b to RDX
+            emit_mov_reg_mem(&ctx->as, REG_RDX, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            // 2. Pop a to RSI
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            // 3. VM to RDI
+            emit_mov_reg_reg(&ctx->as, REG_RDI, REG_R15);
+            
+            emit_call_abs(&ctx->as, jitAdd);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
             break;
+        }
+
+        case OP_SUB_II:
+        case OP_SUB_FF:
+        case OP_SUB: {
+            // Pop b to RSI, a to RDI
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitSub);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_MUL_II: 
+        case OP_MUL_FF:
+        case OP_MUL: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitMul);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_DIV_II:
+        case OP_DIV_FF:
+        case OP_DIV: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitDiv);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_MOD_II:
+        case OP_MOD: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitMod);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        // Duplicate OP_NEG removed
+
         
         case OP_LOAD_GLOBAL: {
             // Load global variable using JIT helper
@@ -595,187 +665,68 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
-        case OP_LT_II: {
-            // Pop b to RBX, pop a to RAX, compare, push result
-            emitOpPopToBX(&ctx->as);  // RBX = b
-            emitOpPop(&ctx->as);      // RAX = a
-            emit_cmp_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // Compare a vs b
-            // Set result: 1 if a < b, 0 otherwise
-            emit_mov_reg_imm32(&ctx->as, REG_RAX, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jge(&ctx->as, 0);  // Jump if a >= b (not less)
-            emit_mov_reg_imm32(&ctx->as, REG_RAX, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            emitOpPush(&ctx->as);  // Push result
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_LE_II: {
-            // Integer less than or equal: RAX <= RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jg(&ctx->as, 0);  // Jump if greater
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_GT_II: {
-            // Integer greater than: RAX > RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jle(&ctx->as, 0);  // Jump if less or equal
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_GE_II: {
-            // Integer greater than or equal: RAX >= RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jl(&ctx->as, 0);  // Jump if less
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_EQ_II: {
-            // Integer equality: RAX == RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jne(&ctx->as, 0);  // Jump if not equal
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            ctx->stackDepth--;
-            break;
-        }
-        
-        case OP_NE_II: {
-            // Integer not equal: RAX != RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_je(&ctx->as, 0);  // Jump if equal
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-            ctx->stackDepth--;
-            break;
-        }
-        
+        case OP_LT_II:
         case OP_LT_FF:
-        case OP_LE_FF:
-        case OP_GT_FF:
-        case OP_GE_FF:
-        case OP_EQ_FF:
-        case OP_NE_FF:
-            // Float comparisons - not implemented yet
-            fprintf(stderr, "JIT: Float comparisons not implemented yet\n");
-            return false;
-        
-        case OP_LT:
-        case OP_LE:
-        case OP_GT:
-        case OP_GE:
-            // Generic comparisons (simplified - treat as integer for now)
-            switch (op) {
-                case OP_LT:
-                    emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-                    emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-                    {
-                        size_t skipPos = getCurrentPosition(&ctx->as);
-                        emit_jge(&ctx->as, 0);
-                        emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-                        size_t skipTarget = getCurrentPosition(&ctx->as);
-                        patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-                    }
-                    break;
-                case OP_LE:
-                    emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-                    emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-                    {
-                        size_t skipPos = getCurrentPosition(&ctx->as);
-                        emit_jg(&ctx->as, 0);
-                        emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-                        size_t skipTarget = getCurrentPosition(&ctx->as);
-                        patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-                    }
-                    break;
-                case OP_GT:
-                    emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-                    emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-                    {
-                        size_t skipPos = getCurrentPosition(&ctx->as);
-                        emit_jle(&ctx->as, 0);
-                        emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-                        size_t skipTarget = getCurrentPosition(&ctx->as);
-                        patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-                    }
-                    break;
-                case OP_GE:
-                    emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-                    emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-                    {
-                        size_t skipPos = getCurrentPosition(&ctx->as);
-                        emit_jl(&ctx->as, 0);
-                        emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-                        size_t skipTarget = getCurrentPosition(&ctx->as);
-                        patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-                    }
-                    break;
-                case OP_NE:
-                    emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-                    emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-                    {
-                        size_t skipPos = getCurrentPosition(&ctx->as);
-                        emit_je(&ctx->as, 0);
-                        emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-                        size_t skipTarget = getCurrentPosition(&ctx->as);
-                        patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
-                    }
-                    break;
-                default:
-                    break;
-            }
-            ctx->stackDepth--;
-            break;
-        
-        case OP_EQ: {
-            // Generic equality (simplified - treat as integer for now)
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jne(&ctx->as, 0);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
+        case OP_LT: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitLt);
+            emitOpPush(&ctx->as);
             ctx->stackDepth--;
             break;
         }
-        
+
+        case OP_LE_II:
+        case OP_LE_FF:
+        case OP_LE: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitLe);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_GT_II:
+        case OP_GT_FF:
+        case OP_GT: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitGt);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_GE_II:
+        case OP_GE_FF:
+        case OP_GE: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitGe);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_EQ_II:
+        case OP_EQ_FF:
+        case OP_EQ: {
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitEq);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+
+        case OP_NE_II:
+        case OP_NE_FF:
         case OP_NE: {
-            // Generic not equal
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_je(&ctx->as, 0);
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            size_t skipTarget = getCurrentPosition(&ctx->as);
-            patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
+            emit_mov_reg_mem(&ctx->as, REG_RSI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_mov_reg_mem(&ctx->as, REG_RDI, REG_R12, 0); emit_add_reg_imm(&ctx->as, REG_R12, 8);
+            emit_call_abs(&ctx->as, jitNe);
+            emitOpPush(&ctx->as);
             ctx->stackDepth--;
             break;
         }
