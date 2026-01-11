@@ -56,7 +56,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         &&op_new_array, &&op_new_map, &&op_new_object,
         &&op_struct_def, // NEW
         &&op_array_push, &&op_array_pop, &&op_array_len,
-        &&op_hotspot_check, &&op_osr_entry, &&op_compiled_call, &&op_deopt,
+
         &&op_print, &&op_halt, &&op_nop,
         &&op_array_push_clean
     };
@@ -1150,13 +1150,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         NEXT();
     }
     
-    // === JIT INTEGRATION ===
-    op_hotspot_check: {
-        NEXT();
-    }
-    
-    op_osr_entry: op_compiled_call: op_deopt:
-        NEXT();
+
     
     // === SPECIAL ===
     op_print: {

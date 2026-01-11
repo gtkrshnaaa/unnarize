@@ -117,11 +117,7 @@ typedef enum {
     OP_ARRAY_POP,       // Pop from array
     OP_ARRAY_LEN,       // Get array length
     
-    // === Profiling & JIT Integration ===
-    OP_HOTSPOT_CHECK,   // Increment hotspot counter
-    OP_OSR_ENTRY,       // On-stack replacement entry point
-    OP_COMPILED_CALL,   // Call JIT-compiled native code
-    OP_DEOPT,           // Deoptimization bailout
+
     
     // === Special ===
     OP_PRINT,           // Built-in print (debug)

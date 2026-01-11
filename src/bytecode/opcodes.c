@@ -111,11 +111,7 @@ static const OpcodeInfo OPCODE_TABLE[] = {
     {"ARRAY_POP", 0, true},
     {"ARRAY_LEN", 0, false},
     
-    // Profiling/JIT
-    {"HOTSPOT_CHECK", 0, true},
-    {"OSR_ENTRY", 2, false},
-    {"COMPILED_CALL", 2, true},
-    {"DEOPT", 0, true},
+
     
     // Special
     {"PRINT", 0, true},

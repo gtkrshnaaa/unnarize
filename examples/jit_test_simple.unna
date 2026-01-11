@@ -1,9 +1,0 @@
-// Simpler test - just return a value
-function simpleTest() {
-    var x = 42;
-    return x;
-}
-
-var result = simpleTest();
-print("Result: ");
-print(result);

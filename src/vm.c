@@ -9,7 +9,6 @@
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
-#include "jit/jit_compiler.h"  // For JIT cleanup
 
 // TABLE_SIZE and CALL_STACK_MAX are in vm.h
 

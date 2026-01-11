@@ -279,11 +279,7 @@ struct ModuleEntry {
     struct ModuleEntry* next;
 };
 
-// Execution mode for performance optimization
-typedef enum {
-    EXEC_MODE_INTERPRETED,  // Standard tree-walking (current)
-    EXEC_MODE_OPTIMIZED     // JIT-compiled (future)
-} ExecutionMode;
+
 
 // Performance tracking structure
 typedef struct {

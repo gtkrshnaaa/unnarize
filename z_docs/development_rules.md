@@ -50,7 +50,7 @@ Strict guidelines for contributing to Unnarize. Adherence is mandatory to mainta
 ## 5. Directory Structure
 Code must be placed in the correct tier directory:
 - `src/bytecode/`: Interpreter, Opcodes, Chunk management.
-- `src/jit/`: Native code generation, Assembly emitters.
+
 - `src/runtime/`: GC, Object primitives (Strings, Maps), Builtins.
 - `include/`: Public headers matching `src/` structure.
 
