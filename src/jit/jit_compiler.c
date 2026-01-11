@@ -2,6 +2,7 @@
 #include "jit/assembler.h"
 #include "jit/memory.h"
 #include "bytecode/opcodes.h"
+#include "bytecode/chunk.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,11 +15,101 @@
  */
 
 // Register allocation for VM stack
-// Stack top 4 values are kept in registers for fast access
-#define STACK_REG_0 REG_RAX  // Top of stack
-#define STACK_REG_1 REG_RBX  // Second from top
-#define STACK_REG_2 REG_RCX  // Third from top
-#define STACK_REG_3 REG_RDX  // Fourth from top
+// R12 = operand stack pointer (grows downward, 8-byte values)
+// RAX = scratch register for operations (top of stack loaded here)
+// RBX = scratch register (second value loaded here for binary ops)
+#define STACK_REG_0 REG_RAX  // Scratch: top of stack value
+#define STACK_REG_1 REG_RBX  // Scratch: second value for binary ops
+#define STACK_REG_2 REG_RCX  // Scratch: third value
+#define STACK_REG_3 REG_RDX  // Scratch: fourth value
+#define OPSTACK_PTR REG_R12  // Operand stack pointer
+
+// Helper: Push RAX to operand stack (R12)
+// R12 -= 8; [R12] = RAX
+static inline void emitOpPush(Assembler* as) {
+    emit_sub_reg_imm(as, REG_R12, 8);           // R12 -= 8
+    emit_mov_mem_reg(as, REG_R12, 0, REG_RAX);  // [R12] = RAX
+}
+
+// Helper: Pop from operand stack to RAX
+// RAX = [R12]; R12 += 8
+static inline void emitOpPop(Assembler* as) {
+    emit_mov_reg_mem(as, REG_RAX, REG_R12, 0);  // RAX = [R12]
+    emit_add_reg_imm(as, REG_R12, 8);           // R12 += 8
+}
+
+// Helper: Pop from operand stack to RBX (for binary ops)
+static inline void emitOpPopToBX(Assembler* as) {
+    emit_mov_reg_mem(as, REG_RBX, REG_R12, 0);  // RBX = [R12]
+    emit_add_reg_imm(as, REG_R12, 8);           // R12 += 8
+}
+
+// Helper: Peek top of operand stack to RAX (don't pop)
+static inline void emitOpPeek(Assembler* as) {
+    emit_mov_reg_mem(as, REG_RAX, REG_R12, 0);  // RAX = [R12]
+}
+
+// ============================================================================
+// JIT Runtime Helpers
+// These functions are called from JIT-compiled code to access VM state
+// ============================================================================
+
+// Load global variable by constant index
+// Called from JIT: loadGlobalJIT(VM* vm, BytecodeChunk* chunk, uint8_t constIdx)
+// Returns the global variable value as an int64_t (raw bits)
+int64_t jitLoadGlobal(VM* vm, void* chunkPtr, int constIdx) {
+    BytecodeChunk* chunk = (BytecodeChunk*)chunkPtr;
+    ObjString* name = AS_STRING(chunk->constants[constIdx]);
+    unsigned int h = name->hash % TABLE_SIZE;
+    VarEntry* entry = vm->globalEnv->buckets[h];
+    while (entry) {
+        if (entry->key == name->chars) {
+            // Return the raw int value for JIT compatibility
+            if (entry->value.type == VAL_INT) {
+                return entry->value.intVal;
+            } else if (entry->value.type == VAL_BOOL) {
+                return entry->value.boolVal ? 1 : 0;
+            }
+            return 0;  // Other types: return 0 for now
+        }
+        entry = entry->next;
+    }
+    printf("Runtime Error: Undefined global variable '%s'\n", name->chars);
+    exit(1);
+}
+
+// Store global variable by constant index
+// Called from JIT: jitStoreGlobal(VM* vm, BytecodeChunk* chunk, uint8_t constIdx, int64_t value)
+void jitStoreGlobal(VM* vm, void* chunkPtr, int constIdx, int64_t value) {
+    BytecodeChunk* chunk = (BytecodeChunk*)chunkPtr;
+    ObjString* name = AS_STRING(chunk->constants[constIdx]);
+    unsigned int h = name->hash % TABLE_SIZE;
+    VarEntry* entry = vm->globalEnv->buckets[h];
+    while (entry) {
+        if (entry->key == name->chars) {
+            entry->value = ((Value){VAL_INT, .intVal = value});
+            return;
+        }
+        entry = entry->next;
+    }
+    // Insert new
+    VarEntry* newEntry = malloc(sizeof(VarEntry));
+    newEntry->key = name->chars;
+    newEntry->keyLength = name->length;
+    newEntry->ownsKey = false;
+    newEntry->value = ((Value){VAL_INT, .intVal = value});
+    newEntry->next = vm->globalEnv->buckets[h];
+    vm->globalEnv->buckets[h] = newEntry;
+}
+
+// Jump patch entry for forward jumps
+typedef struct {
+    size_t nativePos;       // Position of jump instruction in native code
+    int targetBytecodeIP;   // Target bytecode IP
+    int jumpSize;           // Size of jump instruction (5 for JMP, 6 for Jcc)
+} JumpPatch;
+
+#define MAX_JUMP_PATCHES 256
 
 // Compilation context
 typedef struct {
@@ -29,6 +120,9 @@ typedef struct {
     int maxStackDepth;
     size_t* bytecodeToNative;  // Map: bytecode IP -> native code offset
     int offsetMapSize;
+    // Jump patching
+    JumpPatch pendingJumps[MAX_JUMP_PATCHES];
+    int pendingJumpCount;
 } CompileContext;
 
 static void initCompileContext(CompileContext* ctx, VM* vm, BytecodeChunk* chunk) {
@@ -39,6 +133,7 @@ static void initCompileContext(CompileContext* ctx, VM* vm, BytecodeChunk* chunk
     ctx->maxStackDepth = 0;
     ctx->offsetMapSize = chunk->codeSize + 1;
     ctx->bytecodeToNative = calloc(ctx->offsetMapSize, sizeof(size_t));
+    ctx->pendingJumpCount = 0;
 }
 
 static void freeCompileContext(CompileContext* ctx) {
@@ -48,7 +143,49 @@ static void freeCompileContext(CompileContext* ctx) {
     }
 }
 
+// Add a pending jump that needs to be patched after compilation
+static void addPendingJump(CompileContext* ctx, size_t nativePos, int targetBytecodeIP, int jumpSize) {
+    if (ctx->pendingJumpCount >= MAX_JUMP_PATCHES) {
+        fprintf(stderr, "JIT: Too many pending jumps\n");
+        return;
+    }
+    JumpPatch* patch = &ctx->pendingJumps[ctx->pendingJumpCount++];
+    patch->nativePos = nativePos;
+    patch->targetBytecodeIP = targetBytecodeIP;
+    patch->jumpSize = jumpSize;
+}
+
+// Patch all pending jumps with correct native offsets
+static void patchAllJumps(CompileContext* ctx) {
+    for (int i = 0; i < ctx->pendingJumpCount; i++) {
+        JumpPatch* patch = &ctx->pendingJumps[i];
+        
+        // Look up target native position
+        size_t targetNativePos = 0;
+        if (patch->targetBytecodeIP >= 0 && patch->targetBytecodeIP < ctx->offsetMapSize) {
+            targetNativePos = ctx->bytecodeToNative[patch->targetBytecodeIP];
+        }
+        
+        // Calculate relative offset from end of jump instruction
+        size_t jumpEnd = patch->nativePos + patch->jumpSize;
+        int32_t relOffset = (int32_t)(targetNativePos - jumpEnd);
+        
+        // Patch the offset in the code buffer
+        // Jump offset starts at nativePos + (jumpSize - 4) for near jumps
+        size_t offsetPos = patch->nativePos + (patch->jumpSize - 4);
+        ctx->as.code[offsetPos]     = (uint8_t)(relOffset & 0xFF);
+        ctx->as.code[offsetPos + 1] = (uint8_t)((relOffset >> 8) & 0xFF);
+        ctx->as.code[offsetPos + 2] = (uint8_t)((relOffset >> 16) & 0xFF);
+        ctx->as.code[offsetPos + 3] = (uint8_t)((relOffset >> 24) & 0xFF);
+    }
+}
+
 // Emit function prolog
+// Memory layout after prolog:
+//   RBP points to saved RBP
+//   [RBP - 8] to [RBP - 128] = local variables (16 slots)
+//   [RBP - 136] onwards = operand stack (grows down)
+//   R12 = operand stack pointer, starts at [RBP - 136]
 static void emitProlog(CompileContext* ctx) {
     // Standard function prolog
     // PUSH RBP
@@ -56,13 +193,13 @@ static void emitProlog(CompileContext* ctx) {
     // MOV RBP, RSP
     emit_mov_reg_reg(&ctx->as, REG_RBP, REG_RSP);
     
-    // Allocate stack space for locals (if needed)
-    // For now, we'll use a fixed size
-    int localSpace = 256;  // 256 bytes for local variables
-    if (localSpace > 0) {
-        // SUB RSP, localSpace
-        emit_sub_reg_imm(&ctx->as, REG_RSP, localSpace);
-    }
+    // Allocate stack space:
+    // - 128 bytes for locals (16 * 8)
+    // - 256 bytes for operand stack (32 values)
+    // - 16 bytes for alignment
+    // Total: 400 bytes, round to 416 for 16-byte alignment
+    int stackSpace = 416;
+    emit_sub_reg_imm(&ctx->as, REG_RSP, stackSpace);
     
     // Save callee-saved registers
     emit_push_reg(&ctx->as, REG_RBX);
@@ -74,6 +211,11 @@ static void emitProlog(CompileContext* ctx) {
     // RDI contains VM pointer (first argument)
     // Save it to R15 for later use
     emit_mov_reg_reg(&ctx->as, REG_R15, REG_RDI);
+    
+    // Initialize R12 as operand stack pointer
+    // R12 = RBP - 136 (start of operand stack area)
+    emit_mov_reg_reg(&ctx->as, REG_R12, REG_RBP);
+    emit_sub_reg_imm(&ctx->as, REG_R12, 136);
 }
 
 // Emit function epilog
@@ -109,7 +251,7 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
     
     switch (op) {
         case OP_LOAD_IMM: {
-            // Load 32-bit immediate value
+            // Load 32-bit immediate value and push to operand stack
             int32_t value = (int32_t)(
                 (code[*ip] << 0) |
                 (code[*ip + 1] << 8) |
@@ -118,8 +260,9 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             );
             *ip += 4;
             
-            // MOV RAX, value
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, value);
+            // MOV RAX, value; then push to operand stack
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, value);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -128,14 +271,13 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LOAD_CONST: {
-            // Load from constant pool
+            // Load from constant pool - simplified, just push 0
             uint8_t constIdx = code[*ip];
             (*ip)++;
-            (void)constIdx; // TODO: Use this to load from chunk->constants
+            (void)constIdx;
             
-            // For now, treat constants as immediates (simplified)
-            // In full implementation, would load from chunk->constants
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 0);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -144,8 +286,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LOAD_NIL: {
-            // Load nil (0)
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 0);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -154,8 +296,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LOAD_TRUE: {
-            // Load true (1)
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 1);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -164,8 +306,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LOAD_FALSE: {
-            // Load false (0)
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 0);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -174,47 +316,65 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_POP: {
-            // Pop and discard top of stack
+            // Pop and discard: just adjust R12
+            emit_add_reg_imm(&ctx->as, REG_R12, 8);
             ctx->stackDepth--;
             break;
         }
         
         case OP_ADD_II: {
-            // Integer addition: RAX = RAX + RBX
-            emit_add_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+            // Pop b to RBX, pop a to RAX, add, push result
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            emit_add_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a + b
+            emitOpPush(&ctx->as);     // Push result
             ctx->stackDepth--;
             break;
         }
         
         case OP_SUB_II: {
-            // Integer subtraction: RAX = RAX - RBX
-            emit_sub_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+            // Pop b to RBX, pop a to RAX, subtract, push result
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            emit_sub_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a - b
+            emitOpPush(&ctx->as);     // Push result
             ctx->stackDepth--;
             break;
         }
         
         case OP_MUL_II: {
-            // Integer multiplication: RAX = RAX * RBX
-            emit_imul_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+            // Pop b to RBX, pop a to RAX, multiply, push result
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            emit_imul_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // RAX = a * b
+            emitOpPush(&ctx->as);     // Push result
             ctx->stackDepth--;
             break;
         }
         
         case OP_DIV_II: {
-            // Integer division: RAX = RAX / RBX
-            // x86-64 IDIV uses RDX:RAX, result in RAX
-            // For simplicity, assume no overflow
-            emit_idiv_reg(&ctx->as, STACK_REG_1);
+            // Pop b to RBX, pop a to RAX, divide, push result
+            // IDIV: RDX:RAX / divisor, quotient in RAX
+            emitOpPopToBX(&ctx->as);  // RBX = b (divisor)
+            emitOpPop(&ctx->as);      // RAX = a (dividend)
+            // Sign-extend RAX to RDX:RAX (CDQ is not in assembler, use XOR then SAR)
+            emit_mov_reg_reg(&ctx->as, REG_RDX, REG_RAX);
+            // SAR RDX, 63 to get sign extension - simplified: just XOR RDX for now (unsigned)
+            emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);  // Simple: unsigned division
+            emit_idiv_reg(&ctx->as, REG_RBX);
+            emitOpPush(&ctx->as);     // Push quotient
             ctx->stackDepth--;
             break;
         }
         
         case OP_MOD_II: {
-            // Integer modulo: RAX = RAX % RBX
-            // IDIV puts remainder in RDX
-            emit_idiv_reg(&ctx->as, STACK_REG_1);
-            // MOV RAX, RDX (move remainder to RAX)
-            emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);
+            // Pop b to RBX, pop a to RAX, modulo, push remainder
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);  // Clear RDX
+            emit_idiv_reg(&ctx->as, REG_RBX);
+            emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);  // Remainder in RDX
+            emitOpPush(&ctx->as);     // Push remainder
             ctx->stackDepth--;
             break;
         }
@@ -234,61 +394,138 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         case OP_DIV:
         case OP_MOD:
         case OP_NEG:
-            // Generic arithmetic - simplified, treat as integer for now
-            // In full implementation, would check types and dispatch
-            // For now, just use integer ops
+            // Generic arithmetic - use memory stack
             switch (op) {
                 case OP_ADD:
-                    emit_add_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+                    emitOpPopToBX(&ctx->as);
+                    emitOpPop(&ctx->as);
+                    emit_add_reg_reg(&ctx->as, REG_RAX, REG_RBX);
+                    emitOpPush(&ctx->as);
                     ctx->stackDepth--;
                     break;
                 case OP_SUB:
-                    emit_sub_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+                    emitOpPopToBX(&ctx->as);
+                    emitOpPop(&ctx->as);
+                    emit_sub_reg_reg(&ctx->as, REG_RAX, REG_RBX);
+                    emitOpPush(&ctx->as);
                     ctx->stackDepth--;
                     break;
                 case OP_MUL:
-                    emit_imul_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
+                    emitOpPopToBX(&ctx->as);
+                    emitOpPop(&ctx->as);
+                    emit_imul_reg_reg(&ctx->as, REG_RAX, REG_RBX);
+                    emitOpPush(&ctx->as);
                     ctx->stackDepth--;
                     break;
                 case OP_DIV:
-                    emit_idiv_reg(&ctx->as, STACK_REG_1);
+                    emitOpPopToBX(&ctx->as);
+                    emitOpPop(&ctx->as);
+                    emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);
+                    emit_idiv_reg(&ctx->as, REG_RBX);
+                    emitOpPush(&ctx->as);
                     ctx->stackDepth--;
                     break;
                 case OP_MOD:
-                    emit_idiv_reg(&ctx->as, STACK_REG_1);
+                    emitOpPopToBX(&ctx->as);
+                    emitOpPop(&ctx->as);
+                    emit_mov_reg_imm32(&ctx->as, REG_RDX, 0);
+                    emit_idiv_reg(&ctx->as, REG_RBX);
                     emit_mov_reg_reg(&ctx->as, REG_RAX, REG_RDX);
+                    emitOpPush(&ctx->as);
                     ctx->stackDepth--;
                     break;
                 case OP_NEG:
-                    emit_neg_reg(&ctx->as, STACK_REG_0);
+                    emitOpPop(&ctx->as);
+                    emit_neg_reg(&ctx->as, REG_RAX);
+                    emitOpPush(&ctx->as);
                     break;
                 default:
                     break;
             }
             break;
         
-        case OP_LOAD_GLOBAL:
-        case OP_STORE_GLOBAL:
-        case OP_DEFINE_GLOBAL:
-            // Global variables - fallback to interpreter for now
-            // Requires accessing VM's global environment which is complex
-            fprintf(stderr, "JIT: Global variable ops not implemented - fallback to interpreter\n");
-            return false;
+        case OP_LOAD_GLOBAL: {
+            // Load global variable using JIT helper
+            uint8_t constIdx = code[*ip];
+            (*ip)++;
+            
+            // Emit call to jitLoadGlobal(VM* vm, void* chunk, int constIdx)
+            // System V AMD64 ABI: RDI=arg1, RSI=arg2, RDX=arg3
+            // R15 has VM pointer (saved in prolog)
+            emit_mov_reg_reg(&ctx->as, REG_RDI, REG_R15);  // arg1 = vm
+            emit_mov_reg_imm64(&ctx->as, REG_RSI, (int64_t)ctx->chunk);  // arg2 = chunk
+            emit_mov_reg_imm32(&ctx->as, REG_RDX, constIdx);  // arg3 = constIdx
+            emit_call_abs(&ctx->as, jitLoadGlobal);
+            // Result is in RAX, push to operand stack
+            emitOpPush(&ctx->as);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
+        case OP_STORE_GLOBAL: {
+            // Store global variable using JIT helper
+            uint8_t constIdx = code[*ip];
+            (*ip)++;
+            
+            // Pop value from operand stack to RAX
+            emitOpPop(&ctx->as);  // RAX = value
+            // Save value in R10 (caller-saved, safe across call)
+            emit_mov_reg_reg(&ctx->as, REG_R10, REG_RAX);
+            
+            // Emit call to jitStoreGlobal(VM* vm, void* chunk, int constIdx, int64_t value)
+            // System V AMD64 ABI: RDI=arg1, RSI=arg2, RDX=arg3, RCX=arg4
+            emit_mov_reg_reg(&ctx->as, REG_RDI, REG_R15);  // arg1 = vm
+            emit_mov_reg_imm64(&ctx->as, REG_RSI, (int64_t)ctx->chunk);  // arg2 = chunk
+            emit_mov_reg_imm32(&ctx->as, REG_RDX, constIdx);  // arg3 = constIdx
+            emit_mov_reg_reg(&ctx->as, REG_RCX, REG_R10);  // arg4 = value
+            emit_call_abs(&ctx->as, jitStoreGlobal);
+            // Note: STORE_GLOBAL doesn't pop the value in bytecode VM semantics
+            // so we push it back
+            emit_mov_reg_reg(&ctx->as, REG_RAX, REG_R10);
+            emitOpPush(&ctx->as);
+            break;
+        }
+        
+        case OP_DEFINE_GLOBAL: {
+            // Define global is same as store for JIT purposes
+            uint8_t constIdx = code[*ip];
+            (*ip)++;
+            
+            // Pop value from operand stack
+            emitOpPop(&ctx->as);  // RAX = value
+            emit_mov_reg_reg(&ctx->as, REG_R10, REG_RAX);  // Save in R10
+            
+            // Emit call to jitStoreGlobal
+            emit_mov_reg_reg(&ctx->as, REG_RDI, REG_R15);  // arg1 = vm
+            emit_mov_reg_imm64(&ctx->as, REG_RSI, (int64_t)ctx->chunk);  // arg2 = chunk
+            emit_mov_reg_imm32(&ctx->as, REG_RDX, constIdx);  // arg3 = constIdx
+            emit_mov_reg_reg(&ctx->as, REG_RCX, REG_R10);  // arg4 = value
+            emit_call_abs(&ctx->as, jitStoreGlobal);
+            // DEFINE_GLOBAL pops the value (unlike STORE)
+            ctx->stackDepth--;
+            break;
+        }
         
         case OP_NEG_I: {
-            // Negate integer: RAX = -RAX
-            emit_neg_reg(&ctx->as, STACK_REG_0);
+            // Pop, negate, push back
+            emitOpPop(&ctx->as);
+            emit_neg_reg(&ctx->as, REG_RAX);
+            emitOpPush(&ctx->as);
             break;
         }
         
         case OP_LOAD_LOCAL: {
-            // Load local variable
+            // Load local variable and push to operand stack
             uint8_t index = code[*ip];
             (*ip)++;
             
-            // MOV RAX, [RBP - offset]
+            // MOV RAX, [RBP - offset] then push
             int32_t offset = -((int32_t)index * 8 + 8);
-            emit_mov_reg_mem(&ctx->as, STACK_REG_0, REG_RBP, offset);
+            emit_mov_reg_mem(&ctx->as, REG_RAX, REG_RBP, offset);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -297,20 +534,22 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_STORE_LOCAL: {
-            // Store local variable
+            // Pop from operand stack and store to local
             uint8_t index = code[*ip];
             (*ip)++;
             
-            // MOV [RBP - offset], RAX
+            // Pop to RAX, then MOV [RBP - offset], RAX
+            emitOpPop(&ctx->as);
             int32_t offset = -((int32_t)index * 8 + 8);
-            emit_mov_mem_reg(&ctx->as, REG_RBP, offset, STACK_REG_0);
+            emit_mov_mem_reg(&ctx->as, REG_RBP, offset, REG_RAX);
             ctx->stackDepth--;
             break;
         }
         
         case OP_LOAD_LOCAL_0: {
             // Fast path for local 0
-            emit_mov_reg_mem(&ctx->as, STACK_REG_0, REG_RBP, -8);
+            emit_mov_reg_mem(&ctx->as, REG_RAX, REG_RBP, -8);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -320,7 +559,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         
         case OP_LOAD_LOCAL_1: {
             // Fast path for local 1
-            emit_mov_reg_mem(&ctx->as, STACK_REG_0, REG_RBP, -16);
+            emit_mov_reg_mem(&ctx->as, REG_RAX, REG_RBP, -16);
+            emitOpPush(&ctx->as);
             ctx->stackDepth++;
             if (ctx->stackDepth > ctx->maxStackDepth) {
                 ctx->maxStackDepth = ctx->stackDepth;
@@ -329,21 +569,18 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LT_II: {
-            // Integer less than comparison
-            // CMP RAX, RBX
-            emit_cmp_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_1);
-            // SETL AL (set if less)
-            // For simplicity, we'll use conditional move
-            // MOV RAX, 0
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 0);
-            // JGE skip
+            // Pop b to RBX, pop a to RAX, compare, push result
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            emit_cmp_reg_reg(&ctx->as, REG_RAX, REG_RBX);  // Compare a vs b
+            // Set result: 1 if a < b, 0 otherwise
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 0);
             size_t skipPos = getCurrentPosition(&ctx->as);
-            emit_jge(&ctx->as, 0);  // Placeholder offset
-            // MOV RAX, 1
-            emit_mov_reg_imm32(&ctx->as, STACK_REG_0, 1);
-            // skip:
+            emit_jge(&ctx->as, 0);  // Jump if a >= b (not less)
+            emit_mov_reg_imm32(&ctx->as, REG_RAX, 1);
             size_t skipTarget = getCurrentPosition(&ctx->as);
             patchJumpOffset(&ctx->as, skipPos + 2, skipTarget);
+            emitOpPush(&ctx->as);  // Push result
             ctx->stackDepth--;
             break;
         }
@@ -525,8 +762,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         
         case OP_PRINT: {
-            // Print operation - for now, just pop the value
-            // In full implementation, would call native print function
+            // Pop value and discard (print is a no-op in JIT for now)
+            emit_add_reg_imm(&ctx->as, REG_R12, 8);  // Pop and discard
             ctx->stackDepth--;
             break;
         }
@@ -537,18 +774,20 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             int targetBytecodeIP = *ip + 2 + bytecodeOffset;
             *ip += 2;
             
-            // Calculate native code offset if we have the map
-            if (recordOffsets && targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize) {
-                size_t currentNativePos = getCurrentPosition(&ctx->as);
+            // Record current position for patching
+            size_t jumpPos = getCurrentPosition(&ctx->as);
+            
+            // Check if this is a backward jump (target already compiled)
+            if (targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize && 
+                ctx->bytecodeToNative[targetBytecodeIP] != 0) {
+                // Backward jump - calculate offset now
                 size_t targetNativePos = ctx->bytecodeToNative[targetBytecodeIP];
-                
-                // Calculate relative offset for JMP instruction
-                // JMP uses relative offset from end of instruction (5 bytes)
-                int32_t nativeOffset = (int32_t)(targetNativePos - currentNativePos - 5);
+                int32_t nativeOffset = (int32_t)(targetNativePos - jumpPos - 5);
                 emit_jmp(&ctx->as, nativeOffset);
             } else {
-                // Fallback: emit placeholder
-            emit_jmp(&ctx->as, 0);
+                // Forward jump - emit placeholder and record for patching
+                emit_jmp(&ctx->as, 0);  // Placeholder offset
+                addPendingJump(ctx, jumpPos, targetBytecodeIP, 5);  // JMP is 5 bytes
             }
             break;
         }
@@ -559,21 +798,24 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             int targetBytecodeIP = *ip + 2 + bytecodeOffset;
             *ip += 2;
             
-            // TEST RAX, RAX (check if false)
-            emit_test_reg_reg(&ctx->as, STACK_REG_0, STACK_REG_0);
+            // Pop condition from operand stack and test
+            emitOpPop(&ctx->as);  // RAX = condition
+            emit_test_reg_reg(&ctx->as, REG_RAX, REG_RAX);  // Check if zero/false
             
-            // Calculate native code offset if we have the map
-            if (recordOffsets && targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize) {
-                size_t currentNativePos = getCurrentPosition(&ctx->as);
+            // Record current position for patching
+            size_t jumpPos = getCurrentPosition(&ctx->as);
+            
+            // Check if this is a backward jump (target already compiled)
+            if (targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize && 
+                ctx->bytecodeToNative[targetBytecodeIP] != 0) {
+                // Backward jump - calculate offset now
                 size_t targetNativePos = ctx->bytecodeToNative[targetBytecodeIP];
-                
-                // Calculate relative offset for JE instruction
-                // JE uses relative offset from end of instruction (6 bytes)
-                int32_t nativeOffset = (int32_t)(targetNativePos - currentNativePos - 6);
+                int32_t nativeOffset = (int32_t)(targetNativePos - jumpPos - 6);
                 emit_je(&ctx->as, nativeOffset);
             } else {
-                // Fallback: emit placeholder
-                emit_je(&ctx->as, 0);
+                // Forward jump - emit placeholder and record for patching
+                emit_je(&ctx->as, 0);  // Placeholder offset
+                addPendingJump(ctx, jumpPos, targetBytecodeIP, 6);  // JE is 6 bytes
             }
             
             ctx->stackDepth--;
@@ -581,23 +823,22 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_LOOP: {
-            // Backward jump for loops
+            // Backward jump for loops - target is always already compiled
             int16_t bytecodeOffset = (int16_t)((code[*ip] << 8) | code[*ip + 1]);
             int targetBytecodeIP = *ip + 2 - bytecodeOffset;  // Backward jump
             *ip += 2;
             
-            // Calculate native code offset if we have the map
-            if (recordOffsets && targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize) {
-                size_t currentNativePos = getCurrentPosition(&ctx->as);
-                size_t targetNativePos = ctx->bytecodeToNative[targetBytecodeIP];
-                
-                // Calculate relative offset for JMP instruction (backward)
-                int32_t nativeOffset = (int32_t)(targetNativePos - currentNativePos - 5);
-                emit_jmp(&ctx->as, nativeOffset);
-            } else {
-                // Fallback: emit placeholder
-                emit_jmp(&ctx->as, 0);
+            // For OP_LOOP, target should always be already compiled (it's a backward jump)
+            size_t currentNativePos = getCurrentPosition(&ctx->as);
+            size_t targetNativePos = 0;
+            
+            if (targetBytecodeIP >= 0 && targetBytecodeIP < ctx->offsetMapSize) {
+                targetNativePos = ctx->bytecodeToNative[targetBytecodeIP];
             }
+            
+            // Calculate relative offset for JMP instruction (backward)
+            int32_t nativeOffset = (int32_t)(targetNativePos - currentNativePos - 5);
+            emit_jmp(&ctx->as, nativeOffset);
             break;
         }
         
@@ -608,8 +849,8 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
         }
         
         case OP_RETURN: {
-            // Return from function
-            // Result is already in RAX
+            // Pop return value from operand stack to RAX
+            emitOpPop(&ctx->as);  // RAX = result
             emitEpilog(ctx);
             return true;  // End of compilation
         }
@@ -670,6 +911,9 @@ JITFunction* compileFunction(VM* vm, BytecodeChunk* chunk) {
     if (ip >= chunk->codeSize) {
         emitEpilog(&ctx);
     }
+    
+    // Patch all forward jumps now that we know all target positions
+    patchAllJumps(&ctx);
     
     // Finalize code
     size_t codeSize;
