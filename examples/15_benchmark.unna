@@ -21,6 +21,7 @@ function stringConcat(n) {
     for (var i = 0; i < n; i = i + 1) {
         s = s + "a";
     }
+    print("S is: " + s);
     return s.length;
 }
 
@@ -32,14 +33,16 @@ var end = 0.0;
 // print(fib(25));
 
 // Run Loop
-print("Running SumLoop(100000)...");
-start = ucoreTimer.now();
-print(sumLoop(100000));
-end = ucoreTimer.now();
-print("Time: " + (end - start) + " ms");
+print "Running SumLoop(10)...";
+t1 = ucoreTimer.now();
+res = sumLoop(10);
+t2 = ucoreTimer.now();
+print res;
+print "Time: " + (t2 - t1) + " ms";
 
 // Run String
-print("Running StringConcat(1000)...");
+print "Running StringConcat(10)...";
+stringConcat(10);
 start = ucoreTimer.now();
 print(stringConcat(1000));
 end = ucoreTimer.now();
