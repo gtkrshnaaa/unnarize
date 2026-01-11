@@ -117,7 +117,7 @@ static void parseSchemaBlock(VM* vm, const char** p) {
         }
         if (peek(*p) == ']') (*p)++;
         
-        Value vDef; vDef.type = VAL_OBJ; vDef.obj = (Obj*)def;
+        Value vDef = OBJ_VAL(def);
         mapSetStr(uonSchemas, tableName, (int)strlen(tableName), vDef);
         
         skipSpace(p);
@@ -148,22 +148,22 @@ static void parseFromSource(VM* vm, const char* source) {
 // --------------------------------------------------------
 
 static Value uon_parse(VM* vm, Value* args, int argCount) {
-    if (argCount != 1 || !IS_STRING(args[0])) return (Value){VAL_INT, .intVal = 0};
+    if (argCount != 1 || !IS_STRING(args[0])) return INT_VAL(0);
     parseFromSource(vm, AS_CSTRING(args[0]));
-    return (Value){VAL_BOOL, .boolVal = true};
+    return BOOL_VAL(true);
 }
 
 // Globals
 static char g_lastPath[1024] = {0};
 
 static Value uon_load_impl(VM* vm, Value* args, int argCount) {
-    if (argCount < 1 || !IS_STRING(args[0])) return (Value){VAL_BOOL, .boolVal=false};
+    if (argCount < 1 || !IS_STRING(args[0])) return BOOL_VAL(false);
     char* path = AS_CSTRING(args[0]);
     strncpy(g_lastPath, path, 1023);
     
     // Schema parse limited logic
     FILE* f = fopen(path, "r");
-    if(!f) return (Value){VAL_BOOL, .boolVal=false};
+    if(!f) return BOOL_VAL(false);
     
     size_t cap = 1024 * 64; // Limit schema read to 64KB
     size_t len = 0;
@@ -178,7 +178,7 @@ static Value uon_load_impl(VM* vm, Value* args, int argCount) {
     parseFromSource(vm, buf);
     free(buf);
     
-    return (Value){VAL_BOOL, .boolVal=true};
+     return BOOL_VAL(true);
 }
 
 // Forward decl
@@ -186,26 +186,23 @@ static Value fparseValue(VM* vm, FILE* f);
 
 static Value uon_next_impl(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_OBJ(args[0]) || AS_OBJ(args[0])->type != OBJ_RESOURCE) {
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     
     ObjResource* res = (ObjResource*)AS_OBJ(args[0]);
     UonCursor* cursor = (UonCursor*)res->data;
     FILE* f = cursor->file;
-    if (!f) return (Value){VAL_NIL, .intVal=0}; // already closed?
+    if (!f) return NIL_VAL; // already closed?
     
     fskipSpace(f);
     int c = fpeek(f);
-    if (c == ']') return (Value){VAL_NIL, .intVal=0}; // End of list
+    if (c == ']') return NIL_VAL; // End of list
     
     // Expect {
     if (c == ',') { fgetc(f); fskipSpace(f); c = fpeek(f); }
-    if (c == ']') return (Value){VAL_NIL, .intVal=0};
+    if (c == ']') return NIL_VAL;
     
-    if (c != '{') {
-         // Error or end
-         return (Value){VAL_NIL, .intVal=0}; 
-    }
+          return NIL_VAL;
     fgetc(f); // eat {
     
     // Parse fields
@@ -229,7 +226,7 @@ static Value uon_next_impl(VM* vm, Value* args, int argCount) {
         if (fpeek(f) == ',') fgetc(f);
     }
     
-    Value vRet; vRet.type = VAL_OBJ; vRet.obj = (Obj*)m;
+    Value vRet = OBJ_VAL(m);
     return vRet;
 }
 
@@ -239,16 +236,16 @@ static Value uon_get_impl(VM* vm, Value* args, int argCount) {
     char* path = g_lastPath;
     
     if (argCount == 1) {
-        if (!IS_STRING(args[0])) return (Value){VAL_INT, .intVal=0};
+        if (!IS_STRING(args[0])) return INT_VAL(0);
         tableName = AS_CSTRING(args[0]);
     } else if (argCount == 2) {
-        if (!IS_STRING(args[0]) || !IS_STRING(args[1])) return (Value){VAL_INT, .intVal=0};
+        if (!IS_STRING(args[0]) || !IS_STRING(args[1])) return INT_VAL(0);
         path = AS_CSTRING(args[0]);
         tableName = AS_CSTRING(args[1]);
-    } else return (Value){VAL_INT, .intVal=0};
+    } else return INT_VAL(0);
     
     FILE* f = fopen(path, "r");
-    if (!f) return (Value){VAL_INT, .intVal=0};
+    if (!f) return INT_VAL(0);
     
     // Fast-forward to @flow
     fseek(f, 0, SEEK_SET);
@@ -264,11 +261,11 @@ static Value uon_get_impl(VM* vm, Value* args, int argCount) {
         if (matched == 5) { inFlow = true; break; }
     }
     
-    if (!inFlow) { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    if (!inFlow) { fclose(f); return INT_VAL(0); }
     
     // Find "tableName:"
     fskipSpace(f);
-    if (fgetc(f) != '{') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    if (fgetc(f) != '{') { fclose(f); return INT_VAL(0); }
     
     bool foundTable = false;
     while(true) {
@@ -303,12 +300,12 @@ static Value uon_get_impl(VM* vm, Value* args, int argCount) {
         }
     }
     
-    if (!foundTable) { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    if (!foundTable) { fclose(f); return INT_VAL(0); }
     
     fskipSpace(f);
-    if (fgetc(f) != ':') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    if (fgetc(f) != ':') { fclose(f); return INT_VAL(0); }
     fskipSpace(f);
-    if (fgetc(f) != '[') { fclose(f); return (Value){VAL_INT, .intVal=0}; }
+    if (fgetc(f) != '[') { fclose(f); return INT_VAL(0); }
     
     // Created Cursor!
     ObjResource* res = ALLOCATE_OBJ(vm, ObjResource, OBJ_RESOURCE);
@@ -320,7 +317,7 @@ static Value uon_get_impl(VM* vm, Value* args, int argCount) {
     res->data = cursor;
     res->cleanup = (ResourceCleanupFn)cursorCleanup;
     
-    Value v; v.type = VAL_OBJ; v.obj = (Obj*)res;
+    Value v = OBJ_VAL(res);
     return v;
 }
 
@@ -343,7 +340,7 @@ static Value fparseValue(VM* vm, FILE* f) {
         while((c=fgetc(f)) != EOF && c != '"' && i < 4095) buf[i++] = c;
         buf[i] = '\0';
         ObjString* s = internString(vm, buf, i);
-        return (Value){VAL_OBJ, .obj=(Obj*)s};
+        return OBJ_VAL(s);
     }
     
     if (isdigit(c) || c == '-') {
@@ -352,39 +349,39 @@ static Value fparseValue(VM* vm, FILE* f) {
         buf[i] = '\0';
         ungetc(c, f);
         if (strchr(buf, '.')) {
-            return (Value){VAL_FLOAT, .floatVal = atof(buf)};
+            return FLOAT_VAL(atof(buf));
         } else {
-            return (Value){VAL_INT, .intVal = atoi(buf)};
+            return INT_VAL(atoi(buf));
         }
     }
     
     // bool/null/ident
     char* id = fparseIdentifier(f);
     if (id) {
-         Value v = {VAL_NIL, .intVal=0};
-         if (strcmp(id, "true")==0) { v.type = VAL_BOOL; v.boolVal = true; }
-         else if (strcmp(id, "false")==0) { v.type = VAL_BOOL; v.boolVal = false; }
-         else if (strcmp(id, "null")==0) { v.type = VAL_NIL; }
+         Value v = NIL_VAL;
+         if (strcmp(id, "true")==0) { v = BOOL_VAL(true); }
+         else if (strcmp(id, "false")==0) { v = BOOL_VAL(false); }
+         else if (strcmp(id, "null")==0) { v = NIL_VAL; }
          else {
              ObjString* s = internString(vm, id, (int)strlen(id));
-             v.type = VAL_OBJ; v.obj = (Obj*)s; 
+             v = OBJ_VAL(s); 
          }
          free(id);
          return v;
     }
-    return (Value){VAL_NIL, .intVal=0};
+    return NIL_VAL;
 }
 
 
 static Value uon_save_dummy(VM* vm, Value* args, int argCount) {
     (void)vm; (void)args; (void)argCount;
     printf("Warning: ucoreUon.save() disabled in lazy mode (read-only optimization).\n");
-    return (Value){VAL_BOOL, .boolVal=true};
+    return BOOL_VAL(true);
 }
 
 static Value uon_noop(VM* vm, Value* args, int argCount) {
     (void)vm; (void)args; (void)argCount;
-    return (Value){VAL_BOOL, .boolVal=false};
+    return BOOL_VAL(false);
 }
 
 void registerUCoreUON(VM* vm) {
@@ -406,6 +403,6 @@ void registerUCoreUON(VM* vm) {
     defineNative(vm, mod->env, "save", uon_save_dummy, 1);
     defineNative(vm, mod->env, "insert", uon_noop, 2);
 
-    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
+    Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreUon", vMod);
 }
