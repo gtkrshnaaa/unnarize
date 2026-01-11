@@ -62,22 +62,22 @@ static void json_append(char** buf, int* len, int* cap, const char* str) {
 
 static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
     char temp[64];
-    if (v.type == VAL_NIL) {
+    if (IS_NIL(v)) {
         json_append(buf, len, cap, "null");
         return;
     }
     
-    switch (v.type) {
+    switch (getValueType(v)) {
         case VAL_INT:
-            snprintf(temp, sizeof(temp), "%lld", (long long)v.intVal);
+            snprintf(temp, sizeof(temp), "%lld", (long long)AS_INT(v));
             json_append(buf, len, cap, temp);
             break;
         case VAL_FLOAT:
-            snprintf(temp, sizeof(temp), "%.6g", v.floatVal);
+            snprintf(temp, sizeof(temp), "%.6g", AS_FLOAT(v));
             json_append(buf, len, cap, temp);
             break;
         case VAL_BOOL:
-            json_append(buf, len, cap, v.boolVal ? "true" : "false");
+            json_append(buf, len, cap, AS_BOOL(v) ? "true" : "false");
             break;
         case VAL_OBJ: {
             Obj* o = AS_OBJ(v);
@@ -125,7 +125,7 @@ static void json_serialize_val(Value v, char** buf, int* len, int* cap) {
 static Value uhttp_json(VM* vm, Value* args, int argCount) {
     if (argCount != 1) {
         ObjString* empty = internString(vm, "{}", 2);
-        Value v; v.type = VAL_OBJ; v.obj = (Obj*)empty;
+        Value v = OBJ_VAL(empty);
         return v;
     }
     
@@ -139,7 +139,7 @@ static Value uhttp_json(VM* vm, Value* args, int argCount) {
     ObjString* s = internString(vm, buf, len);
     free(buf);
     
-    Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
+    Value v = OBJ_VAL(s);
     return v;
 }
 
@@ -150,21 +150,21 @@ static Value http_perform(VM* vm, const char* method, const char* url, const cha
     
     if (!parseUrl(url, host, path, &port)) {
         printf("Invalid URL or HTTPS not supported.\n");
-        return (Value){VAL_NIL, .intVal=0}; 
+        return NIL_VAL; 
     }
     
     // DNS Resolve
     struct hostent* he = gethostbyname(host);
     if (!he) {
         printf("Could not resolve host: %s\n", host);
-        return (Value){VAL_NIL, .intVal=0}; // null
+        return NIL_VAL; // null
     }
     
     // Socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Socket creation failed");
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     
     struct sockaddr_in serv_addr;
@@ -178,7 +178,7 @@ static Value http_perform(VM* vm, const char* method, const char* url, const cha
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Connection failed");
         close(sockfd);
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     
     // Construct Request
@@ -198,7 +198,7 @@ static Value http_perform(VM* vm, const char* method, const char* url, const cha
     if (send(sockfd, req, strlen(req), 0) < 0) {
         perror("Send failed");
         close(sockfd);
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     
     // Receive
@@ -229,14 +229,14 @@ static Value http_perform(VM* vm, const char* method, const char* url, const cha
     ObjString* os = internString(vm, bodyStart, (int)strlen(bodyStart));
     free(buf);
     
-    Value vRes; vRes.type = VAL_OBJ; vRes.obj = (Obj*)os;
+    Value vRes = OBJ_VAL(os);
     return vRes;
 }
 
 static Value uhttp_get(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_STRING(args[0])) {
         printf("Error: ucoreHttp.get(url) expects url string.\n");
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     return http_perform(vm, "GET", AS_CSTRING(args[0]), NULL);
 }
@@ -244,7 +244,7 @@ static Value uhttp_get(VM* vm, Value* args, int argCount) {
 static Value uhttp_post(VM* vm, Value* args, int argCount) {
     if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         printf("Error: ucoreHttp.post(url, body) expects url and body strings.\n");
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
     return http_perform(vm, "POST", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
 }
@@ -264,7 +264,7 @@ static Value uhttp_route(VM* vm, Value* args, int argCount) {
     (void)vm;
     if (argCount != 3 || !IS_STRING(args[0]) || !IS_STRING(args[1]) || !IS_STRING(args[2])) {
         printf("Error: ucoreHttp.route(method, path, handlerName) expects 3 strings.\n");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
     Route* r = malloc(sizeof(Route));
@@ -274,16 +274,16 @@ static Value uhttp_route(VM* vm, Value* args, int argCount) {
     r->next = g_routes;
     g_routes = r;
     
-    return (Value){VAL_BOOL, .boolVal=true};
+    return BOOL_VAL(true);
 }
 
 static Value uhttp_listen(VM* vm, Value* args, int argCount) {
-    if (argCount < 1 || args[0].type != VAL_INT) {
+    if (argCount < 1 || !IS_INT(args[0])) {
         printf("Error: ucoreHttp.listen(port, [handlerName]) expects int port.\n");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
-    int port = args[0].intVal;
+    int port = AS_INT(args[0]);
     char* mainHandlerName = NULL;
     Function* mainHandler = NULL;
     
@@ -292,7 +292,7 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         mainHandler = findFunctionByName(vm, mainHandlerName);
         if (!mainHandler) {
              printf("Error: Handler function '%s' not found.\n", mainHandlerName);
-             return (Value){VAL_BOOL, .boolVal=false};
+             return BOOL_VAL(false);
         }
     }
     
@@ -304,14 +304,14 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
     // Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
     // Attach socket to port
     // SO_REUSEADDR allows restarting server quickly
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) { 
         perror("setsockopt");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
     address.sin_family = AF_INET;
@@ -320,12 +320,12 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
     
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
     if (listen(server_fd, 3) < 0) {
         perror("listen");
-        return (Value){VAL_BOOL, .boolVal=false};
+        return BOOL_VAL(false);
     }
     
     printf("Server listening on port %d...\n", port);
@@ -382,16 +382,16 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         
         // Build Request Map
         Map* reqMap = newMap(vm);
-        Value vMethod; vMethod.type = VAL_OBJ; vMethod.obj = (Obj*)internString(vm, method, (int)strlen(method));
+        Value vMethod = OBJ_VAL(internString(vm, method, (int)strlen(method)));
         mapSetStr(reqMap, "method", 6, vMethod);
         
-        Value vPath; vPath.type = VAL_OBJ; vPath.obj = (Obj*)internString(vm, path, (int)strlen(path));
+        Value vPath = OBJ_VAL(internString(vm, path, (int)strlen(path)));
         mapSetStr(reqMap, "path", 4, vPath);
 
-        Value vBody; vBody.type = VAL_OBJ; vBody.obj = (Obj*)internString(vm, body, (int)strlen(body));
+        Value vBody = OBJ_VAL(internString(vm, body, (int)strlen(body)));
         mapSetStr(reqMap, "body", 4, vBody);
         
-        Value vReq; vReq.type = VAL_OBJ; vReq.obj = (Obj*)reqMap;
+        Value vReq = OBJ_VAL(reqMap);
         
         // Call Handler
         Value handlerArgs[1];
@@ -418,7 +418,7 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         close(new_socket);
     }
     
-    return (Value){VAL_BOOL, .boolVal=true};
+    return BOOL_VAL(true);
 }
 
 
@@ -440,6 +440,6 @@ void registerUCoreHttp(VM* vm) {
     defineNative(vm, mod->env, "json", uhttp_json, 1);
     defineNative(vm, mod->env, "route", uhttp_route, 3);
     
-    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
+    Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreHttp", vMod);
 }
