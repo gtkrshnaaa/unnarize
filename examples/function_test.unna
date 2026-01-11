@@ -1,0 +1,19 @@
+function testLoop(n) {
+    print("n Type: " + n);
+    var i = 0;
+    var start = ucoreTimer.now();
+    while (i < n) {
+        i = i + 1;
+    }
+    var end = ucoreTimer.now();
+    print("Loop time: " + (end - start) + " ms");
+}
+testLoop(1000000);
+
+function testString() {
+    var s = "";
+    print("Empty s: '" + s + "'");
+    s = s + "a";
+    print("s + a: " + s);
+}
+testString();
