@@ -31,6 +31,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     // Code pointer
     register uint8_t* ip = chunk->code;  // Instruction pointer in register
     uint8_t argCount; // For call opcodes
+    register Value* constants = chunk->constants; // Cache constants pointer
 
 
     
@@ -86,7 +87,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
     op_load_const: {
         uint8_t constant = *ip++;
-        *sp++ = chunk->constants[constant];
+        *sp++ = constants[constant];
         NEXT();
     }
     
@@ -731,8 +732,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_loop: {
-        uint16_t offset = (uint16_t)(chunk->code[(int)(ip - chunk->code)] << 8);
-        offset |= chunk->code[(int)(ip - chunk->code) + 1];
+        uint16_t offset = (ip[0] << 8) | ip[1];
         ip += 2;
         ip -= offset;
         NEXT();
@@ -806,6 +806,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  fp = vm->stack + vm->fp;
                  
                  chunk = func->bytecodeChunk;
+                 constants = chunk->constants;
                  ip = chunk->code;
                  NEXT();
              }
@@ -859,6 +860,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         vm->fp = frame->fp;
         fp = vm->stack + vm->fp;
         chunk = frame->chunk;
+        constants = chunk->constants;
         ip = frame->ip;
         
         // Reset SP to where Function object was (CalleeFP - 1)
