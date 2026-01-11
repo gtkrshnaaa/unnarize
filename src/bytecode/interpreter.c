@@ -976,7 +976,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
             }
         }
         
-        printf("Runtime Error: Only instances and structs have properties. Type: %d, Name: %s\n", IS_OBJ(objVal) ? AS_OBJ(objVal)->type : -1, name->chars);
+        printf("Runtime Error: Only instances and structs have properties. Type: %d, Name: %s\n", IS_OBJ(objVal) ? (int)AS_OBJ(objVal)->type : -1, name->chars);
         exit(1);
     }
     
