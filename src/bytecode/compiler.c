@@ -5,7 +5,7 @@
 // #define DEBUG_PRINT_CODE
 
 #ifdef DEBUG_PRINT_CODE
-// #include "bytecode/debug.h"
+#include "bytecode/chunk.h" // disassemble header is in chunk.h
 #endif
 
 /**
@@ -110,9 +110,13 @@ static void compileExpression(Compiler* c, Node* node) {
             if (tok.type == TOKEN_NUMBER) {
                 // Parse number
                 char* str = strndup(tok.start, tok.length);
-                int64_t val = atoll(str);
-                free(str);
-                emitConstant(c, INT_VAL(val), line);
+                if (strchr(str, '.')) {
+                    double val = atof(str);
+                    emitConstant(c, FLOAT_VAL(val), line);
+                } else {
+                    int64_t val = atoll(str);
+                    emitConstant(c, INT_VAL(val), line);
+                }
             } else if (tok.type == TOKEN_TRUE) {
                 emitByte(c, OP_LOAD_TRUE, line);
             } else if (tok.type == TOKEN_FALSE) {
@@ -300,7 +304,8 @@ static void compileExpression(Compiler* c, Node* node) {
                 int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
                 emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
             }
-            emitByte(c, OP_POP, line); // Pop assignment value
+
+            // emitByte(c, OP_POP, line); // Pop assignment value (FIX: Expression should return value)
             break;
         }
         
@@ -465,7 +470,7 @@ static void compileStatement(Compiler* c, Node* node) {
             // emitByte(c, OP_POP, line); 
 
             // 2. Index -> local ".idx" = 0
-            int zeroIdx = addConstant(c->chunk, (Value){VAL_INT, .intVal=0});
+            int zeroIdx = addConstant(c->chunk, INT_VAL(0));
             emitBytes(c, OP_LOAD_CONST, (uint8_t)zeroIdx, line);
             addLocal(c, strdup(".idx"));
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
@@ -515,7 +520,7 @@ static void compileStatement(Compiler* c, Node* node) {
             if (idxLocal == -1) { printf("Compiler Error: .idx missing\n"); exit(1); }
             
             emitBytes(c, OP_LOAD_LOCAL, (uint8_t)idxLocal, line);
-            int oneIdx = addConstant(c->chunk, (Value){VAL_INT, .intVal=1});
+            int oneIdx = addConstant(c->chunk, INT_VAL(1));
             emitBytes(c, OP_LOAD_CONST, (uint8_t)oneIdx, line);
             emitByte(c, OP_ADD, line);
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)idxLocal, line);
@@ -635,6 +640,16 @@ static void compileStatement(Compiler* c, Node* node) {
             func->bytecodeChunk = malloc(sizeof(BytecodeChunk));
             initChunk(func->bytecodeChunk);
             
+            // Critical GC Fix: Root the function object on VM stack
+            // so it doesn't get collected during compilation of its body.
+            // (GC traces stack -> func -> bytecodeChunk -> constants)
+            if (c->vm->stackTop < STACK_MAX) {
+                c->vm->stack[c->vm->stackTop++] = OBJ_VAL(func);
+            } else {
+                fprintf(stderr, "Stack overflow during compilation\n");
+                exit(1);
+            }
+            
             // Compile function body in new context
             Compiler funcCompiler;
             initCompiler(&funcCompiler, c->vm, func->bytecodeChunk);
@@ -648,10 +663,19 @@ static void compileStatement(Compiler* c, Node* node) {
             
             // Compile body
             compileNode(&funcCompiler, node->function.body);
+
+#ifdef DEBUG_PRINT_CODE
+    if (!funcCompiler.hadError) {
+        disassembleChunk(func->bytecodeChunk, func->name.start ? func->name.start : "script");
+    }
+#endif
             
             // Ensure return at end
             emitByte(&funcCompiler, OP_LOAD_NIL, line);
             emitByte(&funcCompiler, OP_RETURN, line);
+            
+            // Pop function from stack
+            c->vm->stackTop--;
             
             // Store function object in parent
             int constIdx = addConstant(c->chunk, OBJ_VAL(func));
@@ -780,7 +804,7 @@ bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
     
 #ifdef DEBUG_PRINT_CODE
     if (!compiler.hadError) {
-        // disassembleChunk(chunk, "code");
+        disassembleChunk(chunk, "code");
     }
 #endif
     
