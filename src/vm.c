@@ -55,7 +55,8 @@ static Future* futureNew(VM* vm) {
     Future* f = ALLOCATE_OBJ(vm, Future, OBJ_FUTURE);
     f->done = false;
     // Initialize result to 0 int
-    f->result.type = VAL_INT; f->result.intVal = 0;
+    // Initialize result to 0 int
+    f->result = INT_VAL(0);
     // Reinit mutex/cv
     pthread_mutex_init(&f->mu, NULL);
     pthread_cond_init(&f->cv, NULL);
@@ -202,10 +203,10 @@ void freeVM(VM* vm) {
 }
 // Helper to check truthiness
 static bool isTruthy(Value v) {
-    if (v.type == VAL_NIL) return false;
-    if (v.type == VAL_BOOL) return v.boolVal;
-    if (v.type == VAL_INT) return v.intVal != 0;
-    if (v.type == VAL_FLOAT) return v.floatVal != 0.0;
+    if (IS_NIL(v)) return false;
+    if (IS_BOOL(v)) return AS_BOOL(v);
+    if (IS_INT(v)) return AS_INT(v) != 0;
+    if (IS_FLOAT(v)) return AS_FLOAT(v) != 0.0;
     
     if (IS_OBJ(v)) {
         Obj* o = AS_OBJ(v);
@@ -500,8 +501,7 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
         entry->keyLength = name.length;
         entry->ownsKey = false; // Owned by StringPool
         
-        entry->value.type = VAL_INT; // Default init
-        entry->value.intVal = 0;
+        entry->value = INT_VAL(0); // Default init
         entry->next = vm->env->buckets[h];
         vm->env->buckets[h] = entry;
         return entry;
@@ -659,7 +659,7 @@ static char* searchFileRecursive(const char* root, const char* filename) {
 // Convert 1-char string to int code if applicable
 /*
 static bool tryCharCode(Value v, int* out) {
-    if (v.type == VAL_INT) { *out = v.intVal; return true; }
+    if (IS_INT(v)) { *out = v.intVal; return true; }
     return false; 
 }
 */
@@ -874,7 +874,7 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     // Check stack overflow
     if (vm->stackTop + argCount + 64 > STACK_MAX) { // +64 safety margin
         error("Stack overflow.", func->name.line); 
-        return (Value){VAL_NIL, .intVal=0};
+        return NIL_VAL;
     }
 
     // Push arguments to stack (They become locals 0..N-1 for the new frame)
@@ -886,14 +886,14 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     // Save current frame setup
     if (vm->callStackTop >= CALL_STACK_MAX) {
         error("Maximum call stack depth exceeded.", func->name.line); 
-        return (Value){VAL_NIL, .intVal=0}; 
+        return NIL_VAL; 
     }
     
     CallFrame* frame = &vm->callStack[vm->callStackTop++];
     frame->env = vm->env;
     frame->fp = vm->fp;
     frame->hasReturned = false;
-    frame->returnValue = (Value){VAL_NIL, .intVal=0};
+    frame->returnValue = NIL_VAL;
     frame->function = func; // Root the function
     
     // Setup new frame
@@ -942,7 +942,7 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     if (func->isAsync) {
         Future* f = futureNew(vm);
         futureResolve(f, ret);
-        Value v; v.type = VAL_OBJ; v.obj = (Obj*)f; return v;
+        Value v = OBJ_VAL(f); return v;
     }
     return ret;
 }
@@ -952,11 +952,11 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
 
 // printValue implementation
 void printValue(Value val) {
-    if (val.type == VAL_NIL) { printf("nil"); return; }
-    switch (val.type) {
-        case VAL_BOOL: printf(val.boolVal ? "true" : "false"); break;
-        case VAL_INT: printf("%ld", val.intVal); break;
-        case VAL_FLOAT: printf("%.6g", val.floatVal); break;
+    if (IS_NIL(val)) { printf("nil"); return; }
+    switch (getValueType(val)) {
+        case VAL_BOOL: printf(AS_BOOL(val) ? "true" : "false"); break;
+        case VAL_INT: printf("%ld", (long)AS_INT(val)); break;
+        case VAL_FLOAT: printf("%.6g", AS_FLOAT(val)); break;
         case VAL_OBJ: {
             Obj* o = AS_OBJ(val);
             if (IS_STRING(val)) {
@@ -997,8 +997,7 @@ static void execute(VM* vm, Node* node) {
             if (node->varDecl.initializer) {
                 val = evaluate(vm, node->varDecl.initializer);
             } else {
-                val.type = VAL_NIL;
-                val.intVal = 0;
+                val = NIL_VAL;
             }
             
             if (node->varDecl.slot != -1) {
@@ -1026,17 +1025,15 @@ static void execute(VM* vm, Node* node) {
                 } else {
                     Value current = vm->stack[vm->fp + node->assign.slot];
                     Value newVal;
-                    newVal.type = VAL_INT;
                     
-                    int currentInt = (current.type == VAL_INT) ? current.intVal : 0; 
-                    int valInt = (val.type == VAL_INT) ? val.intVal : 0;
-                    // Note: Simplified arithmetic for brevity, should handle float/string
+                    int currentInt = (IS_INT(current)) ? AS_INT(current) : 0; 
+                    int valInt = (IS_INT(val)) ? AS_INT(val) : 0;
                     
                     switch (node->assign.operator.type) {
-                        case TOKEN_PLUS_EQUAL: newVal.intVal = currentInt + valInt; break;
-                        case TOKEN_MINUS_EQUAL: newVal.intVal = currentInt - valInt; break;
-                        case TOKEN_STAR_EQUAL: newVal.intVal = currentInt * valInt; break;
-                        case TOKEN_SLASH_EQUAL: newVal.intVal = currentInt / (valInt ? valInt : 1); break;
+                        case TOKEN_PLUS_EQUAL: newVal = INT_VAL(currentInt + valInt); break;
+                        case TOKEN_MINUS_EQUAL: newVal = INT_VAL(currentInt - valInt); break;
+                        case TOKEN_STAR_EQUAL: newVal = INT_VAL(currentInt * valInt); break;
+                        case TOKEN_SLASH_EQUAL: newVal = INT_VAL(currentInt / (valInt ? valInt : 1)); break;
                         default: newVal = val; break;
                     }
                     vm->stack[vm->fp + node->assign.slot] = newVal;
@@ -1058,18 +1055,17 @@ static void execute(VM* vm, Node* node) {
                          // My generic resolveAST fix made top-level vars globals.
                      }
                      
-                     Value current = entry ? entry->value : (Value){VAL_INT, .intVal=0}; 
+                     Value current = entry ? entry->value : INT_VAL(0); 
                      Value newVal;
-                     newVal.type = VAL_INT;
                      
-                     int currentInt = (current.type == VAL_INT) ? current.intVal : 0; 
-                     int valInt = (val.type == VAL_INT) ? val.intVal : 0;
+                     int currentInt = (IS_INT(current)) ? AS_INT(current) : 0; 
+                     int valInt = (IS_INT(val)) ? AS_INT(val) : 0;
                      
                      switch (node->assign.operator.type) {
-                         case TOKEN_PLUS_EQUAL: newVal.intVal = currentInt + valInt; break;
-                         case TOKEN_MINUS_EQUAL: newVal.intVal = currentInt - valInt; break;
-                         case TOKEN_STAR_EQUAL: newVal.intVal = currentInt * valInt; break;
-                         case TOKEN_SLASH_EQUAL: newVal.intVal = currentInt / (valInt ? valInt : 1); break;
+                         case TOKEN_PLUS_EQUAL: newVal = INT_VAL(currentInt + valInt); break;
+                         case TOKEN_MINUS_EQUAL: newVal = INT_VAL(currentInt - valInt); break;
+                         case TOKEN_STAR_EQUAL: newVal = INT_VAL(currentInt * valInt); break;
+                         case TOKEN_SLASH_EQUAL: newVal = INT_VAL(currentInt / (valInt ? valInt : 1)); break;
                          default: newVal = val; break;
                      }
                      defineGlobal(vm, node->assign.name.start, newVal);
@@ -1083,17 +1079,17 @@ static void execute(VM* vm, Node* node) {
             Value idx = evaluate(vm, node->indexAssign.index);
             Value val = evaluate(vm, node->indexAssign.value);
             
-            if (IS_ARRAY(target) && idx.type == VAL_INT) {
+            if (IS_ARRAY(target) && IS_INT(idx)) {
                 Array* a = (Array*)AS_OBJ(target);
-                if (idx.intVal >= 0 && idx.intVal < a->count) {
-                    a->items[idx.intVal] = val;
+                if (AS_INT(idx) >= 0 && AS_INT(idx) < a->count) {
+                    a->items[AS_INT(idx)] = val;
                 } else {
                     error("Index out of bounds.", 0);
                 }
             } else if (IS_MAP(target)) {
                 Map* m = (Map*)AS_OBJ(target);
-                if (idx.type == VAL_INT) {
-                    mapSetInt(m, idx.intVal, val);
+                if (IS_INT(idx)) {
+                    mapSetInt(m, AS_INT(idx), val);
                 } else if (IS_STRING(idx)) {
                     ObjString* s = (ObjString*)AS_OBJ(idx);
                     mapSetStr(m, s->chars, s->length, val);
@@ -1178,7 +1174,7 @@ static void execute(VM* vm, Node* node) {
              func->paramCount = node->function.paramCount;
              func->body = node->function.body;
              
-             Value v; v.type = VAL_OBJ; v.obj = (Obj*)func;
+             Value v = OBJ_VAL(func);
              
              char buf[64];
              int len = node->function.name.length;
@@ -1207,7 +1203,7 @@ static void execute(VM* vm, Node* node) {
                  s->fields[i] = f;
              }
              
-             Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
+             Value v = OBJ_VAL(s);
              defineGlobal(vm, buf, v);
              break;
         }
@@ -1271,7 +1267,7 @@ static void execute(VM* vm, Node* node) {
                  m->env = malloc(sizeof(Environment)); // Should use GC?
                  memset(m->env, 0, sizeof(Environment));
                  
-                 Value v; v.type = VAL_OBJ; v.obj = (Obj*)m;
+                 Value v = OBJ_VAL(m);
                  defineGlobal(vm, buf, v);
              }
              break;
@@ -1287,7 +1283,7 @@ static void execute(VM* vm, Node* node) {
             if (node->returnStmt.value) {
                 frame->returnValue = evaluate(vm, node->returnStmt.value);
             } else {
-                frame->returnValue.type = VAL_NIL; frame->returnValue.intVal=0;
+                frame->returnValue = NIL_VAL;
             }
             break;
         }
@@ -1302,7 +1298,7 @@ static void execute(VM* vm, Node* node) {
 static Value evaluate(VM* vm, Node* node) {
     if (!node) {
         error("Null expression.", 0);
-        return (Value){VAL_NIL, .intVal = 0};
+        return NIL_VAL;
     }
 
     switch (node->type) {
@@ -1321,25 +1317,25 @@ static Value evaluate(VM* vm, Node* node) {
                 buf[len] = '\0';
                 
                 if (isFloat) {
-                    return (Value){VAL_FLOAT, .floatVal = strtod(buf, NULL)};
+                    return FLOAT_VAL(strtod(buf, NULL));
                 } else {
-                    return (Value){VAL_INT, .intVal = atoi(buf)};
+                    return INT_VAL(atoi(buf));
                 }
             } else if (node->literal.token.type == TOKEN_STRING) {
                 // Strip quotes
                 const char* start = node->literal.token.start + 1;
                 int len = node->literal.token.length - 2;
                 ObjString* s = internString(vm, start, len);
-                Value v; v.type = VAL_OBJ; v.obj = (Obj*)s;
+                Value v = OBJ_VAL(s);
                 return v;
             } else if (node->literal.token.type == TOKEN_TRUE) {
-                return (Value){VAL_BOOL, .boolVal = true};
+                return BOOL_VAL(true);
             } else if (node->literal.token.type == TOKEN_FALSE) {
-                return (Value){VAL_BOOL, .boolVal = false};
+                return BOOL_VAL(false);
             } else if (node->literal.token.type == TOKEN_NIL) {
-                return (Value){VAL_NIL, .intVal = 0};
+                return NIL_VAL;
             }
-            return (Value){VAL_NIL, .intVal = 0};
+            return NIL_VAL;
         }
 
         case NODE_EXPR_VAR: {
@@ -1349,19 +1345,19 @@ static Value evaluate(VM* vm, Node* node) {
             VarEntry* entry = findEntry(vm, node->var.name, false);
             if (entry) return entry->value;
             errorAtToken(node->var.name, "Undefined variable.");
-            return (Value){VAL_NIL, .intVal = 0};
+            return NIL_VAL;
         }
 
         case NODE_EXPR_UNARY: {
             Value expr = evaluate(vm, node->unary.expr);
             if (node->unary.op.type == TOKEN_MINUS) {
-                if (expr.type == VAL_INT) expr.intVal = -expr.intVal;
-                else if (expr.type == VAL_FLOAT) expr.floatVal = -expr.floatVal;
+                if (IS_INT(expr)) expr = INT_VAL(-AS_INT(expr));
+                else if (IS_FLOAT(expr)) expr = FLOAT_VAL(-AS_FLOAT(expr));
                 else errorAtToken(node->unary.op, "Cannot negate non-numeric value.");
             } else if (node->unary.op.type == TOKEN_PLUS) {
-                if (expr.type != VAL_INT && expr.type != VAL_FLOAT) errorAtToken(node->unary.op, "Unary '+' requires numeric value.");
+                if (!IS_INT(expr) && !IS_FLOAT(expr)) errorAtToken(node->unary.op, "Unary '+' requires numeric value.");
             } else if (node->unary.op.type == TOKEN_BANG) {
-                return (Value){VAL_BOOL, .boolVal = !isTruthy(expr)};
+                return BOOL_VAL(!isTruthy(expr));
             }
             return expr;
         }
@@ -1370,16 +1366,16 @@ static Value evaluate(VM* vm, Node* node) {
              // Logical AND
              if (node->binary.op.type == TOKEN_AND) {
                  Value left = evaluate(vm, node->binary.left);
-                 if (!isTruthy(left)) return (Value){VAL_BOOL, .boolVal = false};
+                 if (!isTruthy(left)) return BOOL_VAL(false);
                  Value right = evaluate(vm, node->binary.right);
-                 return (Value){VAL_BOOL, .boolVal = isTruthy(right)};
+                 return BOOL_VAL(isTruthy(right));
              }
              // Logical OR
              if (node->binary.op.type == TOKEN_OR) {
                  Value left = evaluate(vm, node->binary.left);
-                 if (isTruthy(left)) return (Value){VAL_BOOL, .boolVal = true};
+                 if (isTruthy(left)) return BOOL_VAL(true);
                  Value right = evaluate(vm, node->binary.right);
-                 return (Value){VAL_BOOL, .boolVal = isTruthy(right)};
+                 return BOOL_VAL(isTruthy(right));
              }
 
              Value left = evaluate(vm, node->binary.left);
@@ -1392,19 +1388,19 @@ static Value evaluate(VM* vm, Node* node) {
 
                  if (IS_STRING(left)) lStr = AS_CSTRING(left);
                  else {
-                     if (left.type == VAL_INT) { snprintf(lBuf, 64, "%ld", left.intVal); lStr = lBuf; }
-                     else if (left.type == VAL_FLOAT) { snprintf(lBuf, 64, "%.6g", left.floatVal); lStr = lBuf; }
-                     else if (left.type == VAL_BOOL) lStr = left.boolVal ? "true" : "false"; 
-                     else if (left.type == VAL_NIL) lStr = "nil";
+                     if (IS_INT(left)) { snprintf(lBuf, 64, "%ld", (long)AS_INT(left)); lStr = lBuf; }
+                     else if (IS_FLOAT(left)) { snprintf(lBuf, 64, "%.6g", AS_FLOAT(left)); lStr = lBuf; }
+                     else if (IS_BOOL(left)) lStr = AS_BOOL(left) ? "true" : "false"; 
+                     else if (IS_NIL(left)) lStr = "nil";
                      else lStr = "[object]"; 
                  }
 
                  if (IS_STRING(right)) rStr = AS_CSTRING(right);
                  else {
-                     if (right.type == VAL_INT) { snprintf(rBuf, 64, "%ld", right.intVal); rStr = rBuf; }
-                     else if (right.type == VAL_FLOAT) { snprintf(rBuf, 64, "%.6g", right.floatVal); rStr = rBuf; }
-                     else if (right.type == VAL_BOOL) rStr = right.boolVal ? "true" : "false";
-                     else if (right.type == VAL_NIL) rStr = "nil";
+                     if (IS_INT(right)) { snprintf(rBuf, 64, "%ld", (long)AS_INT(right)); rStr = rBuf; }
+                     else if (IS_FLOAT(right)) { snprintf(rBuf, 64, "%.6g", AS_FLOAT(right)); rStr = rBuf; }
+                     else if (IS_BOOL(right)) rStr = AS_BOOL(right) ? "true" : "false";
+                     else if (IS_NIL(right)) rStr = "nil";
                      else rStr = "[object]";
                  }
                  
@@ -1413,65 +1409,66 @@ static Value evaluate(VM* vm, Node* node) {
                  strcpy(combined, lStr); strcat(combined, rStr);
                  ObjString* s = internString(vm, combined, len);
                  free(combined);
-                 Value v; v.type = VAL_OBJ; v.obj = (Obj*)s; return v;
+                 Value v = OBJ_VAL(s); return v;
              }
 
              // Equality
              if (node->binary.op.type == TOKEN_EQUAL_EQUAL || node->binary.op.type == TOKEN_BANG_EQUAL) {
                  bool eq = false;
-                 if (left.type != right.type) {
+                 if (getValueType(left) != getValueType(right)) {
                      // Numeric mixed
-                     if ((left.type == VAL_INT || left.type == VAL_FLOAT) && (right.type == VAL_INT || right.type == VAL_FLOAT)) {
-                         double a = (left.type == VAL_INT) ? (double)left.intVal : left.floatVal;
-                         double b = (right.type == VAL_INT) ? (double)right.intVal : right.floatVal;
+                     if ((IS_INT(left) || IS_FLOAT(left)) && (IS_INT(right) || IS_FLOAT(right))) {
+                         double a = (IS_INT(left)) ? (double)AS_INT(left) : AS_FLOAT(left);
+                         double b = (IS_INT(right)) ? (double)AS_INT(right) : AS_FLOAT(right);
                          eq = (a == b);
                      } else eq = false;
                  } else {
-                     switch (left.type) {
-                         case VAL_BOOL: eq = (left.boolVal == right.boolVal); break;
-                         case VAL_INT: eq = (left.intVal == right.intVal); break;
-                         case VAL_FLOAT: eq = (left.floatVal == right.floatVal); break;
+                     switch (getValueType(left)) {
+                         case VAL_BOOL: eq = (AS_BOOL(left) == AS_BOOL(right)); break;
+                         case VAL_INT: eq = (AS_INT(left) == AS_INT(right)); break;
+                         case VAL_FLOAT: eq = (AS_FLOAT(left) == AS_FLOAT(right)); break;
                          case VAL_NIL: eq = true; break;
-                         case VAL_OBJ: eq = (left.obj == right.obj); break;
+                         case VAL_OBJ: eq = (AS_OBJ(left) == AS_OBJ(right)); break;
                          default: eq = false; break;
                      }
                  }
                  if (node->binary.op.type == TOKEN_BANG_EQUAL) eq = !eq;
-                 return (Value){VAL_BOOL, .boolVal = eq};
+                 return BOOL_VAL(eq);
              }
 
              // Numeric
-             if ((left.type == VAL_INT || left.type == VAL_FLOAT) && (right.type == VAL_INT || right.type == VAL_FLOAT)) {
-                 if (left.type == VAL_INT && right.type == VAL_INT) {
-                     int a = left.intVal; int b = right.intVal;
+             if ((IS_INT(left) || IS_FLOAT(left)) && (IS_INT(right) || IS_FLOAT(right))) {
+                 if (IS_INT(left) && IS_INT(right)) {
+                     int a = AS_INT(left); int b = AS_INT(right);
                      switch (node->binary.op.type) {
-                         case TOKEN_PLUS: return (Value){VAL_INT, .intVal = a + b};
-                         case TOKEN_MINUS: return (Value){VAL_INT, .intVal = a - b};
-                         case TOKEN_STAR: return (Value){VAL_INT, .intVal = a * b};
-                         case TOKEN_SLASH: if(b==0) error("Div by zero",0); return (Value){VAL_INT, .intVal = a / b};
-                         case TOKEN_GREATER: return (Value){VAL_BOOL, .boolVal = a > b};
-                         case TOKEN_GREATER_EQUAL: return (Value){VAL_BOOL, .boolVal = a >= b};
-                         case TOKEN_LESS: return (Value){VAL_BOOL, .boolVal = a < b};
-                         case TOKEN_LESS_EQUAL: return (Value){VAL_BOOL, .boolVal = a <= b};
+                         case TOKEN_PLUS: return INT_VAL(a + b);
+                         case TOKEN_MINUS: return INT_VAL(a - b);
+                         case TOKEN_STAR: return INT_VAL(a * b);
+                         case TOKEN_SLASH: if(b==0) error("Div by zero",0); return INT_VAL(a / b);
+                         case TOKEN_GREATER: return BOOL_VAL(a > b);
+                         case TOKEN_GREATER_EQUAL: return BOOL_VAL(a >= b);
+                         case TOKEN_LESS: return BOOL_VAL(a < b);
+                         case TOKEN_LESS_EQUAL: return BOOL_VAL(a <= b);
                          default: break;
                      }
                  }
-                 double a = (left.type == VAL_INT) ? (double)left.intVal : left.floatVal;
-                 double b = (right.type == VAL_INT) ? (double)right.intVal : right.floatVal;
+                 double a = (IS_INT(left)) ? (double)AS_INT(left) : AS_FLOAT(left);
+                 double b = (IS_INT(right)) ? (double)AS_INT(right) : AS_FLOAT(right);
+                 
                  switch(node->binary.op.type) {
-                     case TOKEN_PLUS: return (Value){VAL_FLOAT, .floatVal = a + b};
-                     case TOKEN_MINUS: return (Value){VAL_FLOAT, .floatVal = a - b};
-                     case TOKEN_STAR: return (Value){VAL_FLOAT, .floatVal = a * b};
-                     case TOKEN_SLASH: return (Value){VAL_FLOAT, .floatVal = a / b};
-                     case TOKEN_GREATER: return (Value){VAL_BOOL, .boolVal = a > b};
-                     case TOKEN_GREATER_EQUAL: return (Value){VAL_BOOL, .boolVal = a >= b};
-                     case TOKEN_LESS: return (Value){VAL_BOOL, .boolVal = a < b};
-                     case TOKEN_LESS_EQUAL: return (Value){VAL_BOOL, .boolVal = a <= b};
+                     case TOKEN_PLUS: return FLOAT_VAL(a + b);
+                     case TOKEN_MINUS: return FLOAT_VAL(a - b);
+                     case TOKEN_STAR: return FLOAT_VAL(a * b);
+                     case TOKEN_SLASH: return FLOAT_VAL(a / b);
+                     case TOKEN_GREATER: return BOOL_VAL(a > b);
+                     case TOKEN_GREATER_EQUAL: return BOOL_VAL(a >= b);
+                     case TOKEN_LESS: return BOOL_VAL(a < b);
+                     case TOKEN_LESS_EQUAL: return BOOL_VAL(a <= b);
                      default: break;
                  }
              }
              error("Invalid binary op or type.", node->binary.op.line);
-             return (Value){VAL_NIL, .intVal=0};
+             return NIL_VAL;
         }
 
         case NODE_EXPR_CALL: {
@@ -1489,7 +1486,8 @@ static Value evaluate(VM* vm, Node* node) {
                      inst->def = def;
                      inst->fields = malloc(sizeof(Value) * def->fieldCount);
                      for(int i=0; i<def->fieldCount; i++) inst->fields[i] = argVals[i];
-                     Value v; v.type = VAL_OBJ; v.obj = (Obj*)inst; return v;
+                     
+                     Value v = OBJ_VAL(inst); return v;
                  } else if (ve && IS_OBJ(ve->value) && AS_OBJ(ve->value)->type == OBJ_FUNCTION) {
                      func = (Function*)AS_OBJ(ve->value);
                  }
@@ -1508,30 +1506,31 @@ static Value evaluate(VM* vm, Node* node) {
                      Value args[16]; int ac=0; Node* arg = node->call.arguments;
                      while(arg && ac < 16) { args[ac++] = evaluate(vm, arg); arg = arg->next; }
                      
-                     if (strcmp(fname, "array")==0) { Value v; v.type = VAL_OBJ; v.obj = (Obj*)newArray(vm); return v; }
-                     if (strcmp(fname, "map")==0) { Value v; v.type = VAL_OBJ; v.obj = (Obj*)newMap(vm); return v; }
+                     if (strcmp(fname, "array")==0) { Value v = OBJ_VAL(newArray(vm)); return v; }
+                     if (strcmp(fname, "map")==0) { Value v = OBJ_VAL(newMap(vm)); return v; }
                      if (strcmp(fname, "length")==0 && ac==1) {
-                         Value v; v.type = VAL_INT; 
-                         if (IS_STRING(args[0])) v.intVal = ((ObjString*)AS_OBJ(args[0]))->length;
-                         else if (IS_ARRAY(args[0])) v.intVal = ((Array*)AS_OBJ(args[0]))->count;
-                         else v.intVal = 0; // map size?
+                         Value v; 
+                         int res = 0;
+                         if (IS_STRING(args[0])) res = ((ObjString*)AS_OBJ(args[0]))->length;
+                         else if (IS_ARRAY(args[0])) res = ((Array*)AS_OBJ(args[0]))->count;
+                         v = INT_VAL(res);
                          return v;
                      }
                      if (strcmp(fname, "push")==0 && ac==2 && IS_ARRAY(args[0])) {
                          arrayPush(vm, (Array*)AS_OBJ(args[0]), args[1]);
-                         Value v; v.type = VAL_INT; v.intVal = ((Array*)AS_OBJ(args[0]))->count; return v;
+                         Value v = INT_VAL(((Array*)AS_OBJ(args[0]))->count); return v;
                      }
                      if (strcmp(fname, "pop")==0 && ac==1 && IS_ARRAY(args[0])) {
                          Value v;
                          if (arrayPop((Array*)AS_OBJ(args[0]), &v)) return v;
-                         return (Value){VAL_NIL, .intVal=0};
+                         return NIL_VAL;
                      }
                      if (strcmp(fname, "has")==0 && ac==2 && IS_MAP(args[0])) {
                          Map* m = (Map*)AS_OBJ(args[0]);
                          bool found = false;
-                         if (args[1].type == VAL_INT) found = (mapFindEntryInt(m, args[1].intVal, NULL) != NULL);
+                         if (IS_INT(args[1])) found = (mapFindEntryInt(m, AS_INT(args[1]), NULL) != NULL);
                          else if (IS_STRING(args[1])) found = (mapFindEntry(m, AS_CSTRING(args[1]), ((ObjString*)AS_OBJ(args[1]))->length, NULL) != NULL);
-                         return (Value){VAL_BOOL, .boolVal=found};
+                         return BOOL_VAL(found);
                      }
                      if (strcmp(fname, "keys")==0 && ac==1 && IS_MAP(args[0])) {
                          Map* m = (Map*)AS_OBJ(args[0]);
@@ -1540,16 +1539,16 @@ static Value evaluate(VM* vm, Node* node) {
                              MapEntry* e = m->buckets[i];
                              while(e) {
                                  Value k; 
-                                 if(e->isIntKey) { k.type=VAL_INT; k.intVal=e->intKey; }
+                                 if(e->isIntKey) { k = INT_VAL(e->intKey); }
                                  else { 
                                      ObjString* s = internString(vm, e->key, (int)strlen(e->key));
-                                     k.type=VAL_OBJ; k.obj=(Obj*)s; 
+                                     k = OBJ_VAL(s); 
                                  }
                                  arrayPush(vm, a, k);
                                  e = e->next;
                              }
                          }
-                         Value v; v.type=VAL_OBJ; v.obj=(Obj*)a; return v;
+                         Value v = OBJ_VAL(a); return v;
                      }
                  }
             } else if (node->call.callee->type == NODE_EXPR_GET) {
@@ -1560,7 +1559,7 @@ static Value evaluate(VM* vm, Node* node) {
                }
             }
 
-            if (!func) { error("Undefined function or method.", 0); return (Value){VAL_NIL, .intVal=0}; }
+            if (!func) { error("Undefined function or method.", 0); return NIL_VAL; }
             
             Value args[16]; int ac=0; Node* arg = node->call.arguments;
             while(arg && ac < 16) { args[ac++] = evaluate(vm, arg); arg = arg->next; }
@@ -1576,48 +1575,50 @@ static Value evaluate(VM* vm, Node* node) {
         case NODE_EXPR_GET: {
             Value obj = evaluate(vm, node->get.object);
             if (IS_OBJ(obj)) {
-                if (obj.obj->type == OBJ_MODULE) {
-                     VarEntry* ve = findVarInEnv(((Module*)obj.obj)->env, node->get.name);
+                Obj* o = AS_OBJ(obj);
+                if (o->type == OBJ_MODULE) {
+                     VarEntry* ve = findVarInEnv(((Module*)o)->env, node->get.name);
                      if (ve) return ve->value;
-                } else if (obj.obj->type == OBJ_STRUCT_INSTANCE) {
-                     StructInstance* inst = (StructInstance*)obj.obj;
+                } else if (o->type == OBJ_STRUCT_INSTANCE) {
+                     StructInstance* inst = (StructInstance*)o;
                      for(int i=0; i<inst->def->fieldCount; i++) {
                          if (inst->def->fields[i] == node->get.name.start) return inst->fields[i]; // Pointer comp if interned
                          // If not strictly interned in struct def (it is):
                          if (strncmp(inst->def->fields[i], node->get.name.start, node->get.name.length)==0) return inst->fields[i];
                      }
-                } else if (obj.obj->type == OBJ_STRING) {
+                } else if (o->type == OBJ_STRING) {
                      if (node->get.name.length == 6 && strncmp(node->get.name.start, "length", 6) == 0) {
-                         return (Value){VAL_INT, .intVal = ((ObjString*)obj.obj)->length};
+                         return INT_VAL(((ObjString*)o)->length);
                      }
-                } else if (obj.obj->type == OBJ_ARRAY) {
+                } else if (o->type == OBJ_ARRAY) {
                      if (node->get.name.length == 6 && strncmp(node->get.name.start, "length", 6) == 0) {
-                         return (Value){VAL_INT, .intVal = ((Array*)obj.obj)->count};
+                         return INT_VAL(((Array*)o)->count);
                      }
                 }
             }
             error("Invalid property access.", 0);
-            return (Value){VAL_NIL, .intVal=0};
+            return NIL_VAL;
         }
 
         case NODE_EXPR_INDEX: {
              Value t = evaluate(vm, node->index.target);
              Value i = evaluate(vm, node->index.index);
-             if (IS_ARRAY(t) && i.type == VAL_INT) {
+             if (IS_ARRAY(t) && IS_INT(i)) {
                  Array* a = (Array*)AS_OBJ(t);
-                 if (i.intVal >= 0 && i.intVal < a->count) return a->items[i.intVal];
+                 int idx = (int)AS_INT(i);
+                 if (idx >= 0 && idx < a->count) return a->items[idx];
                  error("Index out of bounds",0);
              }
              if (IS_MAP(t)) {
                  Map* m = (Map*)AS_OBJ(t);
                  MapEntry* e = NULL;
-                 if (i.type == VAL_INT) e = mapFindEntryInt(m, i.intVal, NULL);
+                 if (IS_INT(i)) e = mapFindEntryInt(m, AS_INT(i), NULL);
                  else if (IS_STRING(i)) e = mapFindEntry(m, AS_CSTRING(i), ((ObjString*)AS_OBJ(i))->length, NULL);
                  if (e) return e->value;
                  error("Key not found",0);
              }
              error("Invalid index opr",0);
-             return (Value){VAL_NIL, .intVal=0};
+             return NIL_VAL;
         }
 
         case NODE_EXPR_ARRAY_LITERAL: {
@@ -1627,11 +1628,11 @@ static Value evaluate(VM* vm, Node* node) {
                 arrayPush(vm, a, evaluate(vm, el));
                 el = el->next;
             }
-            Value v; v.type = VAL_OBJ; v.obj = (Obj*)a; return v;
+            Value v = OBJ_VAL(a); return v;
         }
 
         default:
-            return (Value){VAL_NIL, .intVal = 0};
+            return NIL_VAL;
     }
 }
 
@@ -1893,4 +1894,69 @@ void registerBuiltins(VM* vm) {
     defineNative(vm, vm->globalEnv, "length", nativeLength, 1);
     defineNative(vm, vm->globalEnv, "push", nativePush, 2);
     defineNative(vm, vm->globalEnv, "pop", nativePop, 1);
+}
+
+// String concatenation helper (exposed for JIT and Interpreter)
+Value vm_concatenate(VM* vm, Value a, Value b) {
+    char bufferA[64], bufferB[64];
+    const char* strA;
+    const char* strB;
+    
+    // Convert a to string
+    if (IS_STRING(a)) {
+        strA = AS_CSTRING(a);
+    } else if (IS_INT(a)) {
+        snprintf(bufferA, sizeof(bufferA), "%ld", (long)AS_INT(a));
+        strA = bufferA;
+    } else if (IS_FLOAT(a)) {
+        snprintf(bufferA, sizeof(bufferA), "%g", AS_FLOAT(a));
+        strA = bufferA;
+    } else if (IS_BOOL(a)) {
+        strA = AS_BOOL(a) ? "true" : "false";
+    } else if (IS_NIL(a)) {
+        strA = "nil";
+    } else {
+        strA = "[object]"; // Simple fallback
+    }
+    
+    // Convert b to string
+    if (IS_STRING(b)) {
+        strB = AS_CSTRING(b);
+    } else if (IS_INT(b)) {
+        snprintf(bufferB, sizeof(bufferB), "%ld", (long)AS_INT(b));
+        strB = bufferB;
+    } else if (IS_FLOAT(b)) {
+        snprintf(bufferB, sizeof(bufferB), "%g", AS_FLOAT(b));
+        strB = bufferB;
+    } else if (IS_BOOL(b)) {
+        strB = AS_BOOL(b) ? "true" : "false";
+    } else if (IS_NIL(b)) {
+        strB = "nil";
+    } else {
+        strB = "[object]";
+    }
+    
+    // Concatenate
+    size_t lenA = strlen(strA);
+    size_t lenB = strlen(strB);
+    char* result = malloc(lenA + lenB + 1);
+    // TODO: malloc check
+    if (!result) return NIL_VAL; // Should handle OOM
+    
+    memcpy(result, strA, lenA);
+    memcpy(result + lenA, strB, lenB);
+    result[lenA + lenB] = '\0';
+    
+    // Intern result string checks for GC
+    ObjString* str = internString(vm, result, lenA + lenB);
+    free(result); // free temporary buffer (ObjString made a copy or we should transfer ownership? internString usually copies or owns? internString uses Table, keys are usually copied? Wait.)
+    
+    // internString(vm, ...) usually copies usage.
+    // Let's verify internString logic later, but usage in interpreter had free(result).
+    
+    // Free temp buffers if allocated (Array logic had specific buffers, here simplified)
+    // Here strA/strB point to either bufferA/bufferB or existing ObjString chars. 
+    // bufferA/bufferB stack allocated. No free needed.
+    
+    return OBJ_VAL(str);
 }
