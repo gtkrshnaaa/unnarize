@@ -31,6 +31,27 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     // Code pointer
     register uint8_t* ip = chunk->code;  // Instruction pointer in register
     uint8_t argCount; // For call opcodes
+
+    // FULL JIT MODE: Compile function at entry
+    // Only if explicitly enabled via flag
+    if (vm->jitEnabled && !chunk->isCompiled) {
+        JITFunction* jitFunc = compileFunction(vm, chunk);
+        if (jitFunc) {
+            if (!chunk->jitCode) chunk->jitCode = malloc(sizeof(void*));
+            chunk->jitCode[0] = jitFunc;
+            chunk->isCompiled = true;
+            chunk->tierLevel = 1;
+            vm->jitCompilations++;
+        }
+    }
+    
+    // Execute JIT if compiled
+    if (chunk->isCompiled && chunk->jitCode && chunk->jitCode[0]) {
+        vm->jitExecutions++;
+        Value result = executeJIT(vm, (JITFunction*)chunk->jitCode[0]);
+        *sp++ = result;
+        return instructionCount;
+    }
     
 #ifdef __GNUC__
     // === COMPUTED GOTO DISPATCH TABLE ===

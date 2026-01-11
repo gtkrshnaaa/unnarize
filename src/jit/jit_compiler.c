@@ -928,6 +928,24 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
+        // === Function Calls ===
+        // Function calls are complex and require interpreter fallback
+        // JIT compilation of functions with calls will fail, and the
+        // bytecode interpreter will handle them instead
+        case OP_CALL:
+        case OP_CALL_0:
+        case OP_CALL_1:
+        case OP_CALL_2: {
+            // Read argument count (for OP_CALL) and skip
+            if (op == OP_CALL) {
+                (*ip)++;  // Skip argCount byte
+            }
+            // Return false to trigger interpreter fallback
+            // This is safer than trying to implement full call semantics in JIT
+            // fprintf(stderr, "JIT: Function call encountered - falling back to interpreter\n");
+            return false;
+        }
+        
         default: {
             // Unsupported opcode - compilation failed
             fprintf(stderr, "JIT: Unsupported opcode %d\n", op);

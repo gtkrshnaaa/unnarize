@@ -1644,8 +1644,8 @@ void initVM(VM* vm) {
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
     vm->nextGC = 1024 * 1024; // Start GC at 1MB
-    vm->jitEnabled = true;  // FORCE ENABLE - FULL JIT MODE ONLY
-    vm->jitThreshold = 1;   // Compile immediately - no interpreter warm-up
+    vm->jitEnabled = false;   // DISABLED BY DEFAULT (Requires --jit flag)
+    vm->jitThreshold = 1000;  // Normal threshold
 
     vm->stackTop = 0;
     vm->callStackTop = 0;
@@ -1697,7 +1697,6 @@ void initVM(VM* vm) {
     
     // Initialize JIT state (Phase 2 - Full Native JIT)
     // FULL JIT MODE - NO BYTECODE INTERPRETER
-    vm->jitEnabled = true;   // ENABLED - Native JIT execution only
     vm->jitThreshold = 1;    // Compile on first execution
     vm->jitCache = NULL;
     vm->jitCacheSize = 0;

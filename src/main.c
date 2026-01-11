@@ -277,9 +277,12 @@ int main(int argc, char** argv) {
     
     // Parse arguments (keeping for future flags if needed)
     char* filename = NULL;
+    bool enableJit = false;
     
     for (int i = 1; i < argc; i++) {
-        if (filename == NULL) {
+        if (strcmp(argv[i], "--jit") == 0) {
+            enableJit = true;
+        } else if (filename == NULL) {
             filename = argv[i];
         }
     }
@@ -343,6 +346,12 @@ int main(int argc, char** argv) {
     // Wait, I didn't modify arg parsing for --jit yet. I'll do it in a separate edit or assume --opt implies JIT for now?)
     // Let's modify arg parsing too.
     
+    // Enable JIT if requested
+    if (enableJit) {
+        vm.jitEnabled = true;
+        vm.jitThreshold = 1; // Compile immediately if forced
+        printf("JIT Compilation Enabled.\n");
+    }
     
     // FULL JIT MODE - NO FALLBACK TO INTERPRETER
     // Always use bytecode VM with JIT compilation
