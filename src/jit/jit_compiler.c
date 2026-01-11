@@ -102,6 +102,11 @@ void jitStoreGlobal(VM* vm, void* chunkPtr, int constIdx, int64_t value) {
     vm->globalEnv->buckets[h] = newEntry;
 }
 
+// Print int64 value from JIT-compiled code
+void jitPrint(int64_t value) {
+    printf("%ld\n", (long)value);
+}
+
 // Jump patch entry for forward jumps
 typedef struct {
     size_t nativePos;       // Position of jump instruction in native code
@@ -319,6 +324,17 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             // Pop and discard: just adjust R12
             emit_add_reg_imm(&ctx->as, REG_R12, 8);
             ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_DUP: {
+            // Duplicate top of stack: peek and push
+            emitOpPeek(&ctx->as);  // RAX = [R12] (don't pop)
+            emitOpPush(&ctx->as);  // Push copy
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
             break;
         }
         
@@ -568,6 +584,17 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
+        case OP_LOAD_LOCAL_2: {
+            // Fast path for local 2
+            emit_mov_reg_mem(&ctx->as, REG_RAX, REG_RBP, -24);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth++;
+            if (ctx->stackDepth > ctx->maxStackDepth) {
+                ctx->maxStackDepth = ctx->stackDepth;
+            }
+            break;
+        }
+        
         case OP_LT_II: {
             // Pop b to RBX, pop a to RAX, compare, push result
             emitOpPopToBX(&ctx->as);  // RBX = b
@@ -753,17 +780,44 @@ static bool compileInstruction(CompileContext* ctx, int* ip, bool recordOffsets)
             break;
         }
         
-        case OP_NOT:
-        case OP_AND:
-        case OP_OR:
-            // Logical operations - simplified implementation
-            // For now, just emit NOP (will implement properly later)
-            emit_nop(&ctx->as);
+        case OP_NOT: {
+            // Logical NOT: pop, invert boolean, push
+            emitOpPop(&ctx->as);  // RAX = value
+            // XOR RAX, 1 (flip boolean: 0->1, 1->0)
+            emit_xor_reg_imm(&ctx->as, REG_RAX, 1);
+            emitOpPush(&ctx->as);
             break;
+        }
+        
+        case OP_AND: {
+            // Logical AND: pop b, pop a, push (a && b)
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            // AND RAX, RBX
+            emit_and_reg_reg(&ctx->as, REG_RAX, REG_RBX);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
+        
+        case OP_OR: {
+            // Logical OR: pop b, pop a, push (a || b)
+            emitOpPopToBX(&ctx->as);  // RBX = b
+            emitOpPop(&ctx->as);      // RAX = a
+            // OR RAX, RBX
+            emit_or_reg_reg(&ctx->as, REG_RAX, REG_RBX);
+            emitOpPush(&ctx->as);
+            ctx->stackDepth--;
+            break;
+        }
         
         case OP_PRINT: {
-            // Pop value and discard (print is a no-op in JIT for now)
-            emit_add_reg_imm(&ctx->as, REG_R12, 8);  // Pop and discard
+            // Pop value and print using jitPrint helper
+            emitOpPop(&ctx->as);  // RAX = value
+            // Call jitPrint(int64_t value)
+            // System V AMD64 ABI: RDI = first arg
+            emit_mov_reg_reg(&ctx->as, REG_RDI, REG_RAX);  // arg1 = value
+            emit_call_abs(&ctx->as, jitPrint);
             ctx->stackDepth--;
             break;
         }

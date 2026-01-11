@@ -248,6 +248,43 @@ void emit_neg_reg(Assembler* as, X64Register reg) {
     emitModRM(as, 0x03, 3, reg & 0x07);
 }
 
+// === Logical Operations ===
+
+void emit_and_reg_reg(Assembler* as, X64Register dst, X64Register src) {
+    // AND dst, src
+    emitRex(as, true, src >= REG_R8, false, dst >= REG_R8);
+    emitByte(as, 0x21);  // AND r/m64, r64
+    emitModRM(as, 0x03, src & 0x07, dst & 0x07);
+}
+
+void emit_or_reg_reg(Assembler* as, X64Register dst, X64Register src) {
+    // OR dst, src
+    emitRex(as, true, src >= REG_R8, false, dst >= REG_R8);
+    emitByte(as, 0x09);  // OR r/m64, r64
+    emitModRM(as, 0x03, src & 0x07, dst & 0x07);
+}
+
+void emit_xor_reg_reg(Assembler* as, X64Register dst, X64Register src) {
+    // XOR dst, src
+    emitRex(as, true, src >= REG_R8, false, dst >= REG_R8);
+    emitByte(as, 0x31);  // XOR r/m64, r64
+    emitModRM(as, 0x03, src & 0x07, dst & 0x07);
+}
+
+void emit_xor_reg_imm(Assembler* as, X64Register reg, int32_t imm) {
+    // XOR reg, imm
+    emitRex(as, true, false, false, reg >= REG_R8);
+    if (imm >= -128 && imm <= 127) {
+        emitByte(as, 0x83);  // XOR r/m64, imm8
+        emitModRM(as, 0x03, 6, reg & 0x07);  // /6 is XOR
+        emitByte(as, (uint8_t)imm);
+    } else {
+        emitByte(as, 0x81);  // XOR r/m64, imm32
+        emitModRM(as, 0x03, 6, reg & 0x07);
+        emitDword(as, (uint32_t)imm);
+    }
+}
+
 // === Comparison ===
 
 void emit_cmp_reg_reg(Assembler* as, X64Register r1, X64Register r2) {

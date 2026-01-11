@@ -78,6 +78,12 @@ void emit_imul_reg_reg(Assembler* as, X64Register dst, X64Register src);
 void emit_idiv_reg(Assembler* as, X64Register divisor);
 void emit_neg_reg(Assembler* as, X64Register reg);
 
+// === Logical Operations ===
+void emit_and_reg_reg(Assembler* as, X64Register dst, X64Register src);
+void emit_or_reg_reg(Assembler* as, X64Register dst, X64Register src);
+void emit_xor_reg_reg(Assembler* as, X64Register dst, X64Register src);
+void emit_xor_reg_imm(Assembler* as, X64Register reg, int32_t imm);
+
 // === Comparison ===
 void emit_cmp_reg_reg(Assembler* as, X64Register r1, X64Register r2);
 void emit_cmp_reg_imm(Assembler* as, X64Register reg, int32_t imm);
