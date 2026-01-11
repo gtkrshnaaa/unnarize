@@ -14,27 +14,25 @@ static Value utimer_now(VM* vm, Value* args, int argCount) {
     // Convert to milliseconds
     double ms = (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1000000.0;
     
-    Value v;
-    v.type = VAL_FLOAT;
-    v.floatVal = ms;
+    Value v = FLOAT_VAL(ms);
     return v;
 }
 
 // Native ucoreTimer.sleep(ms)
 static Value utimer_sleep(VM* vm, Value* args, int argCount) {
     (void)vm;
-    if (argCount != 1 || args[0].type != VAL_INT) {
+    if (argCount != 1 || !IS_INT(args[0])) {
         printf("Error: ucoreTimer.sleep expects 1 int argument (ms).\n");
-        return (Value){VAL_INT, .intVal = 0};
+        return INT_VAL(0);
     }
     
-    int ms = args[0].intVal;
+    int ms = AS_INT(args[0]);
     struct timespec req;
     req.tv_sec = ms / 1000;
     req.tv_nsec = (ms % 1000) * 1000000;
     nanosleep(&req, NULL);
     
-    return (Value){VAL_INT, .intVal = 0};
+    return INT_VAL(0);
 }
 
 void registerUCoreTimer(VM* vm) {
@@ -53,6 +51,6 @@ void registerUCoreTimer(VM* vm) {
     defineNative(vm, mod->env, "now", utimer_now, 0);
     defineNative(vm, mod->env, "sleep", utimer_sleep, 1);
 
-    Value vMod; vMod.type = VAL_OBJ; vMod.obj = (Obj*)mod;
+    Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreTimer", vMod);
 }
