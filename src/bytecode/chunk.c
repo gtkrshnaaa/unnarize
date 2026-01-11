@@ -22,28 +22,14 @@ void initChunk(BytecodeChunk* chunk) {
     chunk->lineNumbers = NULL;
     chunk->lineCapacity = 0;
     
-    chunk->hotspots = NULL;
-    chunk->hotspotCapacity = 0;
-    
-    chunk->icSlots = NULL;
-    chunk->icSlotCount = 0;
-    chunk->icSlotCapacity = 0;
-    
-    chunk->jitCode = NULL;
-    chunk->jitCodeCount = 0;
-    chunk->jitCodeCapacity = 0;
-    
-    chunk->isCompiled = false;
-    chunk->tierLevel = 0;
+
 }
 
 void freeChunk(BytecodeChunk* chunk) {
     if (chunk->code) free(chunk->code);
     if (chunk->constants) free(chunk->constants);
     if (chunk->lineNumbers) free(chunk->lineNumbers);
-    if (chunk->hotspots) free(chunk->hotspots);
-    if (chunk->icSlots) free(chunk->icSlots);
-    if (chunk->jitCode) free(chunk->jitCode);
+
     
     initChunk(chunk);  // Reset to initial state
 }
@@ -68,17 +54,7 @@ void writeChunk(BytecodeChunk* chunk, uint8_t byte, int line) {
     }
     chunk->lineNumbers[chunk->codeSize] = line;
     
-    // Grow hotspot array
-    if (chunk->hotspotCapacity < chunk->codeSize + 1) {
-        int oldCapacity = chunk->hotspotCapacity;
-        chunk->hotspotCapacity = GROW_CAPACITY(oldCapacity);
-        chunk->hotspots = realloc(chunk->hotspots,
-            chunk->hotspotCapacity * sizeof(uint32_t));
-        // Zero-initialize new hotspots
-        for (int i = oldCapacity; i < chunk->hotspotCapacity; i++) {
-            chunk->hotspots[i] = 0;
-        }
-    }
+
     
     chunk->codeSize++;
 }
@@ -156,12 +132,7 @@ int disassembleInstruction(BytecodeChunk* chunk, int offset) {
         printf("%4d ", chunk->lineNumbers[offset]);
     }
     
-    // Show hotspot counter
-    if (chunk->hotspots && offset < chunk->hotspotCapacity) {
-        printf("[%6u] ", chunk->hotspots[offset]);
-    } else {
-        printf("[     -] ");
-    }
+
     
     uint8_t instruction = chunk->code[offset];
     const OpcodeInfo* info = getOpcodeInfo(instruction);

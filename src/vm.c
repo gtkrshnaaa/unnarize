@@ -162,16 +162,7 @@ void freeVM(VM* vm) {
     }
     vm->externHandleCount = 0;
 
-    // Free JIT cache (Phase 2 - Full Native JIT)
-    if (vm->jitCache) {
-        for (int i = 0; i < vm->jitCacheSize; i++) {
-            if (vm->jitCache[i]) {
-                freeJITFunction((JITFunction*)vm->jitCache[i]);
-            }
-        }
-        free(vm->jitCache);
-        vm->jitCache = NULL;
-    }
+
 
     if (vm->stringPool.strings) {
          // strings are ObjStrings which are in vm->objects list and freed there?
@@ -1645,8 +1636,7 @@ void initVM(VM* vm) {
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
     vm->nextGC = 1024 * 1024; // Start GC at 1MB
-    vm->jitEnabled = false;   // DISABLED BY DEFAULT (Requires --jit flag)
-    vm->jitThreshold = 1000;  // Normal threshold
+
 
     vm->stackTop = 0;
     vm->callStackTop = 0;
@@ -1696,14 +1686,7 @@ void initVM(VM* vm) {
     }
     vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
     
-    // Initialize JIT state (Phase 2 - Full Native JIT)
-    // FULL JIT MODE - NO BYTECODE INTERPRETER
-    vm->jitThreshold = 1;    // Compile on first execution
-    vm->jitCache = NULL;
-    vm->jitCacheSize = 0;
-    vm->jitCacheCapacity = 0;
-    vm->jitCompilations = 0;
-    vm->jitExecutions = 0;
+
 }
 
 // Free VM memory

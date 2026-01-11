@@ -2,7 +2,7 @@
 
 ![C](https://img.shields.io/badge/language-C-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Performance](https://img.shields.io/badge/performance-17M%20ops%2Fsec-brightgreen.svg)
+![Performance](https://img.shields.io/badge/performance-166M%20ops%2Fsec-brightgreen.svg)
 
 
 **A simple, dynamic, C-style scripting language interpreter built from scratch in C.**
@@ -30,14 +30,15 @@
 
 ## About The Project
 
-Unnarize is a high-performance tree-walk interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), value pooling, and string interning infrastructure for maximum performance.
 
-Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **~17.8 million operations per second** on simple loops while maintaining clean architecture and comprehensive feature support.
+Unnarize is a high-performance bytecode interpreter for a dynamic, C-style scripting language, written entirely in C with zero external dependencies. The project demonstrates advanced interpreter design with optimized hash functions (FNV-1a), nanoboxing value representation, and string interning infrastructure for maximum performance.
+
+Every component, from the lexical analyzer (Lexer) to the Abstract Syntax Tree (AST) parser and the Virtual Machine (VM) that executes the code, has been built from the ground up. The interpreter achieves **~166 million operations per second** on simple loops while maintaining clean architecture and comprehensive feature support.
 
 ## Features
 
 - **Clean Syntax**: Familiar C-like syntax with modern touches
-- **High Performance**: ~17.8M ops/sec with stack-based local variable resolution
+- **High Performance**: ~166M ops/sec with stack-based bytecode execution and Nanoboxing
 - **Built-in Async**: First-class `async`/`await` support with `ucoreTimer`
 - **Structural Typing**: Flexible Structs and UON (Unnarize Object Notation) data format
 - **Core Libraries**: Built-in modules for HTTP, Timer, System operations, and UON database

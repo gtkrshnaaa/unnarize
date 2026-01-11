@@ -10,7 +10,6 @@ LIST_DIR = z_listing
 # Source files
 SRCS_MAIN = $(wildcard $(SRC_DIR)/*.c) \
             $(wildcard $(SRC_DIR)/bytecode/*.c) \
-            $(wildcard $(SRC_DIR)/jit/*.c) \
             $(wildcard $(SRC_DIR)/runtime/*.c)
 SRCS_CORE = $(wildcard corelib/src/*.c)
 

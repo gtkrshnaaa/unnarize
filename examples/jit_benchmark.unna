@@ -1,5 +1,5 @@
 // JIT Performance Benchmark with ucoreTimer
-import ucoreTimer as timer;
+// import ucoreTimer as timer;
 
 function benchmarkLoop() {
     var sum = 0;
@@ -27,20 +27,21 @@ print("");
 
 // Actual benchmark
 print("Running benchmark with 10 million iterations...");
-var start = timer.now();
+var start = ucoreTimer.now();
 var result = benchmarkLoop();
-var end = timer.now();
+var end = ucoreTimer.now();
+
 
 var elapsed = end - start;
-var elapsedMs = elapsed / 1000;
-var elapsedSec = elapsed / 1000000;
+var elapsedMs = elapsed;
+var elapsedSec = elapsed / 1000;
 
 print("");
 print("=== Results ===");
 print("Iterations: 10,000,000");
 print("Result: ");
 print(result);
-print("Time (microseconds): ");
+print("Time (ms): ");
 print(elapsed);
 print("Time (milliseconds): ");
 print(elapsedMs);
@@ -65,5 +66,6 @@ if (opsPerSecMillions >= 1200) {
 } else if (opsPerSecMillions >= 800) {
     print("✅ GOOD! Above bytecode VM baseline (800M ops/sec)");
 } else {
-    print("⚠️  Below target. Current performance:");
+
+    print("⚠️  Below target. Current performance: " + opsPerSecMillions + "M ops/sec");
 }

@@ -1,6 +1,6 @@
 #include "bytecode/interpreter.h"
 #include "bytecode/opcodes.h"
-#include "jit/jit_compiler.h"  // For JIT compilation
+
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -32,26 +32,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     register uint8_t* ip = chunk->code;  // Instruction pointer in register
     uint8_t argCount; // For call opcodes
 
-    // FULL JIT MODE: Compile function at entry
-    // Only if explicitly enabled via flag
-    if (vm->jitEnabled && !chunk->isCompiled) {
-        JITFunction* jitFunc = compileFunction(vm, chunk);
-        if (jitFunc) {
-            if (!chunk->jitCode) chunk->jitCode = malloc(sizeof(void*));
-            chunk->jitCode[0] = jitFunc;
-            chunk->isCompiled = true;
-            chunk->tierLevel = 1;
-            vm->jitCompilations++;
-        }
-    }
-    
-    // Execute JIT if compiled
-    if (chunk->isCompiled && chunk->jitCode && chunk->jitCode[0]) {
-        vm->jitExecutions++;
-        Value result = executeJIT(vm, (JITFunction*)chunk->jitCode[0]);
-        *sp++ = result;
-        return instructionCount;
-    }
+
     
 #ifdef __GNUC__
     // === COMPUTED GOTO DISPATCH TABLE ===
@@ -758,48 +739,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     }
     
     op_loop_header: {
-        // Hotspot detection for JIT compilation (Phase 2 - Full Native JIT)
-        int offset = (int)(ip - chunk->code - 1);
-        
-        // DEBUG: Print offset calculation
-        #ifdef DEBUG_LOOP_HEADER
-        printf("DEBUG: OP_LOOP_HEADER offset=%d, capacity=%d, hasHotspots=%d\n", 
-               offset, chunk->hotspotCapacity, chunk->hotspots != NULL);
-        fflush(stdout);
-        #endif
-        
-        if (chunk->hotspots && offset >= 0 && offset < chunk->hotspotCapacity) {
-            chunk->hotspots[offset]++;
-            
-            // Check if we should JIT compile this function
-            if (vm->jitEnabled && (int)chunk->hotspots[offset] >= vm->jitThreshold) {
-                if (!chunk->isCompiled) {
-                    // Compile entire function to native code
-                    JITFunction* jitFunc = compileFunction(vm, chunk);
-                    if (jitFunc) {
-                        // Store compiled function
-                        if (!chunk->jitCode) {
-                            chunk->jitCode = malloc(sizeof(void*));
-                        }
-                        chunk->jitCode[0] = jitFunc;
-                        chunk->isCompiled = true;
-                        chunk->tierLevel = 1;
-                        vm->jitCompilations++;
-                        
-                        // Switch to JIT execution immediately
-                        vm->jitExecutions++;
-                        Value result = executeJIT(vm, jitFunc);
-                        *sp++ = result;
-                        goto done;
-                    }
-                }
-            }
-        } else if (offset < 0 || offset >= chunk->hotspotCapacity) {
-            // Safety: Invalid offset - this shouldn't happen
-            printf("ERROR: OP_LOOP_HEADER invalid offset %d (capacity: %d)\n", 
-                   offset, chunk->hotspotCapacity);
-            fflush(stdout);
-        }
         NEXT();
     }
     
@@ -1211,26 +1150,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
     // === JIT INTEGRATION ===
     op_hotspot_check: {
-        // OSR Hotspot Check
-        int offset = (int)(ip - chunk->code - 1);
-        if (vm->jitEnabled && chunk->hotspots && offset >= 0 && offset < chunk->hotspotCapacity) {
-            chunk->hotspots[offset]++;
-             // Trigger compilation if hot and not yet compiled
-            if (chunk->hotspots[offset] > 50 && !chunk->isCompiled) {
-                 // Sync stack for GC safety during compilation
-                 vm->stackTop = (int)(sp - vm->stack);
-                 JITFunction* jitFunc = compileFunction(vm, chunk);
-                 if (jitFunc && jitFunc->isValid) {
-                     if (!chunk->jitCode) chunk->jitCode = malloc(sizeof(void*));
-                     chunk->jitCode[0] = jitFunc;
-                     chunk->isCompiled = true;
-                     chunk->jitCodeCount = 1;
-                     // Logic continues to NEXT() which interprets this loop. 
-                     // Next invocation of this function (or restart) will use JIT.
-                     // (For true OSR we'd jump, but this is simple JIT)
-                 }
-            }
-        }
         NEXT();
     }
     

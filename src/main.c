@@ -277,12 +277,9 @@ int main(int argc, char** argv) {
     
     // Parse arguments (keeping for future flags if needed)
     char* filename = NULL;
-    bool enableJit = false;
     
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--jit") == 0) {
-            enableJit = true;
-        } else if (filename == NULL) {
+        if (filename == NULL) {
             filename = argv[i];
         }
     }
@@ -337,21 +334,7 @@ int main(int argc, char** argv) {
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)
     
-    // JIT Execution Path (Default or with --jit)
-    // For now, let's use --jit flag or defaulting if enabled via define, but let's stick to explicit flag or make it default if requested.
-    // The user said "unnarize now uses JIT Compile". Let's try to detect if we should run JIT.
-    // I will add a --jit flag check in argument parsing above, but for now I'll just check enableOpt or a new boolean.
-    
-    // Check for --jit flag (I need to update arg parsing, but let's just do it here for now if I modified arg parsing earlier. 
-    // Wait, I didn't modify arg parsing for --jit yet. I'll do it in a separate edit or assume --opt implies JIT for now?)
-    // Let's modify arg parsing too.
-    
-    // Enable JIT if requested
-    if (enableJit) {
-        vm.jitEnabled = true;
-        vm.jitThreshold = 1; // Compile immediately if forced
-        printf("JIT Compilation Enabled.\n");
-    }
+
     
     // FULL JIT MODE - NO FALLBACK TO INTERPRETER
     // Always use bytecode VM with JIT compilation
