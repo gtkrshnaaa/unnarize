@@ -1,0 +1,8 @@
+var s = "hello";
+print("s: " + s);
+s = s + " world";
+print("s + world: " + s);
+var empty = "";
+print("empty: '" + empty + "'");
+empty = empty + "a";
+print("empty + a: " + empty);
