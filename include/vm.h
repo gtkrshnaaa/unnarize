@@ -5,6 +5,7 @@
 #include "parser.h"
 #include <pthread.h>
 #include <stdint.h>
+#include <string.h> // For NanBoxing memcpy
 
 // Object types
 typedef enum {
@@ -30,7 +31,7 @@ struct Obj {
     Obj* next;
 };
 
-// Value types for VM
+// Value types for VM (kept for compatibility and helper)
 typedef enum {
     VAL_BOOL,
     VAL_INT,
@@ -39,38 +40,69 @@ typedef enum {
     VAL_NIL
 } ValueType;
 
-// Value structure for runtime values
-typedef struct {
-    ValueType type;
-    union {
-        bool boolVal;
-        int64_t intVal;
-        double floatVal;
-        Obj* obj;
-    };
-} Value;
+// NanBoxing Implementation
+// Value is 64-bit uint64_t
+typedef uint64_t Value;
+
+#define SIGN_BIT ((uint64_t)0x8000000000000000)
+#define QNAN     ((uint64_t)0x7ffc000000000000)
+
+// Helper inline to bitcast double <-> uint64_t
+static inline double valueToNum(Value v) {
+    double d;
+    memcpy(&d, &v, sizeof(Value));
+    return d;
+}
+static inline Value numToValue(double d) {
+    Value v;
+    memcpy(&v, &d, sizeof(Value));
+    return v;
+}
+
+#define TAG_NIL   1
+#define TAG_BOOL  2
+#define TAG_INT   3
+#define TAG_INT_BIT   ((uint64_t)0x0001000000000000)
+
+#define IS_OBJ(v)     (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT)) 
+#define AS_OBJ(v)     ((Obj*)(uintptr_t)((v) & ~(SIGN_BIT | QNAN)))
+#define OBJ_VAL(obj)  ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
+
+#define IS_INT(v)     (((v) & (QNAN | TAG_INT_BIT)) == (QNAN | TAG_INT_BIT))
+#define AS_INT(v)     ((int32_t)(v & 0xFFFFFFFF))
+#define INT_VAL(num)  ((Value)(QNAN | TAG_INT_BIT | ((uint32_t)(num))))
+
+// Internal Tagged Values
+#define TAGGED_NIL    ((Value)(QNAN | 0x0002000000000000))
+#define TAGGED_FALSE  ((Value)(QNAN | 0x0003000000000000))
+#define TAGGED_TRUE   ((Value)(QNAN | 0x0003000000000001))
+
+#define IS_NIL(v)     ((v) == TAGGED_NIL)
+#define NIL_VAL       TAGGED_NIL
+
+#define IS_BOOL(v)    (((v) & 0xFFFFFFFFFFFFFFFE) == TAGGED_FALSE)
+#define AS_BOOL(v)    ((v) == TAGGED_TRUE)
+#define BOOL_VAL(b)   ((b) ? TAGGED_TRUE : TAGGED_FALSE)
+
+#define IS_NUMBER(v)  (((v) & QNAN) != QNAN)
+#define IS_FLOAT(v)   IS_NUMBER(v)
+#define AS_FLOAT(v)   valueToNum(v)
+#define FLOAT_VAL(v)  numToValue(v)
 
 void printValue(Value val);
 
+// Helper for switch cases
+static inline ValueType getValueType(Value v) {
+    if (IS_INT(v)) return VAL_INT;
+    if (IS_OBJ(v)) return VAL_OBJ;
+    if (IS_BOOL(v)) return VAL_BOOL;
+    if (IS_NIL(v)) return VAL_NIL;
+    return VAL_FLOAT;
+}
+
 // Helpers
-#define AS_OBJ(value)     ((value).obj)
 #define AS_STRING(value)  ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
-#define AS_INT(value)     ((value).intVal)
-#define AS_FLOAT(value)   ((value).floatVal)
-#define AS_BOOL(value)    ((value).boolVal)
-
-#define INT_VAL(value)    ((Value){VAL_INT, .intVal = (value)})
-#define FLOAT_VAL(value)  ((Value){VAL_FLOAT, .floatVal = (value)})
-#define BOOL_VAL(value)   ((Value){VAL_BOOL, .boolVal = (value)})
-#define NIL_VAL           ((Value){VAL_NIL, .intVal = 0})
-#define OBJ_VAL(object)   ((Value){VAL_OBJ, .obj = (Obj*)(object)})
-
-#define IS_OBJ(value)     ((value).type == VAL_OBJ)
-#define IS_INT(value)     ((value).type == VAL_INT)
-#define IS_FLOAT(value)   ((value).type == VAL_FLOAT)
-#define IS_BOOL(value)    ((value).type == VAL_BOOL)
-#define IS_NIL(value)     ((value).type == VAL_NIL)
 
 #define IS_STRING(value)  (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_STRING)
 #define IS_ARRAY(value)   (IS_OBJ(value) && AS_OBJ(value)->type == OBJ_ARRAY)
@@ -356,6 +388,9 @@ Obj* allocateObject(VM* vm, size_t size, ObjType type);
 void freeObject(VM* vm, Obj* object);
 
 // Register core built-in functions (has, keys, len, etc.)
+// String concatenation helper (exposed for JIT and Interpreter)
+Value vm_concatenate(VM* vm, Value a, Value b);
+
 void registerBuiltins(VM* vm);
 
 #endif // VM_H
