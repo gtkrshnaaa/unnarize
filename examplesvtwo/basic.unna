@@ -1,113 +1,164 @@
 // ==========================================
-// examplesvtwo/basic.unna
-// Unnarize Language Features Showcase
+// Unnarize Basic Syntax Reference
 // ==========================================
 
-// ==========================================
-// DEFINITIONS (Structs & Functions)
-// ==========================================
+// ------------------------------------------
+// STRUCTURES
+// ------------------------------------------
 
-struct Address {
-    city;
-    zip;
+struct Point {
+    x;
+    y;
 }
 
-struct User {
-    id;
-    name;
-    address;
-    tags;
+struct Rectangle {
+    origin;
+    width;
+    height;
 }
 
-function create_user(id, name, city) {
-    var addr = Address(city, 90210);
-    return User(id, name, addr, ["new", "active"]);
+// ------------------------------------------
+// FUNCTIONS
+// ------------------------------------------
+
+function distance(p1, p2) {
+    var dx = p2.x - p1.x;
+    var dy = p2.y - p1.y;
+    return dx * dx + dy * dy;
 }
 
-function fib_recursive(n) {
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+function fibonacci(n) {
     if (n < 2) return n;
-    return fib_recursive(n - 1) + fib_recursive(n - 2);
+    return fibonacci(n - 1) + fibonacci(n - 2);
 }
 
-var global_async_result = "";
-
-async function fetch_data(query) {
-    print("  ... Fetching: " + query);
-    global_async_result = "Data(" + query + ")";
-    return global_async_result; // Return for completeness, though we use global
+function greet(name) {
+    return "Hello, " + name + "!";
 }
 
-async function run_async_test() {
-    print("Async Task Started");
-    
-    var t1 = fetch_data("UserA");
-    await t1;
-    print("  > Got: " + global_async_result);
-
-    var t2 = fetch_data("UserB");
-    await t2;
-    print("  > Got: " + global_async_result);
-    
-    print("Async Task Finished");
+async function fetchUser(id) {
+    print("Fetching user " + id + "...");
+    return "User" + id;
 }
 
-// ==========================================
-// EXECUTION
-// ==========================================
-
-print("--------------------------------------------------");
-print("UNNARIZE FEATURE SHOWCASE");
-print("--------------------------------------------------");
-
-// [1] DATA TYPES
-print("\n[1] DATA TYPES");
-var numberVar = 123.456;
-var stringVar = "Hello World";
-var boolVar = true;
-
-print("Number : " + numberVar);
-print("String : " + stringVar);
-print("Bool   : " + boolVar);
-
-// [2] STRUCTS
-print("\n[2] STRUCTS & NESTING");
-var alice = create_user(1, "Alice", "Wonderland");
-var bob = create_user(2, "Bob", "Builderland");
-
-print("User 1: " + alice.name + " from " + alice.address.city);
-alice.address.city = "New York";
-print("User 1 Moved to: " + alice.address.city);
-
-// [3] COLLECTIONS
-print("\n[3] COLLECTIONS & LOOPS");
-var users = [alice, bob];
-
-for (var user : users) {
-    print("Processing User: " + user.name);
-    // Nested loop simulation
-    var tagCount = 0;
-    for (var i = 0; i < 2; i = i + 1) { 
-        tagCount = tagCount + 1;
-    }
-    print("  Tags processed: " + tagCount);
+async function runTasks() {
+    var task1 = fetchUser(1);
+    var task2 = fetchUser(2);
+    var result1 = await task1;
+    var result2 = await task2;
+    print("Loaded: " + result1 + ", " + result2);
 }
 
-if (users[0].id == 1) {
-    print("Alice is #1");
+// ------------------------------------------
+// MAIN EXECUTION
+// ------------------------------------------
+
+print("=== Unnarize Basic Syntax ===");
+print("");
+
+// 1. Variables & Types
+print("[Variables]");
+var count = 42;
+var pi = 3.14159;
+var message = "Unnarize";
+var active = true;
+print("count = " + count);
+print("pi = " + pi);
+print("message = " + message);
+print("active = " + active);
+print("");
+
+// 2. Operators
+print("[Operators]");
+var a = 10;
+var b = 3;
+print("a + b = " + (a + b));
+print("a - b = " + (a - b));
+print("a * b = " + (a * b));
+print("a / b = " + (a / b));
+print("a % b = " + (a % b));
+print("a > b = " + (a > b));
+print("a == b = " + (a == b));
+print("");
+
+// 3. Arrays
+print("[Arrays]");
+var numbers = [1, 2, 3, 4, 5];
+print("numbers[0] = " + numbers[0]);
+print("numbers[4] = " + numbers[4]);
+numbers[0] = 100;
+print("numbers[0] = " + numbers[0]);
+print("");
+
+// 4. Structs
+print("[Structs]");
+var p1 = Point(0, 0);
+var p2 = Point(3, 4);
+print("p1 = (" + p1.x + ", " + p1.y + ")");
+print("p2 = (" + p2.x + ", " + p2.y + ")");
+print("distance^2 = " + distance(p1, p2));
+
+var rect = Rectangle(Point(10, 20), 100, 50);
+print("rect.origin = (" + rect.origin.x + ", " + rect.origin.y + ")");
+rect.origin.x = rect.origin.x + 5;
+print("rect.origin.x = " + rect.origin.x);
+print("");
+
+// 5. Control Flow
+print("[Control Flow]");
+
+// If-Else
+var score = 85;
+if (score >= 90) {
+    print("Grade: A");
+} else if (score >= 80) {
+    print("Grade: B");
 } else {
-    print("User order changed");
+    print("Grade: C");
 }
 
-// [4] RECURSION
-print("\n[4] RECURSION");
-var target = 10;
-var result = fib_recursive(target);
-print("Fibonacci(" + target + ") = " + result);
+// While Loop
+var i = 0;
+var sum = 0;
+while (i < 5) {
+    sum = sum + i;
+    i = i + 1;
+}
+print("Sum 0..4 = " + sum);
 
-// [5] ASYNC
-print("\n[5] ASYNC EXECUTION");
-run_async_test();
+// For Loop
+var product = 1;
+for (var j = 1; j <= 5; j = j + 1) {
+    product = product * j;
+}
+print("5! = " + product);
 
-print("\n--------------------------------------------------");
-print("SHOWCASE COMPLETE");
-print("--------------------------------------------------");
+// Foreach Loop
+var fruits = ["apple", "banana", "cherry"];
+for (var fruit : fruits) {
+    print("Fruit: " + fruit);
+}
+print("");
+
+// 6. Recursion
+print("[Recursion]");
+print("factorial(5) = " + factorial(5));
+print("fibonacci(10) = " + fibonacci(10));
+print("");
+
+// 7. Functions
+print("[Functions]");
+print(greet("World"));
+print("");
+
+// 8. Async/Await
+print("[Async]");
+runTasks();
+print("");
+
+print("=== Complete ===");
