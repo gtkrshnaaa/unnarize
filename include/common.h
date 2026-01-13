@@ -1,6 +1,14 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define likely(x)       __builtin_expect(!!(x), 1)
+    #define unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+    #define likely(x)       (x)
+    #define unlikely(x)     (x)
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

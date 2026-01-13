@@ -305,12 +305,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         Value a = sp[-2];
         
         // Int + Int
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             sp -= 2;
             *sp++ = INT_VAL(AS_INT(a) + AS_INT(b));
         } 
         // Float + Float (or mixed)
-        else if (IS_NUMBER(a) && IS_NUMBER(b)) {
+        else if (likely(IS_NUMBER(a) && IS_NUMBER(b))) {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
             double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
             sp -= 2;
@@ -428,7 +428,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_sub: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = INT_VAL(AS_INT(a) - AS_INT(b));
         } else {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -441,7 +441,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_mul: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = INT_VAL(AS_INT(a) * AS_INT(b));
         } else {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -454,9 +454,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_div: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
              int ib = AS_INT(b);
-             if (ib == 0) {
+             if (unlikely(ib == 0)) {
                  printf("Runtime Error: Division by zero.\n");
                  exit(1);
              }
@@ -472,7 +472,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_mod: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = INT_VAL(AS_INT(a) % AS_INT(b));
         }
         NEXT();
@@ -577,7 +577,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_lt: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) < AS_INT(b));
         } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -592,7 +592,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_le: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) <= AS_INT(b));
         } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -607,7 +607,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_gt: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) > AS_INT(b));
         } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -622,7 +622,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_ge: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) >= AS_INT(b));
         } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
             double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
@@ -637,7 +637,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_eq: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) == AS_INT(b));
         } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
             *sp++ = BOOL_VAL(AS_FLOAT(a) == AS_FLOAT(b));
@@ -654,7 +654,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_ne: {
         Value b = *(--sp);
         Value a = *(--sp);
-        if (IS_INT(a) && IS_INT(b)) {
+        if (likely(IS_INT(a) && IS_INT(b))) {
             *sp++ = BOOL_VAL(AS_INT(a) != AS_INT(b));
         } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
             *sp++ = BOOL_VAL(AS_FLOAT(a) != AS_FLOAT(b));
@@ -784,7 +784,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                      exit(1);
                  }
                  
-                 if (vm->callStackTop >= 64) { // hardcoded for now or use CALL_STACK_MAX
+                 if (unlikely(vm->callStackTop >= 64)) { // hardcoded for now or use CALL_STACK_MAX
                      printf("Runtime Error: Stack overflow.\n");
                      exit(1);
                  }
