@@ -1,19 +1,84 @@
 // ============================================================================
 // ucoreUon Practical Example
 // ============================================================================
-// Demonstrates reading from actual .uon file: sample.uon
+// Demonstrates reading from actual .uon file
+// Auto-creates sample.uon if it doesn't exist (file is gitignored)
 // ============================================================================
 
 print("=== ucoreUon Practical Demo ===");
 print("");
 
-// Load UON file (gitignored sample.uon)
-print("Loading sample.uon...");
-var loaded = ucoreUon.load("examples/corelib/uon/sample.uon");
+var samplePath = "examples/corelib/uon/sample.uon";
+
+// Check if sample.uon exists, create if not
+if (!ucoreSystem.fileExists(samplePath)) {
+    print("sample.uon not found, creating...");
+    
+    // Build UON content line by line (avoiding escape issues)
+    var nl = "
+";
+    var q = "'";  // Use single quote workaround
+    
+    var content = "@schema {" + nl;
+    content = content + "    users: [id, name, email, role]," + nl;
+    content = content + "    products: [id, name, price, stock]" + nl;
+    content = content + "}" + nl + nl;
+    content = content + "@flow {" + nl;
+    content = content + "    users: [" + nl;
+    content = content + "        { id: 1, name: Alice, email: alice@example.com, role: admin }," + nl;
+    content = content + "        { id: 2, name: Bob, email: bob@example.com, role: user }," + nl;
+    content = content + "        { id: 3, name: Carol, email: carol@example.com, role: user }," + nl;
+    content = content + "        { id: 4, name: Dave, email: dave@example.com, role: moderator }" + nl;
+    content = content + "    ]," + nl;
+    content = content + "    products: [" + nl;
+    content = content + "        { id: 101, name: LaptopPro, price: 999, stock: 50 }," + nl;
+    content = content + "        { id: 102, name: SmartPhoneX, price: 599, stock: 100 }," + nl;
+    content = content + "        { id: 103, name: WirelessHeadset, price: 89, stock: 200 }" + nl;
+    content = content + "    ]" + nl;
+    content = content + "}" + nl;
+    
+    // Write file using new ucoreSystem.writeFile
+    var written = ucoreSystem.writeFile(samplePath, content);
+    if (written) {
+        print("Created " + samplePath + " successfully!");
+    } else {
+        print("Failed to create " + samplePath);
+    }
+    print("");
+} else {
+    print("Found existing " + samplePath);
+    print("");
+}
+
+// Load UON file
+print("Loading " + samplePath + "...");
+var loaded = ucoreUon.load(samplePath);
 
 if (!loaded) {
-    print("Error: Could not load sample.uon");
-    print("Make sure the file exists!");
+    print("Could not load file. Using in-memory demo instead.");
+    print("");
+    
+    // In-memory fallback
+    var users = [];
+    
+    var u1 = map();
+    u1["id"] = 1;
+    u1["name"] = "Alice";
+    u1["email"] = "alice@example.com";
+    u1["role"] = "admin";
+    push(users, u1);
+    
+    var u2 = map();
+    u2["id"] = 2;
+    u2["name"] = "Bob";
+    u2["email"] = "bob@example.com";
+    u2["role"] = "user";
+    push(users, u2);
+    
+    print("--- Users (In-Memory) ---");
+    for (var user : users) {
+        print("[" + user["id"] + "] " + user["name"] + " <" + user["email"] + "> (" + user["role"] + ")");
+    }
 } else {
     print("File loaded successfully!");
     print("");
