@@ -1,0 +1,36 @@
+// ==========================================
+// 06_control_while.unna
+// Control Flow: While Loops
+// ==========================================
+
+print("=== While Loops ===");
+
+// Counting up
+print("Counting 0 to 4:");
+var i = 0;
+while (i < 5) {
+    print("  i = " + i);
+    i = i + 1;
+}
+
+// Accumulating sum
+var sum = 0;
+var n = 1;
+while (n <= 10) {
+    sum = sum + n;
+    n = n + 1;
+}
+print("Sum of 1 to 10: " + sum);
+
+// Power calculation (2^8)
+var base = 2;
+var exp = 8;
+var power = 1;
+var count = 0;
+while (count < exp) {
+    power = power * base;
+    count = count + 1;
+}
+print(base + "^" + exp + " = " + power);
+
+print("=== Complete ===");
