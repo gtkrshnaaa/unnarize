@@ -70,6 +70,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         &&op_load_imm, &&op_load_const, &&op_load_nil, &&op_load_true, &&op_load_false,
         &&op_pop, &&op_dup,
         &&op_load_local, &&op_store_local, &&op_load_local_0, &&op_load_local_1, &&op_load_local_2,
+        &&op_inc_local, &&op_dec_local,
         &&op_load_global, &&op_store_global, &&op_define_global,
         &&op_add_ii, &&op_sub_ii, &&op_mul_ii, &&op_div_ii, &&op_mod_ii, &&op_neg_i,
         &&op_add_ff, &&op_sub_ff, &&op_mul_ff, &&op_div_ff, &&op_neg_f,
@@ -324,6 +325,30 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
     
     op_load_local_2: {
         *sp++ = fp[2];
+        NEXT();
+    }
+    
+    // === OPTIMIZED INCREMENT/DECREMENT ===
+    op_inc_local: {
+        uint8_t slot = *ip++;
+        // Directly increment the local variable (assumes int)
+        Value v = fp[slot];
+        if (IS_INT(v)) {
+            fp[slot] = INT_VAL(AS_INT(v) + 1);
+        } else if (IS_FLOAT(v)) {
+            fp[slot] = FLOAT_VAL(AS_FLOAT(v) + 1.0);
+        }
+        NEXT();
+    }
+    
+    op_dec_local: {
+        uint8_t slot = *ip++;
+        Value v = fp[slot];
+        if (IS_INT(v)) {
+            fp[slot] = INT_VAL(AS_INT(v) - 1);
+        } else if (IS_FLOAT(v)) {
+            fp[slot] = FLOAT_VAL(AS_FLOAT(v) - 1.0);
+        }
         NEXT();
     }
     
