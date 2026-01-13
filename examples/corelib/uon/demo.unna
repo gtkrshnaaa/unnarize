@@ -2,7 +2,7 @@
 // ucoreUon Practical Example
 // ============================================================================
 // Demonstrates reading from actual .uon file
-// Auto-creates sample.uon if it doesn't exist (file is gitignored)
+// Auto-creates sample.uon using ucoreUon.generate() if it doesn't exist
 // ============================================================================
 
 print("=== ucoreUon Practical Demo ===");
@@ -12,53 +12,15 @@ var samplePath = "examples/corelib/uon/sample.uon";
 
 // Check if sample.uon exists, create if not
 if (!ucoreSystem.fileExists(samplePath)) {
-    print("sample.uon not found, creating...");
-    
-    // Build UON content line by line (avoiding escape issues)
-    var nl = "
-";
-    var q = "'";  // Use single quote workaround
-    
-    var content = "@schema {" + nl;
-    content = content + "    users: [id, name, email, role]," + nl;
-    content = content + "    products: [id, name, price, stock]" + nl;
-    content = content + "}" + nl + nl;
-    content = content + "@flow {" + nl;
-    content = content + "    users: [" + nl;
-    content = content + "        { id: 1, name: Alice, email: alice@example.com, role: admin }," + nl;
-    content = content + "        { id: 2, name: Bob, email: bob@example.com, role: user }," + nl;
-    content = content + "        { id: 3, name: Carol, email: carol@example.com, role: user }," + nl;
-    content = content + "        { id: 4, name: Dave, email: dave@example.com, role: moderator }" + nl;
-    content = content + "    ]," + nl;
-    content = content + "    products: [" + nl;
-    content = content + "        { id: 101, name: LaptopPro, price: 999, stock: 50 }," + nl;
-    content = content + "        { id: 102, name: SmartPhoneX, price: 599, stock: 100 }," + nl;
-    content = content + "        { id: 103, name: WirelessHeadset, price: 89, stock: 200 }" + nl;
-    content = content + "    ]" + nl;
-    content = content + "}" + nl;
-    
-    // Write file using new ucoreSystem.writeFile
-    var written = ucoreSystem.writeFile(samplePath, content);
-    if (written) {
-        print("Created " + samplePath + " successfully!");
-    } else {
-        print("Failed to create " + samplePath);
-    }
-    print("");
-} else {
-    print("Found existing " + samplePath);
-    print("");
-}
-
-// Load UON file
-print("Loading " + samplePath + "...");
-var loaded = ucoreUon.load(samplePath);
-
-if (!loaded) {
-    print("Could not load file. Using in-memory demo instead.");
+    print("sample.uon not found, creating with ucoreUon.generate()...");
     print("");
     
-    // In-memory fallback
+    // Define schema
+    var schema = map();
+    schema["users"] = ["id", "name", "email", "role"];
+    schema["products"] = ["id", "name", "price", "stock"];
+    
+    // Create users data
     var users = [];
     
     var u1 = map();
@@ -75,10 +37,75 @@ if (!loaded) {
     u2["role"] = "user";
     push(users, u2);
     
-    print("--- Users (In-Memory) ---");
-    for (var user : users) {
-        print("[" + user["id"] + "] " + user["name"] + " <" + user["email"] + "> (" + user["role"] + ")");
+    var u3 = map();
+    u3["id"] = 3;
+    u3["name"] = "Carol";
+    u3["email"] = "carol@example.com";
+    u3["role"] = "user";
+    push(users, u3);
+    
+    var u4 = map();
+    u4["id"] = 4;
+    u4["name"] = "Dave";
+    u4["email"] = "dave@example.com";
+    u4["role"] = "moderator";
+    push(users, u4);
+    
+    // Create products data
+    var products = [];
+    
+    var p1 = map();
+    p1["id"] = 101;
+    p1["name"] = "Laptop Pro";
+    p1["price"] = 999;
+    p1["stock"] = 50;
+    push(products, p1);
+    
+    var p2 = map();
+    p2["id"] = 102;
+    p2["name"] = "SmartPhone X";
+    p2["price"] = 599;
+    p2["stock"] = 100;
+    push(products, p2);
+    
+    var p3 = map();
+    p3["id"] = 103;
+    p3["name"] = "Wireless Headset";
+    p3["price"] = 89;
+    p3["stock"] = 200;
+    push(products, p3);
+    
+    // Build data map
+    var data = map();
+    data["users"] = users;
+    data["products"] = products;
+    
+    // Generate UON content using corelib function!
+    var content = ucoreUon.generate(schema, data);
+    
+    // Write to file
+    var written = ucoreSystem.writeFile(samplePath, content);
+    if (written) {
+        print("Created " + samplePath + " successfully!");
+        print("");
+        print("Generated content:");
+        print("------------------");
+        print(content);
+    } else {
+        print("Failed to create " + samplePath);
     }
+} else {
+    print("Found existing " + samplePath);
+}
+
+print("");
+
+// Load and read UON file
+print("Loading " + samplePath + "...");
+var loaded = ucoreUon.load(samplePath);
+
+if (!loaded) {
+    print("Could not load file.");
 } else {
     print("File loaded successfully!");
     print("");
