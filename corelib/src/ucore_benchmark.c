@@ -4,10 +4,13 @@
 #include "../include/ucore_benchmark.h"
 
 // Helper: Get monotonic time in seconds (double)
-static double get_time_sec() {
+// Helper: Get monotonic time in seconds (double) - Inlined for performance
+static inline double get_time_sec() __attribute__((always_inline));
+static inline double get_time_sec() {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+    // CLOCK_MONOTONIC_RAW is often faster as it avoids NTP adjustments, good for intervals
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts); 
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9; // Multiplication is faster than division
 }
 
 // ucoreBenchmark.start() -> Returns current timestamp (float, seconds)
