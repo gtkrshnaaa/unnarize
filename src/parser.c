@@ -528,18 +528,6 @@ static Node* statement(Parser* parser) {
     if (match(parser, TOKEN_WHILE)) return whileStatement(parser);
     if (match(parser, TOKEN_FOR)) return forStatement(parser);
     if (match(parser, TOKEN_RETURN)) return returnStatement(parser);
-    if (match(parser, TOKEN_LOADEXTERN)) {
-        Node* node = malloc(sizeof(Node));
-        if (!node) { error("Memory allocation failed.", parser->tokens[parser->current].line); return NULL; }
-        node->next = NULL;
-        node->type = NODE_STMT_LOADEXTERN;
-        consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after 'loadextern'.");
-        Node* pathExpr = expression(parser);
-        consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after loadextern argument.");
-        consume(parser, TOKEN_SEMICOLON, "Expect ';' after loadextern statement.");
-        node->loadexternStmt.pathExpr = pathExpr;
-        return node;
-    }
     if (match(parser, TOKEN_LEFT_BRACE)) return block(parser);
 
     Node* exprStmt = expression(parser);
