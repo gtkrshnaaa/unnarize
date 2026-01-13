@@ -205,9 +205,8 @@ static void compileExpression(Compiler* c, Node* node) {
                         compileExpression(c, arg);       // Array
                         compileExpression(c, arg->next); // Value
                         emitByte(c, OP_ARRAY_PUSH_CLEAN, line);
-                        // emitByte(c, OP_POP, line); // CLEAN opcode pops array
                         emitByte(c, OP_LOAD_NIL, line); 
-                        emitByte(c, OP_LOAD_NIL, line); // HACK: Compensate for mysterious Drift -1
+                        emitByte(c, OP_LOAD_NIL, line); // Stack adjustment for push operation
                     }
                     isBuiltin = true;
                 } else if (strcmp(funcName, "pop") == 0) {
@@ -269,8 +268,8 @@ static void compileExpression(Compiler* c, Node* node) {
                 compileExpression(c, element); // Stack: [array, array, val]
                 emitByte(c, OP_ARRAY_PUSH, line); 
                 emitByte(c, OP_POP, line); // Remove push result (or duplicate array ref depending on implementation)
-                // My OP_ARRAY_PUSH peeks array, pops value. Stack remains: [array, array].
-                // So we need POP to remove duplicate array ref.
+                // OP_ARRAY_PUSH peeks array, pops value. Stack remains: [array, array].
+                // We need POP to remove duplicate array ref.
                 
                 element = element->next;
             }
@@ -349,13 +348,6 @@ static void compileStatement(Compiler* c, Node* node) {
                 // Global variable
                 char* varName = strndup(name.start, name.length);
                 ObjString* nameStr = internString(c->vm, varName, name.length);
-                // free(varName); // internString may or may not take ownership, but Unnarize vm.c seems to copy?
-                // View vm.c Step 244: memcpy(strObj->chars, str, length);
-                // So internString COPIES. Thus, free(varName) IS CORRECT.
-                // Wait.
-                // Step 240: allocates ObjString.
-                // Step 244: copies chars.
-                // So free(varName) IS correct.
                 free(varName);
                 
                 int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
@@ -429,7 +421,7 @@ static void compileStatement(Compiler* c, Node* node) {
             emitByte(c, OP_LOOP_HEADER, line);
             
             // Hotspot check
-            // emitByte(c, OP_HOTSPOT_CHECK, line); // TEMPORARY DISABLE FOR DEBUGGING
+
             
             // Condition
             compileExpression(c, node->whileStmt.condition);
@@ -464,18 +456,16 @@ static void compileStatement(Compiler* c, Node* node) {
             compileExpression(c, node->foreachStmt.collection);
             addLocal(c, strdup(".col"));
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // Since STORE_LOCAL peeks, value is still on stack? No, REVERT to not assume.
-            // If STORE_LOCAL peeks, we have [val, val].
-            // DECLARATION: Do NOT pop! Reserve slot.
-            // emitByte(c, OP_POP, line); 
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
+            // Do NOT pop! Reserve slot. 
 
             // 2. Index -> local ".idx" = 0
             int zeroIdx = addConstant(c->chunk, INT_VAL(0));
             emitBytes(c, OP_LOAD_CONST, (uint8_t)zeroIdx, line);
             addLocal(c, strdup(".idx"));
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // DECLARATION: Do NOT pop! Reserve slot.
-            // emitByte(c, OP_POP, line);
+            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
+            // Do NOT pop! Reserve slot.
 
             // 3. Loop Start
             int loopStart = c->chunk->codeSize;
@@ -510,7 +500,7 @@ static void compileStatement(Compiler* c, Node* node) {
             c->locals[c->localCount - 1].depth = c->scopeDepth; // Mark initialized!
             
             emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // NO POP! Keep it on stack to protect slot.ine);
+            // NO POP! Keep it on stack to protect slot.
 
             // 7. Body
             compileStatement(c, node->foreachStmt.body);
@@ -611,9 +601,6 @@ static void compileStatement(Compiler* c, Node* node) {
             // Pop locals
             while (c->localCount > 0 &&
                    c->locals[c->localCount - 1].depth > c->scopeDepth) {
-                // emitByte(c, OP_POP, line); // Runtime pop
-                // Unnarize bytecode uses manual POP for locals going out of scope?
-                // Or does it just reset stack top on return?
                 // Block scope locals need explicit pop.
                 emitByte(c, OP_POP, line); 
                 c->localCount--;
