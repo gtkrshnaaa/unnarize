@@ -1878,7 +1878,7 @@ void registerBuiltins(VM* vm) {
     defineNative(vm, vm->globalEnv, "pop", nativePop, 1);
 }
 
-// String concatenation helper (exposed for JIT and Interpreter)
+// String concatenation helper (exposed for VM)
 Value vm_concatenate(VM* vm, Value a, Value b) {
     char bufferA[64], bufferB[64];
     const char* strA;
