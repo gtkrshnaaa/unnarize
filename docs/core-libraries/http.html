@@ -57,46 +57,102 @@
         
         <main class="main">
             <h1>ucoreHttp</h1>
-            <p class="lead">Built-in HTTP server functionality.</p>
+            <p class="lead">HTTP client and server functionality.</p>
             
             <h2>Functions</h2>
             <table>
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>listen(port, handler)</code></td><td>Start HTTP server</td></tr>
+                    <tr>
+                        <td><code>get(url)</code></td>
+                        <td>string</td>
+                        <td>HTTP GET request</td>
+                    </tr>
+                    <tr>
+                        <td><code>post(url, body)</code></td>
+                        <td>string</td>
+                        <td>HTTP POST request</td>
+                    </tr>
+                    <tr>
+                        <td><code>json(data)</code></td>
+                        <td>string</td>
+                        <td>Serialize data to JSON string</td>
+                    </tr>
+                    <tr>
+                        <td><code>route(method, path, handler)</code></td>
+                        <td>bool</td>
+                        <td>Register a route handler</td>
+                    </tr>
+                    <tr>
+                        <td><code>listen(port, [handler])</code></td>
+                        <td>bool</td>
+                        <td>Start HTTP server</td>
+                    </tr>
                 </tbody>
             </table>
             
-            <h2>Basic Server</h2>
-            <pre><code><span class="token-keyword">function</span> <span class="token-function">handleRequest</span>(req) {
-    <span class="token-function">print</span>(<span class="token-string">"Received: "</span> + req.method + <span class="token-string">" "</span> + req.path);
-    <span class="token-keyword">return</span> <span class="token-string">"Hello from Unnarize!"</span>;
-}
+            <h2>HTTP Client</h2>
+            
+            <h3>get(url)</h3>
+            <p>Performs an HTTP GET request. Returns the response body as a string.</p>
+            <pre><code><span class="token-keyword">var</span> response = ucoreHttp.<span class="token-function">get</span>(<span class="token-string">"http://example.com/api"</span>);
+<span class="token-function">print</span>(response);</code></pre>
+            
+            <h3>post(url, body)</h3>
+            <p>Performs an HTTP POST request with the given body.</p>
+            <pre><code><span class="token-keyword">var</span> data = ucoreHttp.<span class="token-function">json</span>(myData);
+<span class="token-keyword">var</span> response = ucoreHttp.<span class="token-function">post</span>(<span class="token-string">"http://example.com/api"</span>, data);
+<span class="token-function">print</span>(response);</code></pre>
+            
+            <h3>json(data)</h3>
+            <p>Serializes a map, array, or primitive to JSON string.</p>
+            <pre><code><span class="token-keyword">var</span> data = <span class="token-function">map</span>();
+data[<span class="token-string">"name"</span>] = <span class="token-string">"Unnarize"</span>;
+data[<span class="token-string">"version"</span>] = <span class="token-string">"1.0"</span>;
 
-<span class="token-function">print</span>(<span class="token-string">"Server starting on port 8080..."</span>);
+<span class="token-keyword">var</span> jsonStr = ucoreHttp.<span class="token-function">json</span>(data);
+<span class="token-function">print</span>(jsonStr);  <span class="token-comment">// {"name":"Unnarize","version":"1.0"}</span></code></pre>
+            
+            <h2>HTTP Server</h2>
+            
+            <h3>Handler Function</h3>
+            <p>Handler functions receive a request map with <code>method</code>, <code>path</code>, and <code>body</code>:</p>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">handleRequest</span>(req) {
+    <span class="token-function">print</span>(<span class="token-string">"Method: "</span> + req[<span class="token-string">"method"</span>]);
+    <span class="token-function">print</span>(<span class="token-string">"Path: "</span> + req[<span class="token-string">"path"</span>]);
+    <span class="token-function">print</span>(<span class="token-string">"Body: "</span> + req[<span class="token-string">"body"</span>]);
+    
+    <span class="token-keyword">return</span> <span class="token-string">"Hello from Unnarize!"</span>;
+}</code></pre>
+            
+            <h3>route(method, path, handlerName)</h3>
+            <p>Registers a route. Handler name is passed as a string.</p>
+            <pre><code>ucoreHttp.<span class="token-function">route</span>(<span class="token-string">"GET"</span>, <span class="token-string">"/"</span>, <span class="token-string">"handleIndex"</span>);
+ucoreHttp.<span class="token-function">route</span>(<span class="token-string">"GET"</span>, <span class="token-string">"/api"</span>, <span class="token-string">"handleApi"</span>);
+ucoreHttp.<span class="token-function">route</span>(<span class="token-string">"POST"</span>, <span class="token-string">"/echo"</span>, <span class="token-string">"handleEcho"</span>);</code></pre>
+            
+            <h3>listen(port, [handlerName])</h3>
+            <p>Starts the HTTP server. Second parameter is optional - if provided, all requests go to that handler. Otherwise, uses registered routes.</p>
+            <pre><code><span class="token-comment">// With routing</span>
+ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>);
+
+<span class="token-comment">// With single handler (bypasses routing)</span>
 ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>, <span class="token-string">"handleRequest"</span>);</code></pre>
             
-            <h2>Request Object</h2>
-            <p>The handler receives a request object with:</p>
-            <table>
-                <thead><tr><th>Property</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>method</code></td><td>HTTP method (GET, POST, etc)</td></tr>
-                    <tr><td><code>path</code></td><td>Request path</td></tr>
-                </tbody>
-            </table>
-            
-            <h2>Example with Routing</h2>
-            <pre><code><span class="token-keyword">function</span> <span class="token-function">router</span>(req) {
-    <span class="token-keyword">if</span> (req.path == <span class="token-string">"/"</span>) {
-        <span class="token-keyword">return</span> <span class="token-string">"Welcome!"</span>;
-    } <span class="token-keyword">else if</span> (req.path == <span class="token-string">"/api"</span>) {
-        <span class="token-keyword">return</span> <span class="token-string">"{\"status\": \"ok\"}"</span>;
-    }
-    <span class="token-keyword">return</span> <span class="token-string">"Not Found"</span>;
+            <h2>Complete Server Example</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">handleApi</span>(req) {
+    <span class="token-keyword">var</span> response = <span class="token-function">map</span>();
+    response[<span class="token-string">"status"</span>] = <span class="token-string">"ok"</span>;
+    response[<span class="token-string">"timestamp"</span>] = ucoreTimer.<span class="token-function">now</span>();
+    <span class="token-keyword">return</span> ucoreHttp.<span class="token-function">json</span>(response);
 }
 
-ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>, <span class="token-string">"router"</span>);</code></pre>
+ucoreHttp.<span class="token-function">route</span>(<span class="token-string">"GET"</span>, <span class="token-string">"/api"</span>, <span class="token-string">"handleApi"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Server starting on :8080"</span>);
+ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>);</code></pre>
+            
+            <h2>Example</h2>
+            <pre><code>./bin/unnarize examples/corelib/http/server.unna</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>

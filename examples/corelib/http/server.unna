@@ -1,0 +1,51 @@
+// ============================================================================
+// ucoreHttp Example - HTTP Server
+// ============================================================================
+// Demonstrates basic HTTP server with routing
+// Run: ./bin/unnarize examples/corelib/http/server.unna
+// Then open: http://localhost:8080
+// ============================================================================
+
+print("=== ucoreHttp Server Demo ===");
+print("");
+
+// Handler function receives request map with: method, path, body
+function handleIndex(req) {
+    print("Request: " + req["method"] + " " + req["path"]);
+    return "Hello from Unnarize HTTP Server!";
+}
+
+function handleApi(req) {
+    print("API Request: " + req["method"] + " " + req["path"]);
+    
+    var response = map();
+    response["status"] = "ok";
+    response["message"] = "API is working";
+    response["timestamp"] = ucoreTimer.now();
+    
+    return ucoreHttp.json(response);
+}
+
+function handleEcho(req) {
+    return "You sent: " + req["body"];
+}
+
+// Register routes
+// ucoreHttp.route(method, path, handlerName)
+ucoreHttp.route("GET", "/", "handleIndex");
+ucoreHttp.route("GET", "/api", "handleApi");
+ucoreHttp.route("POST", "/echo", "handleEcho");
+
+print("Routes registered:");
+print("  GET  /      -> handleIndex");
+print("  GET  /api   -> handleApi");
+print("  POST /echo  -> handleEcho");
+print("");
+
+// Start server on port 8080
+// Second parameter is optional main handler (bypasses routing)
+print("Starting server on port 8080...");
+print("Press Ctrl+C to stop");
+print("");
+
+ucoreHttp.listen(8080);

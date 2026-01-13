@@ -57,65 +57,102 @@
         
         <main class="main">
             <h1>ucoreUon</h1>
-            <p class="lead">Built-in database with UON (Unnarize Object Notation) format.</p>
+            <p class="lead">UON (Unnarize Object Notation) database with streaming cursor.</p>
             
             <h2>Functions</h2>
             <table>
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>load(file)</code></td><td>Load UON database file</td></tr>
-                    <tr><td><code>get(table)</code></td><td>Get cursor for table</td></tr>
-                    <tr><td><code>next(cursor)</code></td><td>Get next row</td></tr>
-                    <tr><td><code>insert(table, data)</code></td><td>Insert data</td></tr>
-                    <tr><td><code>save(file)</code></td><td>Save to file</td></tr>
+                    <tr>
+                        <td><code>load(path)</code></td>
+                        <td>bool</td>
+                        <td>Load and parse UON file schema</td>
+                    </tr>
+                    <tr>
+                        <td><code>parse(source)</code></td>
+                        <td>bool</td>
+                        <td>Parse UON from string</td>
+                    </tr>
+                    <tr>
+                        <td><code>get(table)</code></td>
+                        <td>cursor</td>
+                        <td>Get streaming cursor for table</td>
+                    </tr>
+                    <tr>
+                        <td><code>next(cursor)</code></td>
+                        <td>map/nil</td>
+                        <td>Get next row from cursor</td>
+                    </tr>
                 </tbody>
             </table>
             
-            <h2>Loading Data</h2>
-            <pre><code><span class="token-keyword">var</span> success = ucoreUon.<span class="token-function">load</span>(<span class="token-string">"database.uon"</span>);
+            <h2>UON File Format</h2>
+            <p>UON files have two sections: <code>@schema</code> for structure definition and <code>@flow</code> for data.</p>
+            
+            <pre><code><span class="token-comment">// sample.uon</span>
 
-<span class="token-keyword">if</span> (!success) {
-    <span class="token-function">print</span>(<span class="token-string">"Failed to load database"</span>);
+@schema {
+    users: [id, name, email, age],
+    products: [id, name, price, stock]
+}
+
+@flow {
+    users: [
+        { id: <span class="token-number">1</span>, name: <span class="token-string">"Alice"</span>, email: <span class="token-string">"alice@example.com"</span>, age: <span class="token-number">28</span> },
+        { id: <span class="token-number">2</span>, name: <span class="token-string">"Bob"</span>, email: <span class="token-string">"bob@example.com"</span>, age: <span class="token-number">34</span> }
+    ],
+    
+    products: [
+        { id: <span class="token-number">1</span>, name: <span class="token-string">"Laptop"</span>, price: <span class="token-number">999</span>, stock: <span class="token-number">50</span> },
+        { id: <span class="token-number">2</span>, name: <span class="token-string">"Mouse"</span>, price: <span class="token-number">29</span>, stock: <span class="token-number">200</span> }
+    ]
 }</code></pre>
             
-            <h2>Querying Data</h2>
-            <pre><code><span class="token-keyword">var</span> cursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"users"</span>);
-
-<span class="token-keyword">var</span> row = ucoreUon.<span class="token-function">next</span>(cursor);
+            <h2>load(path)</h2>
+            <p>Loads a UON file and parses its schema. Returns true on success.</p>
+            <pre><code><span class="token-keyword">var</span> success = ucoreUon.<span class="token-function">load</span>(<span class="token-string">"data/sample.uon"</span>);
+<span class="token-keyword">if</span> (!success) {
+    <span class="token-function">print</span>(<span class="token-string">"Failed to load UON file"</span>);
+}</code></pre>
+            
+            <h2>get(table)</h2>
+            <p>Returns a streaming cursor for the specified table. Uses lazy loading for memory efficiency.</p>
+            <pre><code><span class="token-keyword">var</span> cursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"users"</span>);</code></pre>
+            
+            <h2>next(cursor)</h2>
+            <p>Returns the next row as a map, or nil when end of table is reached.</p>
+            <pre><code><span class="token-keyword">var</span> row = ucoreUon.<span class="token-function">next</span>(cursor);
 <span class="token-keyword">while</span> (row) {
-    <span class="token-function">print</span>(<span class="token-string">"User: "</span> + row.name);
+    <span class="token-function">print</span>(row[<span class="token-string">"name"</span>] + <span class="token-string">" - "</span> + row[<span class="token-string">"email"</span>]);
     row = ucoreUon.<span class="token-function">next</span>(cursor);
 }</code></pre>
             
-            <h2>UON File Format</h2>
-            <pre><code><span class="token-comment">// database.uon</span>
-
-[users]
-{ name: "Alice", age: 30 }
-{ name: "Bob", age: 25 }
-
-[settings]
-{ key: "theme", value: "dark" }
-{ key: "version", value: "1.0" }</code></pre>
-            
             <h2>Complete Example</h2>
-            <pre><code>ucoreUon.<span class="token-function">load</span>(<span class="token-string">"app.uon"</span>);
+            <pre><code><span class="token-comment">// Load database</span>
+ucoreUon.<span class="token-function">load</span>(<span class="token-string">"data/sample.uon"</span>);
 
+<span class="token-comment">// Query users table</span>
 <span class="token-function">print</span>(<span class="token-string">"=== Users ==="</span>);
 <span class="token-keyword">var</span> userCursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"users"</span>);
 <span class="token-keyword">var</span> user = ucoreUon.<span class="token-function">next</span>(userCursor);
+
 <span class="token-keyword">while</span> (user) {
-    <span class="token-function">print</span>(user.name + <span class="token-string">" - Age: "</span> + user.age);
+    <span class="token-function">print</span>(<span class="token-string">"["</span> + user[<span class="token-string">"id"</span>] + <span class="token-string">"] "</span> + user[<span class="token-string">"name"</span>]);
     user = ucoreUon.<span class="token-function">next</span>(userCursor);
 }
 
-<span class="token-function">print</span>(<span class="token-string">"=== Settings ==="</span>);
-<span class="token-keyword">var</span> settingsCursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"settings"</span>);
-<span class="token-keyword">var</span> setting = ucoreUon.<span class="token-function">next</span>(settingsCursor);
-<span class="token-keyword">while</span> (setting) {
-    <span class="token-function">print</span>(setting.key + <span class="token-string">": "</span> + setting.value);
-    setting = ucoreUon.<span class="token-function">next</span>(settingsCursor);
+<span class="token-comment">// Query products table</span>
+<span class="token-function">print</span>(<span class="token-string">"=== Products ==="</span>);
+<span class="token-keyword">var</span> prodCursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"products"</span>);
+<span class="token-keyword">var</span> prod = ucoreUon.<span class="token-function">next</span>(prodCursor);
+
+<span class="token-keyword">while</span> (prod) {
+    <span class="token-function">print</span>(prod[<span class="token-string">"name"</span>] + <span class="token-string">" - $"</span> + prod[<span class="token-string">"price"</span>]);
+    prod = ucoreUon.<span class="token-function">next</span>(prodCursor);
 }</code></pre>
+            
+            <h2>Example</h2>
+            <pre><code>./bin/unnarize examples/corelib/uon/demo.unna</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>

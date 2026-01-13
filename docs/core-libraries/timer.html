@@ -57,50 +57,67 @@
         
         <main class="main">
             <h1>ucoreTimer</h1>
-            <p class="lead">Timing operations and delays.</p>
+            <p class="lead">High-precision timing and delay operations.</p>
             
             <h2>Functions</h2>
             <table>
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>now()</code></td><td>Current time in milliseconds</td></tr>
-                    <tr><td><code>sleep(ms)</code></td><td>Pause execution</td></tr>
+                    <tr>
+                        <td><code>now()</code></td>
+                        <td>float</td>
+                        <td>Current monotonic time in milliseconds</td>
+                    </tr>
+                    <tr>
+                        <td><code>sleep(ms)</code></td>
+                        <td>int</td>
+                        <td>Pause execution for specified milliseconds</td>
+                    </tr>
                 </tbody>
             </table>
             
-            <h2>Measuring Time</h2>
+            <h2>now()</h2>
+            <p>Returns the current monotonic time in milliseconds as a float. Useful for measuring elapsed time.</p>
             <pre><code><span class="token-keyword">var</span> start = ucoreTimer.<span class="token-function">now</span>();
 
 <span class="token-comment">// Do some work</span>
 <span class="token-keyword">var</span> sum = <span class="token-number">0</span>;
-<span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < <span class="token-number">1000000</span>; i = i + <span class="token-number">1</span>) {
+<span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < <span class="token-number">100000</span>; i = i + <span class="token-number">1</span>) {
     sum = sum + i;
 }
 
 <span class="token-keyword">var</span> elapsed = ucoreTimer.<span class="token-function">now</span>() - start;
-<span class="token-function">print</span>(<span class="token-string">"Elapsed: "</span> + elapsed + <span class="token-string">"ms"</span>);</code></pre>
+<span class="token-function">print</span>(<span class="token-string">"Elapsed: "</span> + elapsed + <span class="token-string">" ms"</span>);</code></pre>
             
-            <h2>Delays</h2>
+            <h2>sleep(ms)</h2>
+            <p>Pauses execution for the specified number of milliseconds.</p>
             <pre><code><span class="token-function">print</span>(<span class="token-string">"Starting..."</span>);
 ucoreTimer.<span class="token-function">sleep</span>(<span class="token-number">1000</span>);  <span class="token-comment">// Wait 1 second</span>
-<span class="token-function">print</span>(<span class="token-string">"1 second later"</span>);
+<span class="token-function">print</span>(<span class="token-string">"1 second later!"</span>);
 
 ucoreTimer.<span class="token-function">sleep</span>(<span class="token-number">500</span>);   <span class="token-comment">// Wait 500ms</span>
 <span class="token-function">print</span>(<span class="token-string">"Done!"</span>);</code></pre>
             
-            <h2>Benchmarking</h2>
+            <h2>Benchmarking Pattern</h2>
             <pre><code><span class="token-keyword">function</span> <span class="token-function">benchmark</span>(name, iterations) {
-    <span class="token-keyword">var</span> start = ucoreTimer.<span class="token-function">now</span>();
+    <span class="token-keyword">var</span> t0 = ucoreTimer.<span class="token-function">now</span>();
     
+    <span class="token-keyword">var</span> x = <span class="token-number">0</span>;
     <span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < iterations; i = i + <span class="token-number">1</span>) {
-        <span class="token-comment">// Work</span>
+        x = x + <span class="token-number">1</span>;
     }
     
-    <span class="token-keyword">var</span> elapsed = ucoreTimer.<span class="token-function">now</span>() - start;
-    <span class="token-keyword">var</span> opsPerSec = iterations / (elapsed / <span class="token-number">1000</span>);
+    <span class="token-keyword">var</span> t1 = ucoreTimer.<span class="token-function">now</span>();
+    <span class="token-keyword">var</span> ms = t1 - t0;
+    <span class="token-keyword">var</span> opsPerSec = iterations / (ms / <span class="token-number">1000</span>);
     
     <span class="token-function">print</span>(name + <span class="token-string">": "</span> + opsPerSec + <span class="token-string">" ops/sec"</span>);
-}</code></pre>
+}
+
+<span class="token-function">benchmark</span>(<span class="token-string">"Loop"</span>, <span class="token-number">1000000</span>);</code></pre>
+            
+            <h2>Example</h2>
+            <pre><code>./bin/unnarize examples/corelib/timer/demo.unna</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>

@@ -1,0 +1,39 @@
+// ============================================================================
+// ucoreHttp Example - HTTP Client
+// ============================================================================
+// Demonstrates HTTP client: get(), post(), json()
+// ============================================================================
+
+print("=== ucoreHttp Client Demo ===");
+print("");
+
+// NOTE: These examples require network access and real endpoints
+// Uncomment to test with actual URLs
+
+// Simple GET request
+// print("--- GET Request ---");
+// var response = ucoreHttp.get("http://httpbin.org/get");
+// print("Response: " + response);
+
+// POST request with body
+// print("");
+// print("--- POST Request ---");
+// var body = ucoreHttp.json({"name": "test", "value": 42});
+// var postResponse = ucoreHttp.post("http://httpbin.org/post", body);
+// print("Response: " + postResponse);
+
+// JSON serialization demo (works offline)
+print("--- JSON Serialization ---");
+var data = map();
+data["name"] = "Unnarize";
+data["version"] = "1.0";
+data["active"] = true;
+
+var jsonStr = ucoreHttp.json(data);
+print("JSON output: " + jsonStr);
+
+print("");
+print("Done!");
+print("");
+print("To test HTTP requests, uncomment the GET/POST sections");
+print("and run with network access.");

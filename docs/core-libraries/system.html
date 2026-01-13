@@ -57,32 +57,72 @@
         
         <main class="main">
             <h1>ucoreSystem</h1>
-            <p class="lead">System-level operations.</p>
+            <p class="lead">System-level operations and I/O.</p>
             
             <h2>Functions</h2>
             <table>
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>fileExists(path)</code></td><td>Check if file exists</td></tr>
+                    <tr>
+                        <td><code>args()</code></td>
+                        <td>array</td>
+                        <td>Command line arguments</td>
+                    </tr>
+                    <tr>
+                        <td><code>input(prompt)</code></td>
+                        <td>string</td>
+                        <td>Read user input from stdin</td>
+                    </tr>
+                    <tr>
+                        <td><code>getenv(name)</code></td>
+                        <td>string</td>
+                        <td>Get environment variable value</td>
+                    </tr>
+                    <tr>
+                        <td><code>fileExists(path)</code></td>
+                        <td>bool</td>
+                        <td>Check if file exists</td>
+                    </tr>
                 </tbody>
             </table>
             
-            <h2>File Existence Check</h2>
-            <pre><code><span class="token-keyword">if</span> (ucoreSystem.<span class="token-function">fileExists</span>(<span class="token-string">"config.uon"</span>)) {
-    <span class="token-function">print</span>(<span class="token-string">"Config found"</span>);
-} <span class="token-keyword">else</span> {
-    <span class="token-function">print</span>(<span class="token-string">"Config not found"</span>);
+            <h2>args()</h2>
+            <p>Returns an array of command line arguments. First element is the script path.</p>
+            <pre><code><span class="token-keyword">var</span> args = ucoreSystem.<span class="token-function">args</span>();
+<span class="token-function">print</span>(<span class="token-string">"Script: "</span> + args[<span class="token-number">0</span>]);
+
+<span class="token-keyword">if</span> (<span class="token-function">length</span>(args) > <span class="token-number">1</span>) {
+    <span class="token-function">print</span>(<span class="token-string">"First arg: "</span> + args[<span class="token-number">1</span>]);
 }</code></pre>
             
-            <h2>Conditional Loading</h2>
-            <pre><code><span class="token-keyword">var</span> configFile = <span class="token-string">"settings.uon"</span>;
+            <h2>input(prompt)</h2>
+            <p>Displays a prompt and reads a line from stdin.</p>
+            <pre><code><span class="token-keyword">var</span> name = ucoreSystem.<span class="token-function">input</span>(<span class="token-string">"Enter your name: "</span>);
+<span class="token-function">print</span>(<span class="token-string">"Hello, "</span> + name + <span class="token-string">"!"</span>);
 
-<span class="token-keyword">if</span> (ucoreSystem.<span class="token-function">fileExists</span>(configFile)) {
-    ucoreUon.<span class="token-function">load</span>(configFile);
-    <span class="token-function">print</span>(<span class="token-string">"Settings loaded"</span>);
+<span class="token-keyword">var</span> age = ucoreSystem.<span class="token-function">input</span>(<span class="token-string">"Enter your age: "</span>);
+<span class="token-function">print</span>(<span class="token-string">"You are "</span> + age + <span class="token-string">" years old."</span>);</code></pre>
+            
+            <h2>getenv(name)</h2>
+            <p>Returns the value of an environment variable, or empty string if not set.</p>
+            <pre><code><span class="token-keyword">var</span> home = ucoreSystem.<span class="token-function">getenv</span>(<span class="token-string">"HOME"</span>);
+<span class="token-keyword">var</span> user = ucoreSystem.<span class="token-function">getenv</span>(<span class="token-string">"USER"</span>);
+<span class="token-keyword">var</span> path = ucoreSystem.<span class="token-function">getenv</span>(<span class="token-string">"PATH"</span>);
+
+<span class="token-function">print</span>(<span class="token-string">"HOME: "</span> + home);
+<span class="token-function">print</span>(<span class="token-string">"USER: "</span> + user);</code></pre>
+            
+            <h2>fileExists(path)</h2>
+            <p>Checks if a file exists at the given path.</p>
+            <pre><code><span class="token-keyword">if</span> (ucoreSystem.<span class="token-function">fileExists</span>(<span class="token-string">"config.uon"</span>)) {
+    <span class="token-function">print</span>(<span class="token-string">"Config found"</span>);
+    ucoreUon.<span class="token-function">load</span>(<span class="token-string">"config.uon"</span>);
 } <span class="token-keyword">else</span> {
     <span class="token-function">print</span>(<span class="token-string">"Using defaults"</span>);
 }</code></pre>
+            
+            <h2>Example</h2>
+            <pre><code>./bin/unnarize examples/corelib/system/demo.unna arg1 arg2</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>

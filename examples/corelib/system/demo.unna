@@ -1,0 +1,55 @@
+// ============================================================================
+// ucoreSystem Example
+// ============================================================================
+// Demonstrates system operations: args(), input(), getenv(), fileExists()
+// ============================================================================
+
+print("=== ucoreSystem Demo ===");
+print("");
+
+// Command line arguments
+print("--- Command Line Arguments ---");
+var args = ucoreSystem.args();
+print("Script: " + args[0]);
+print("Total args: " + length(args));
+
+if (length(args) > 1) {
+    print("Extra args:");
+    for (var i = 1; i < length(args); i = i + 1) {
+        print("  [" + i + "] " + args[i]);
+    }
+}
+
+// Environment variables
+print("");
+print("--- Environment Variables ---");
+var home = ucoreSystem.getenv("HOME");
+var user = ucoreSystem.getenv("USER");
+var path = ucoreSystem.getenv("PATH");
+
+print("HOME: " + home);
+print("USER: " + user);
+print("PATH length: " + length(path) + " chars");
+
+// File existence check
+print("");
+print("--- File Existence Check ---");
+
+var testFiles = ["README.md", "Makefile", "nonexistent.txt", "src/main.c"];
+for (var file : testFiles) {
+    var exists = ucoreSystem.fileExists(file);
+    if (exists) {
+        print("[EXISTS] " + file);
+    } else {
+        print("[NOT FOUND] " + file);
+    }
+}
+
+// Interactive input (uncomment to test)
+// print("");
+// print("--- User Input ---");
+// var name = ucoreSystem.input("Enter your name: ");
+// print("Hello, " + name + "!");
+
+print("");
+print("Done!");

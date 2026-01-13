@@ -1,0 +1,57 @@
+// ============================================================================
+// ucoreTimer Example
+// ============================================================================
+// Demonstrates timing operations: now() and sleep()
+// ============================================================================
+
+print("=== ucoreTimer Demo ===");
+print("");
+
+// Get current time in milliseconds
+var start = ucoreTimer.now();
+print("Start time (ms): " + start);
+
+// Measure execution time
+print("");
+print("Running loop...");
+
+var sum = 0;
+for (var i = 0; i < 100000; i = i + 1) {
+    sum = sum + i;
+}
+
+var elapsed = ucoreTimer.now() - start;
+print("Sum: " + sum);
+print("Elapsed: " + elapsed + " ms");
+
+// Sleep demonstration
+print("");
+print("Sleeping for 500ms...");
+var beforeSleep = ucoreTimer.now();
+ucoreTimer.sleep(500);
+var afterSleep = ucoreTimer.now();
+print("Slept for: " + (afterSleep - beforeSleep) + " ms");
+
+// Benchmarking function
+function benchmark(name, iterations) {
+    var t0 = ucoreTimer.now();
+    
+    var x = 0;
+    for (var i = 0; i < iterations; i = i + 1) {
+        x = x + 1;
+    }
+    
+    var t1 = ucoreTimer.now();
+    var ms = t1 - t0;
+    var opsPerSec = iterations / (ms / 1000);
+    
+    print(name + ": " + ms + "ms (" + opsPerSec + " ops/sec)");
+}
+
+print("");
+print("=== Benchmark ===");
+benchmark("100K iterations", 100000);
+benchmark("1M iterations", 1000000);
+
+print("");
+print("Done!");
