@@ -747,6 +747,32 @@ static void compileStatement(Compiler* c, Node* node) {
              break;
         }
 
+        case NODE_STMT_IMPORT: {
+             // import name as alias;
+             Token name = node->importStmt.module; // FIXED: .module not .name
+             Token alias = node->importStmt.alias; // "math"
+             
+             // 1. Emit OP_IMPORT <name_string_index>
+             char* modName = strndup(name.start, name.length);
+             ObjString* modStr = internString(c->vm, modName, name.length);
+             free(modName);
+             int constIdx = addConstant(c->chunk, OBJ_VAL(modStr));
+             emitBytes(c, OP_IMPORT, (uint8_t)constIdx, line);
+             
+             // 2. Store result in variable 'alias'
+             if (c->scopeDepth == 0) {
+                 char* aliasName = strndup(alias.start, alias.length);
+                 ObjString* aliasStr = internString(c->vm, aliasName, alias.length);
+                 free(aliasName);
+                 int aliasIdx = addConstant(c->chunk, OBJ_VAL(aliasStr));
+                 emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)aliasIdx, line);
+             } else {
+                 int slot = addLocal(c, strndup(alias.start, alias.length));
+                 emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+             }
+             break;
+        }
+
         default:
             break;
     }
