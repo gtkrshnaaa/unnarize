@@ -33,27 +33,12 @@ static void* sleepThread(void* p) {
     return NULL;
 }
 */
-#if 0
-static void* sleepThread(void* p) {
-    SleepArgs* a = (SleepArgs*)p;
-    if (a->ms > 0) {
-        struct timespec ts;
-        ts.tv_sec = a->ms / 1000;
-        ts.tv_nsec = (long)(a->ms % 1000) * 1000000L;
-        nanosleep(&ts, NULL);
-    }
-    Value rv; rv.type = VAL_INT; rv.intVal = 0;
-    futureResolve(a->f, rv);
-    free(a);
-    return NULL;
-}
-#endif
+
 
 // ---- Future helpers (blocking await) ----
 static Future* futureNew(VM* vm) {
     Future* f = ALLOCATE_OBJ(vm, Future, OBJ_FUTURE);
     f->done = false;
-    // Initialize result to 0 int
     // Initialize result to 0 int
     f->result = INT_VAL(0);
     // Reinit mutex/cv
@@ -90,14 +75,7 @@ static bool futureIsDone(Future* f) {
     return done;
 }
 */
-#if 0
-static bool futureIsDone(Future* f) {
-    pthread_mutex_lock(&f->mu);
-    bool d = f->done;
-    pthread_mutex_unlock(&f->mu);
-    return d;
-}
-#endif
+
 
 // Optimized FNV-1a hash function for variables (faster than previous implementation)
 unsigned int hash(const char* key, int length) {
@@ -164,12 +142,7 @@ void freeVM(VM* vm) {
 
 
     if (vm->stringPool.strings) {
-         // strings are ObjStrings which are in vm->objects list and freed there?
-         // No, vm->stringPool.strings stores char* pointers?
-         // In internString: vm->stringPool.strings[i] = (char*)strObj;
-         // So they ARE ObjStrings.
-         // If we free them in object loop, do NOT free them here as pointers.
-         // Just free the array.
+         // Strings are managed as ObjStrings and will be freed by the object loop
          free(vm->stringPool.strings);
          free(vm->stringPool.hashes);
     }
@@ -265,12 +238,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
 // Basic helper to intern a token's valid string range
 static void internToken(VM* vm, Token* token) {
     if (token->length > 0) {
-        // internToken
-        // internString returns ObjString*. We need char* for current Map/implementation?
-        // But Token doesn't store interned string directly?
-        // Wait, where is this used?
-        // "char* interned = internString(vm, token->start, token->length);"
-        // Should be:
+        // Intern the token string content
         ObjString* internedObj = internString(vm, token->start, token->length);
         char* interned = internedObj->chars;
         // DANGEROUS CAST: We are modifying the AST in place.
@@ -400,42 +368,7 @@ static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool i
      return NULL;
 }
 */
-#if 0
-static ModuleEntry* findModuleEntry(VM* vm, const char* name, int length, bool insert) {
-    // For ModuleEntry, we intern the key first
-    char* key = internString(vm, name, length)->chars;
-    
-    // Simple hash
-    int idx = 0; // Simplified hash for bucket
-    // Actually using `hash` function
-    unsigned int h = hash(name, length);
-    idx = h % TABLE_SIZE;
-    
-    ModuleEntry* e = vm->moduleBuckets[idx];
-    while (e) {
-        if (e->name == key || (e->nameLen == length && memcmp(e->name, name, length) == 0)) {
-            return e;
-        }
-        e = e->next;
-    }
-    
-    if (!insert) return NULL;
 
-    e = malloc(sizeof(ModuleEntry));
-    if (!e) error("Memory allocation failed.", 0);
-    // e->name = key; // Should use interned char* if we trust it stays alive by being in ObjString rooted?
-    // ObjString might be collected if not rooted!
-    // We should duplicate name or root the ObjString.
-    // For now, duplicate to be safe
-    e->name = malloc(length + 1);
-    memcpy(e->name, name, length); e->name[length] = '\0';
-    e->nameLen = length;
-    e->module = NULL;
-    e->next = vm->moduleBuckets[idx];
-    vm->moduleBuckets[idx] = e;
-    return e;
-}
-#endif
 
 // Check if regular file exists
 /*
@@ -444,12 +377,7 @@ static bool fileExists(const char* path) {
     return stat(path, &st) == 0;
 }
 */
-#if 0
-static bool fileExists(const char* path) {
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
-}
-#endif
+
 
 // Find or insert variable with proper scope resolution
 static VarEntry* findEntry(VM* vm, Token name, bool insert) {
@@ -470,10 +398,7 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
         return NULL;
     }
     
-    // If inserting, search only current environment (already done above? No, checked buckets[h] for return?)
-    // Wait, insert logic below assumes we want to return existing if found? 
-    // Usually defineVar checks exists.
-    // Let's stick to: if insert, we check current env.
+    // If inserting, search only current environment
     VarEntry* entry = vm->env->buckets[h];
     while (entry) {
         if (entry->key == name.start) return entry;
@@ -617,34 +542,7 @@ static char* searchFileRecursive(const char* root, const char* filename) {
     return found;
 }
 */
-#if 0
-static char* searchFileRecursive(const char* root, const char* filename) {
-    DIR* dir = opendir(root);
-    if (!dir) return NULL;
-    struct dirent* ent;
-    while ((ent = readdir(dir)) != NULL) {
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-        // Skip common build dirs
-        if (strcmp(ent->d_name, ".unnat") == 0 || strcmp(ent->d_name, "bin") == 0 || strcmp(ent->d_name, "obj") == 0) continue;
-        char path[2048];
-        snprintf(path, sizeof(path), "%s/%s", root, ent->d_name);
-        struct stat st;
-        if (stat(path, &st) != 0) continue;
-        if (S_ISDIR(st.st_mode)) {
-            char* found = searchFileRecursive(path, filename);
-            if (found) { closedir(dir); return found; }
-        } else if (S_ISREG(st.st_mode)) {
-            if (strcmp(ent->d_name, filename) == 0) {
-                char* full = strdup(path);
-                closedir(dir);
-                return full;
-            }
-        }
-    }
-    closedir(dir);
-    return NULL;
-}
-#endif
+
 
 // Convert 1-char string to int code if applicable
 /*
@@ -653,15 +551,7 @@ static bool tryCharCode(Value v, int* out) {
     return false; 
 }
 */
-#if 0
-static bool tryCharCode(Value v, int* out) {
-    if (IS_STRING(v) && AS_STRING(v)->length == 1) {
-        *out = (unsigned char)AS_CSTRING(v)[0];
-        return true;
-    }
-    return false;
-}
-#endif
+
 
 // ---- Array helpers ----
 // Helper to create a new array
@@ -759,21 +649,7 @@ static bool mapDeleteInt(Map* m, int ikey) {
     return false;
 }
 */
-#if 0
-static bool mapDeleteInt(Map* m, int ikey) {
-    unsigned int b = hashIntKey(ikey);
-    MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
-    while (e) {
-        if (e->isIntKey && e->intKey == ikey) {
-            if (prev) prev->next = e->next; else m->buckets[b] = e->next;
-            free(e);
-            return true;
-        }
-        prev = e; e = e->next;
-    }
-    return false;
-}
-#endif
+
 
 /*
 static bool mapDeleteStr(Map* m, const char* key, int len) {
@@ -782,21 +658,7 @@ static bool mapDeleteStr(Map* m, const char* key, int len) {
     return false;
 }
 */
-#if 0
-static bool mapDeleteStr(Map* m, const char* key, int len) {
-    unsigned int b = hash(key, len);
-    MapEntry* prev = NULL; MapEntry* e = m->buckets[b];
-    while (e) {
-        if (!e->isIntKey && e->key && (int)strlen(e->key) == len && strncmp(e->key, key, len) == 0) {
-            if (prev) prev->next = e->next; else m->buckets[b] = e->next;
-            free(e->key); free(e);
-            return true;
-        }
-        prev = e; e = e->next;
-    }
-    return false;
-}
-#endif
+
 
 
 // Forward declarations
