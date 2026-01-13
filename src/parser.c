@@ -581,7 +581,12 @@ static Node* declaration(Parser* parser) {
     if (match(parser, TOKEN_STRUCT)) return structDeclaration(parser);
     if (match(parser, TOKEN_VAR)) return varDeclaration(parser);
     if (match(parser, TOKEN_IMPORT)) {
-        Token module = consume(parser, TOKEN_IDENTIFIER, "Expect module name after 'import'.");
+        Token module;
+        if (check(parser, TOKEN_STRING)) {
+            module = advance(parser);
+        } else {
+             module = consume(parser, TOKEN_IDENTIFIER, "Expect module name (string or identifier) after 'import'.");
+        }
         consume(parser, TOKEN_AS, "Expect 'as' in import statement.");
         Token alias = consume(parser, TOKEN_IDENTIFIER, "Expect alias after 'as'.");
         consume(parser, TOKEN_SEMICOLON, "Expect ';' after import statement.");
