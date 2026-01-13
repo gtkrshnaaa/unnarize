@@ -1,0 +1,32 @@
+// ==========================================
+// 01_variables.unna
+// Variables and Data Types
+// ==========================================
+
+print("=== Variables & Data Types ===");
+
+// Numbers (integers and floats)
+var age = 25;
+var price = 19.99;
+var negative = -42;
+
+print("Integer: " + age);
+print("Float: " + price);
+print("Negative: " + negative);
+
+// Strings
+var greeting = "Hello";
+var name = "Unnarize";
+var combined = greeting + ", " + name + "!";
+
+print("String: " + greeting);
+print("Concatenation: " + combined);
+
+// Booleans
+var isActive = true;
+var isComplete = false;
+
+print("Boolean true: " + isActive);
+print("Boolean false: " + isComplete);
+
+print("=== Complete ===");
