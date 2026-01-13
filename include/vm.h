@@ -258,7 +258,7 @@ struct BytecodeChunk;
 
 // VM constants
 #define STACK_MAX 65536           // Maximum stack size
-#define CALL_STACK_MAX 64       // Maximum call stack depth
+#define CALL_STACK_MAX 1024       // Maximum call stack depth
 
 // Call frame structure for function calls
 struct CallFrame {

@@ -964,8 +964,8 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                      exit(1);
                  }
                  
-                 if (unlikely(vm->callStackTop >= 64)) { // hardcoded for now or use CALL_STACK_MAX
-                     printf("Runtime Error: Stack overflow.\n");
+                 if (unlikely(vm->callStackTop >= CALL_STACK_MAX)) {
+                     printf("Runtime Error: Stack overflow. Depth: %d\n", vm->callStackTop);
                      exit(1);
                  }
                  
@@ -1051,8 +1051,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         constants = chunk->constants;
         ip = frame->ip;
         
-        // Reset SP to where Function object was (CalleeFP - 1)
-        sp = calleeFp - 1; 
+        // Reset SP to where Function object was (CalleeFP)
+        // We replace [Function, Args...] with [RetVal]
+        sp = calleeFp; 
         *sp++ = retVal;
         NEXT();
     }
@@ -1098,15 +1099,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                      // printf("DEBUG: Module Skip '%s' vs '%s'\n", e->key, name->chars);
                      e = e->next;
                  }
-                 /*
-                 printf("DEBUG: Module '%s' does not contain property '%s'. Keys:\n", mod->name, name->chars);
-                 for(int i=0; i<TABLE_SIZE; i++) {
-                     VarEntry* de = mod->env->buckets[i];
-                     while(de) {
-                         printf(" - %s\n", de->key);
-                         de = de->next;
-                     }
-                 } */
+                 // Property not found on module
+                 printf("Runtime Error: Undefined property '%s' in module '%s'.\n", name->chars, mod->name);
+                 exit(1);
             }
             else if (obj->type == OBJ_STRING) {
                  if (name->length == 6 && memcmp(name->chars, "length", 6) == 0) {
