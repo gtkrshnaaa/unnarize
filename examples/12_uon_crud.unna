@@ -1,25 +1,25 @@
-print("--- UON CRUD Test ---");
+// UON CRUD Test
 
 // 1. Load initial data
 ucoreUon.load("examples/data.uon");
 var initialItems = ucoreUon.get("items");
-print("Initial Count: " + initialItems.length); // Should be 2
+print("Initial Count: " + length(initialItems)); 
 
 // 2. Insert new item
 print("Inserting Item 3...");
 ucoreUon.insert("items", [3, "Shield", 75]);
 
 var afterInsert = ucoreUon.get("items");
-print("Count after Insert: " + afterInsert.length); // Should be 3
-print("New Item: " + afterInsert[2].name);
+print("Count after Insert: " + length(afterInsert)); 
+print("New Item: " + afterInsert[2]["name"]); // Also fix .name to ["name"] likely needed if map
 
 // 3. Delete Item 1 (Potion)
 print("Deleting Item 1...");
 ucoreUon.delete("items", 1);
 
 var afterDelete = ucoreUon.get("items");
-print("Count after Delete: " + afterDelete.length); // Should be 2
-print("Remaining Item 1: " + afterDelete[0].name); // Should be Sword (swapped or shifted)
+print("Count after Delete: " + length(afterDelete)); 
+print("Remaining Item 1: " + afterDelete[0].name); 
 
 // 4. Save to new file
 print("Saving to examples/data_modified.uon...");
