@@ -42,9 +42,24 @@ print("");
 print("Creating sample data structure...");
 
 var users = [];
-push(users, {"id": 1, "name": "Alice", "email": "alice@example.com"});
-push(users, {"id": 2, "name": "Bob", "email": "bob@example.com"});
-push(users, {"id": 3, "name": "Carol", "email": "carol@example.com"});
+
+var user1 = map();
+user1["id"] = 1;
+user1["name"] = "Alice";
+user1["email"] = "alice@example.com";
+push(users, user1);
+
+var user2 = map();
+user2["id"] = 2;
+user2["name"] = "Bob";
+user2["email"] = "bob@example.com";
+push(users, user2);
+
+var user3 = map();
+user3["id"] = 3;
+user3["name"] = "Carol";
+user3["email"] = "carol@example.com";
+push(users, user3);
 
 print("");
 print("Users:");
