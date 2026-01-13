@@ -1,0 +1,40 @@
+// ==========================================
+// 11_async.unna
+// Async/Await Functions
+// ==========================================
+
+print("=== Async/Await ===");
+
+// Async function definition
+async function fetchData(source) {
+    print("  Fetching from " + source + "...");
+    return "Data:" + source;
+}
+
+async function processTask(id) {
+    print("  Processing task " + id + "...");
+    return "Task" + id + " complete";
+}
+
+// Async workflow
+async function runWorkflow() {
+    print("Workflow started");
+    
+    // Start tasks
+    var task1 = fetchData("API");
+    var task2 = fetchData("Database");
+    
+    // Await results
+    var result1 = await task1;
+    var result2 = await task2;
+    
+    print("  Got: " + result1);
+    print("  Got: " + result2);
+    
+    print("Workflow finished");
+}
+
+// Execute async workflow
+runWorkflow();
+
+print("=== Complete ===");
