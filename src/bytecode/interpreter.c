@@ -113,7 +113,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         // 1. Resolve Path
         char* importPath = rawPath;
         char* resolvedPath = NULL;
-        char* basePath = NULL;
+        // char* basePath = NULL;
         
         // Check if relative import (./ or ../)
         if (rawPath[0] == '.') {
