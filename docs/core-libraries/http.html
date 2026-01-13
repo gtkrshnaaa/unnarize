@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ucoreHttp - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="timer.html">ucoreTimer</a></li>
+                    <li><a href="http.html" class="active">ucoreHttp</a></li>
+                    <li><a href="system.html">ucoreSystem</a></li>
+                    <li><a href="uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>ucoreHttp</h1>
+            <p class="lead">Built-in HTTP server functionality.</p>
+            
+            <h2>Functions</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>listen(port, handler)</code></td><td>Start HTTP server</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Basic Server</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">handleRequest</span>(req) {
+    <span class="token-function">print</span>(<span class="token-string">"Received: "</span> + req.method + <span class="token-string">" "</span> + req.path);
+    <span class="token-keyword">return</span> <span class="token-string">"Hello from Unnarize!"</span>;
+}
+
+<span class="token-function">print</span>(<span class="token-string">"Server starting on port 8080..."</span>);
+ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>, <span class="token-string">"handleRequest"</span>);</code></pre>
+            
+            <h2>Request Object</h2>
+            <p>The handler receives a request object with:</p>
+            <table>
+                <thead><tr><th>Property</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>method</code></td><td>HTTP method (GET, POST, etc)</td></tr>
+                    <tr><td><code>path</code></td><td>Request path</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Example with Routing</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">router</span>(req) {
+    <span class="token-keyword">if</span> (req.path == <span class="token-string">"/"</span>) {
+        <span class="token-keyword">return</span> <span class="token-string">"Welcome!"</span>;
+    } <span class="token-keyword">else if</span> (req.path == <span class="token-string">"/api"</span>) {
+        <span class="token-keyword">return</span> <span class="token-string">"{\"status\": \"ok\"}"</span>;
+    }
+    <span class="token-keyword">return</span> <span class="token-string">"Not Found"</span>;
+}
+
+ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>, <span class="token-string">"router"</span>);</code></pre>
+        </main>
+    </div>
+</body>
+</html>

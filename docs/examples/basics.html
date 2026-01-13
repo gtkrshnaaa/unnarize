@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basics - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="basics.html" class="active">Basics</a></li>
+                    <li><a href="sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Basic Examples</h1>
+            <p class="lead">11 self-contained demos covering all language features.</p>
+            
+            <h2>Examples List</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>01_variables.unna</code></td><td>Variables and data types</td></tr>
+                    <tr><td><code>02_operators.unna</code></td><td>Arithmetic and comparison</td></tr>
+                    <tr><td><code>03_arrays.unna</code></td><td>Arrays and collections</td></tr>
+                    <tr><td><code>04_structs.unna</code></td><td>Structures and custom types</td></tr>
+                    <tr><td><code>05_control_if.unna</code></td><td>If-else statements</td></tr>
+                    <tr><td><code>06_control_while.unna</code></td><td>While loops</td></tr>
+                    <tr><td><code>07_control_for.unna</code></td><td>For loops</td></tr>
+                    <tr><td><code>08_control_foreach.unna</code></td><td>Foreach loops</td></tr>
+                    <tr><td><code>09_functions.unna</code></td><td>Functions and return values</td></tr>
+                    <tr><td><code>10_recursion.unna</code></td><td>Recursive functions</td></tr>
+                    <tr><td><code>11_async.unna</code></td><td>Async/await patterns</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Running Examples</h2>
+            <pre><code>./bin/unnarize examples/basics/01_variables.unna</code></pre>
+            
+            <h2>Sample: Variables</h2>
+            <pre><code><span class="token-comment">// 01_variables.unna</span>
+
+<span class="token-comment">// Integer</span>
+<span class="token-keyword">var</span> age = <span class="token-number">25</span>;
+<span class="token-function">print</span>(<span class="token-string">"Age: "</span> + age);
+
+<span class="token-comment">// Float</span>
+<span class="token-keyword">var</span> price = <span class="token-number">19.99</span>;
+<span class="token-function">print</span>(<span class="token-string">"Price: $"</span> + price);
+
+<span class="token-comment">// String</span>
+<span class="token-keyword">var</span> name = <span class="token-string">"Unnarize"</span>;
+<span class="token-function">print</span>(<span class="token-string">"Name: "</span> + name);
+
+<span class="token-comment">// Boolean</span>
+<span class="token-keyword">var</span> active = <span class="token-keyword">true</span>;
+<span class="token-function">print</span>(<span class="token-string">"Active: "</span> + active);</code></pre>
+            
+            <h2>Sample: Structs</h2>
+            <pre><code><span class="token-comment">// 04_structs.unna</span>
+
+<span class="token-keyword">struct</span> Point {
+    x;
+    y;
+}
+
+<span class="token-keyword">var</span> origin = <span class="token-function">Point</span>(<span class="token-number">0</span>, <span class="token-number">0</span>);
+<span class="token-keyword">var</span> target = <span class="token-function">Point</span>(<span class="token-number">10</span>, <span class="token-number">20</span>);
+
+<span class="token-function">print</span>(<span class="token-string">"Origin: ("</span> + origin.x + <span class="token-string">", "</span> + origin.y + <span class="token-string">")"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Target: ("</span> + target.x + <span class="token-string">", "</span> + target.y + <span class="token-string">")"</span>);</code></pre>
+        </main>
+    </div>
+</body>
+</html>

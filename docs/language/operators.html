@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operators - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html" class="active">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Operators</h1>
+            <p class="lead">Arithmetic, comparison, and logical operators.</p>
+            
+            <h2>Arithmetic</h2>
+            <table>
+                <thead><tr><th>Operator</th><th>Description</th><th>Example</th></tr></thead>
+                <tbody>
+                    <tr><td><code>+</code></td><td>Addition</td><td><code>5 + 3 = 8</code></td></tr>
+                    <tr><td><code>-</code></td><td>Subtraction</td><td><code>5 - 3 = 2</code></td></tr>
+                    <tr><td><code>*</code></td><td>Multiplication</td><td><code>5 * 3 = 15</code></td></tr>
+                    <tr><td><code>/</code></td><td>Division</td><td><code>6 / 2 = 3</code></td></tr>
+                    <tr><td><code>%</code></td><td>Modulo</td><td><code>5 % 3 = 2</code></td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Comparison</h2>
+            <table>
+                <thead><tr><th>Operator</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>==</code></td><td>Equal</td></tr>
+                    <tr><td><code>!=</code></td><td>Not equal</td></tr>
+                    <tr><td><code>&lt;</code></td><td>Less than</td></tr>
+                    <tr><td><code>&gt;</code></td><td>Greater than</td></tr>
+                    <tr><td><code>&lt;=</code></td><td>Less or equal</td></tr>
+                    <tr><td><code>&gt;=</code></td><td>Greater or equal</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Order of Operations</h2>
+            <pre><code><span class="token-keyword">var</span> result = <span class="token-number">2</span> + <span class="token-number">3</span> * <span class="token-number">4</span>;     <span class="token-comment">// 14 (not 20)</span>
+<span class="token-keyword">var</span> grouped = (<span class="token-number">2</span> + <span class="token-number">3</span>) * <span class="token-number">4</span>;  <span class="token-comment">// 20</span></code></pre>
+            
+            <h2>String Concatenation</h2>
+            <pre><code><span class="token-keyword">var</span> msg = <span class="token-string">"Hello"</span> + <span class="token-string">" "</span> + <span class="token-string">"World"</span>;
+<span class="token-function">print</span>(msg);  <span class="token-comment">// Hello World</span>
+
+<span class="token-comment">// Auto-conversion</span>
+<span class="token-keyword">var</span> info = <span class="token-string">"Value: "</span> + <span class="token-number">42</span>;
+<span class="token-function">print</span>(info);  <span class="token-comment">// Value: 42</span></code></pre>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Structs - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html" class="active">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Structs</h1>
+            <p class="lead">Define custom data types with named fields.</p>
+            
+            <h2>Definition</h2>
+            <pre><code><span class="token-keyword">struct</span> Point {
+    x;
+    y;
+}</code></pre>
+            
+            <h2>Creating Instances</h2>
+            <pre><code><span class="token-keyword">var</span> origin = <span class="token-function">Point</span>(<span class="token-number">0</span>, <span class="token-number">0</span>);
+<span class="token-keyword">var</span> target = <span class="token-function">Point</span>(<span class="token-number">10</span>, <span class="token-number">20</span>);</code></pre>
+            
+            <h2>Field Access</h2>
+            <pre><code><span class="token-function">print</span>(target.x);   <span class="token-comment">// 10</span>
+<span class="token-function">print</span>(target.y);   <span class="token-comment">// 20</span></code></pre>
+            
+            <h2>Field Modification</h2>
+            <pre><code>target.x = <span class="token-number">50</span>;
+target.y = <span class="token-number">100</span>;
+<span class="token-function">print</span>(<span class="token-string">"New: ("</span> + target.x + <span class="token-string">", "</span> + target.y + <span class="token-string">")"</span>);</code></pre>
+            
+            <h2>Factory Functions</h2>
+            <pre><code><span class="token-keyword">struct</span> Product {
+    id;
+    name;
+    price;
+}
+
+<span class="token-keyword">var</span> nextId = <span class="token-number">0</span>;
+
+<span class="token-keyword">function</span> <span class="token-function">createProduct</span>(name, price) {
+    nextId = nextId + <span class="token-number">1</span>;
+    <span class="token-keyword">return</span> <span class="token-function">Product</span>(nextId, name, price);
+}
+
+<span class="token-keyword">var</span> laptop = <span class="token-function">createProduct</span>(<span class="token-string">"Laptop"</span>, <span class="token-number">999</span>);
+<span class="token-function">print</span>(laptop.id);     <span class="token-comment">// 1</span>
+<span class="token-function">print</span>(laptop.name);   <span class="token-comment">// Laptop</span></code></pre>
+            
+            <h2>Passing to Functions</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">formatProduct</span>(p) {
+    <span class="token-keyword">return</span> p.name + <span class="token-string">" - $"</span> + p.price;
+}
+
+<span class="token-function">print</span>(<span class="token-function">formatProduct</span>(laptop));  <span class="token-comment">// Laptop - $999</span></code></pre>
+        </main>
+    </div>
+</body>
+</html>

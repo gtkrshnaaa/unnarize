@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ucoreTimer - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="timer.html" class="active">ucoreTimer</a></li>
+                    <li><a href="http.html">ucoreHttp</a></li>
+                    <li><a href="system.html">ucoreSystem</a></li>
+                    <li><a href="uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>ucoreTimer</h1>
+            <p class="lead">Timing operations and delays.</p>
+            
+            <h2>Functions</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>now()</code></td><td>Current time in milliseconds</td></tr>
+                    <tr><td><code>sleep(ms)</code></td><td>Pause execution</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Measuring Time</h2>
+            <pre><code><span class="token-keyword">var</span> start = ucoreTimer.<span class="token-function">now</span>();
+
+<span class="token-comment">// Do some work</span>
+<span class="token-keyword">var</span> sum = <span class="token-number">0</span>;
+<span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < <span class="token-number">1000000</span>; i = i + <span class="token-number">1</span>) {
+    sum = sum + i;
+}
+
+<span class="token-keyword">var</span> elapsed = ucoreTimer.<span class="token-function">now</span>() - start;
+<span class="token-function">print</span>(<span class="token-string">"Elapsed: "</span> + elapsed + <span class="token-string">"ms"</span>);</code></pre>
+            
+            <h2>Delays</h2>
+            <pre><code><span class="token-function">print</span>(<span class="token-string">"Starting..."</span>);
+ucoreTimer.<span class="token-function">sleep</span>(<span class="token-number">1000</span>);  <span class="token-comment">// Wait 1 second</span>
+<span class="token-function">print</span>(<span class="token-string">"1 second later"</span>);
+
+ucoreTimer.<span class="token-function">sleep</span>(<span class="token-number">500</span>);   <span class="token-comment">// Wait 500ms</span>
+<span class="token-function">print</span>(<span class="token-string">"Done!"</span>);</code></pre>
+            
+            <h2>Benchmarking</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">benchmark</span>(name, iterations) {
+    <span class="token-keyword">var</span> start = ucoreTimer.<span class="token-function">now</span>();
+    
+    <span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < iterations; i = i + <span class="token-number">1</span>) {
+        <span class="token-comment">// Work</span>
+    }
+    
+    <span class="token-keyword">var</span> elapsed = ucoreTimer.<span class="token-function">now</span>() - start;
+    <span class="token-keyword">var</span> opsPerSec = iterations / (elapsed / <span class="token-number">1000</span>);
+    
+    <span class="token-function">print</span>(name + <span class="token-string">": "</span> + opsPerSec + <span class="token-string">" ops/sec"</span>);
+}</code></pre>
+        </main>
+    </div>
+</body>
+</html>

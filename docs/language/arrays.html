@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrays - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html" class="active">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Arrays</h1>
+            <p class="lead">Dynamic collections for storing multiple values.</p>
+            
+            <h2>Creating Arrays</h2>
+            <pre><code><span class="token-keyword">var</span> numbers = [<span class="token-number">1</span>, <span class="token-number">2</span>, <span class="token-number">3</span>, <span class="token-number">4</span>, <span class="token-number">5</span>];
+<span class="token-keyword">var</span> names = [<span class="token-string">"Alice"</span>, <span class="token-string">"Bob"</span>, <span class="token-string">"Carol"</span>];
+<span class="token-keyword">var</span> empty = [];</code></pre>
+            
+            <h2>Index Access</h2>
+            <pre><code><span class="token-keyword">var</span> items = [<span class="token-string">"a"</span>, <span class="token-string">"b"</span>, <span class="token-string">"c"</span>];
+<span class="token-function">print</span>(items[<span class="token-number">0</span>]);  <span class="token-comment">// a</span>
+<span class="token-function">print</span>(items[<span class="token-number">2</span>]);  <span class="token-comment">// c</span></code></pre>
+            
+            <h2>Modification</h2>
+            <pre><code>items[<span class="token-number">1</span>] = <span class="token-string">"modified"</span>;
+<span class="token-function">print</span>(items[<span class="token-number">1</span>]);  <span class="token-comment">// modified</span></code></pre>
+            
+            <h2>Built-in Functions</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>push(arr, val)</code></td><td>Add to end</td></tr>
+                    <tr><td><code>pop(arr)</code></td><td>Remove last</td></tr>
+                    <tr><td><code>length(arr)</code></td><td>Get size</td></tr>
+                </tbody>
+            </table>
+            
+            <h2>Example</h2>
+            <pre><code><span class="token-keyword">var</span> scores = [];
+<span class="token-function">push</span>(scores, <span class="token-number">90</span>);
+<span class="token-function">push</span>(scores, <span class="token-number">85</span>);
+<span class="token-function">push</span>(scores, <span class="token-number">92</span>);
+
+<span class="token-function">print</span>(<span class="token-string">"Count: "</span> + <span class="token-function">length</span>(scores));  <span class="token-comment">// 3</span>
+
+<span class="token-keyword">var</span> last = <span class="token-function">pop</span>(scores);
+<span class="token-function">print</span>(<span class="token-string">"Removed: "</span> + last);  <span class="token-comment">// 92</span></code></pre>
+            
+            <h2>Iteration</h2>
+            <pre><code><span class="token-keyword">var</span> items = [<span class="token-string">"apple"</span>, <span class="token-string">"banana"</span>];
+
+<span class="token-keyword">for</span> (<span class="token-keyword">var</span> item : items) {
+    <span class="token-function">print</span>(item);
+}</code></pre>
+        </main>
+    </div>
+</body>
+</html>

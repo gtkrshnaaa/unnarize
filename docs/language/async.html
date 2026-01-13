@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Async/Await - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html" class="active">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Async/Await</h1>
+            <p class="lead">Asynchronous programming with futures.</p>
+            
+            <h2>Async Functions</h2>
+            <pre><code><span class="token-keyword">async function</span> <span class="token-function">fetchData</span>(source) {
+    <span class="token-function">print</span>(<span class="token-string">"Fetching from "</span> + source);
+    <span class="token-keyword">return</span> <span class="token-string">"Data:"</span> + source;
+}</code></pre>
+            
+            <h2>Await</h2>
+            <pre><code><span class="token-keyword">var</span> result = <span class="token-keyword">await</span> <span class="token-function">fetchData</span>(<span class="token-string">"API"</span>);
+<span class="token-function">print</span>(result);  <span class="token-comment">// Data:API</span></code></pre>
+            
+            <h2>Parallel Tasks</h2>
+            <pre><code><span class="token-keyword">async function</span> <span class="token-function">main</span>() {
+    <span class="token-comment">// Start tasks in parallel</span>
+    <span class="token-keyword">var</span> task1 = <span class="token-function">fetchData</span>(<span class="token-string">"API"</span>);
+    <span class="token-keyword">var</span> task2 = <span class="token-function">fetchData</span>(<span class="token-string">"Database"</span>);
+    
+    <span class="token-comment">// Wait for results</span>
+    <span class="token-keyword">var</span> r1 = <span class="token-keyword">await</span> task1;
+    <span class="token-keyword">var</span> r2 = <span class="token-keyword">await</span> task2;
+    
+    <span class="token-function">print</span>(<span class="token-string">"Results: "</span> + r1 + <span class="token-string">", "</span> + r2);
+}
+
+<span class="token-function">main</span>();</code></pre>
+            
+            <h2>With Timer</h2>
+            <pre><code><span class="token-keyword">async function</span> <span class="token-function">delayedTask</span>() {
+    <span class="token-function">print</span>(<span class="token-string">"Starting..."</span>);
+    ucoreTimer.<span class="token-function">sleep</span>(<span class="token-number">1000</span>);  <span class="token-comment">// 1 second</span>
+    <span class="token-function">print</span>(<span class="token-string">"Done!"</span>);
+    <span class="token-keyword">return</span> <span class="token-string">"Complete"</span>;
+}
+
+<span class="token-keyword">var</span> result = <span class="token-keyword">await</span> <span class="token-function">delayedTask</span>();</code></pre>
+            
+            <h2>Important Notes</h2>
+            <ul style="color: var(--text-secondary); margin-left: 1.5rem;">
+                <li>Futures cannot be used directly in conditionals</li>
+                <li>Always <code>await</code> before using the value</li>
+                <li>Async functions return immediately with a Future</li>
+            </ul>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functions - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html" class="active">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Functions</h1>
+            <p class="lead">Define reusable blocks of code.</p>
+            
+            <h2>Basic Syntax</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">greet</span>(name) {
+    <span class="token-function">print</span>(<span class="token-string">"Hello, "</span> + name);
+}
+
+<span class="token-function">greet</span>(<span class="token-string">"World"</span>);  <span class="token-comment">// Hello, World</span></code></pre>
+            
+            <h2>Return Values</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">add</span>(a, b) {
+    <span class="token-keyword">return</span> a + b;
+}
+
+<span class="token-keyword">var</span> result = <span class="token-function">add</span>(<span class="token-number">5</span>, <span class="token-number">3</span>);
+<span class="token-function">print</span>(result);  <span class="token-comment">// 8</span></code></pre>
+            
+            <h2>Multiple Parameters</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">clamp</span>(value, min, max) {
+    <span class="token-keyword">if</span> (value < min) <span class="token-keyword">return</span> min;
+    <span class="token-keyword">if</span> (value > max) <span class="token-keyword">return</span> max;
+    <span class="token-keyword">return</span> value;
+}
+
+<span class="token-function">print</span>(<span class="token-function">clamp</span>(<span class="token-number">5</span>, <span class="token-number">0</span>, <span class="token-number">10</span>));   <span class="token-comment">// 5</span>
+<span class="token-function">print</span>(<span class="token-function">clamp</span>(<span class="token-number">-3</span>, <span class="token-number">0</span>, <span class="token-number">10</span>));  <span class="token-comment">// 0</span>
+<span class="token-function">print</span>(<span class="token-function">clamp</span>(<span class="token-number">15</span>, <span class="token-number">0</span>, <span class="token-number">10</span>));  <span class="token-comment">// 10</span></code></pre>
+            
+            <h2>Recursion</h2>
+            <pre><code><span class="token-keyword">function</span> <span class="token-function">factorial</span>(n) {
+    <span class="token-keyword">if</span> (n <= <span class="token-number">1</span>) <span class="token-keyword">return</span> <span class="token-number">1</span>;
+    <span class="token-keyword">return</span> n * <span class="token-function">factorial</span>(n - <span class="token-number">1</span>);
+}
+
+<span class="token-function">print</span>(<span class="token-function">factorial</span>(<span class="token-number">5</span>));  <span class="token-comment">// 120</span></code></pre>
+            
+            <h2>Built-in Functions</h2>
+            <table>
+                <thead>
+                    <tr><th>Function</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>print(value)</code></td><td>Output to console</td></tr>
+                    <tr><td><code>length(arr)</code></td><td>Array length</td></tr>
+                    <tr><td><code>push(arr, val)</code></td><td>Add to array</td></tr>
+                    <tr><td><code>pop(arr)</code></td><td>Remove last item</td></tr>
+                    <tr><td><code>sqrt(n)</code></td><td>Square root</td></tr>
+                    <tr><td><code>floor(n)</code></td><td>Round down</td></tr>
+                    <tr><td><code>ceil(n)</code></td><td>Round up</td></tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+</body>
+</html>
