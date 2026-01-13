@@ -1,0 +1,29 @@
+// examplesvtwo/testcase/math_lib.unna
+// A simple math library module
+
+print("Loading math_lib...");
+
+var PI = 3.14159;
+var E = 2.71828;
+
+function add(a, b) {
+    return a + b;
+}
+
+function sub(a, b) {
+    return a - b;
+}
+
+function mul(a, b) {
+    return a * b;
+}
+
+function div(a, b) {
+    if (b == 0) {
+        print("Error: Division by zero");
+        return 0;
+    }
+    return a / b;
+}
+
+print("math_lib loaded.");
