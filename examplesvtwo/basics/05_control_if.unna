@@ -1,0 +1,46 @@
+// ==========================================
+// 05_control_if.unna
+// Control Flow: If-Else Statements
+// ==========================================
+
+print("=== If-Else Statements ===");
+
+// Simple if
+var x = 10;
+if (x > 5) {
+    print("x is greater than 5");
+}
+
+// If-else
+var score = 75;
+print("Score: " + score);
+
+if (score >= 90) {
+    print("Grade: A - Excellent!");
+} else if (score >= 80) {
+    print("Grade: B - Good!");
+} else if (score >= 70) {
+    print("Grade: C - Satisfactory");
+} else if (score >= 60) {
+    print("Grade: D - Needs improvement");
+} else {
+    print("Grade: F - Failed");
+}
+
+// Nested if
+var level = 5;
+var hasKey = true;
+
+print("Level: " + level + ", Has Key: " + hasKey);
+
+if (level >= 5) {
+    if (hasKey) {
+        print("Access granted!");
+    } else {
+        print("Need a key.");
+    }
+} else {
+    print("Level too low.");
+}
+
+print("=== Complete ===");
