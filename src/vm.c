@@ -327,9 +327,6 @@ static void internAST(VM* vm, Node* node) {
             internToken(vm, &node->importStmt.module);
             internToken(vm, &node->importStmt.alias);
             break;
-        case NODE_STMT_LOADEXTERN:
-            internAST(vm, node->loadexternStmt.pathExpr);
-            break;
         case NODE_EXPR_ARRAY_LITERAL:
             internAST(vm, node->arrayLiteral.elements);
             break;
@@ -1081,26 +1078,6 @@ static void execute(VM* vm, Node* node) {
              } else {
                  error("Property assignment requires struct instance.", 0);
              }
-             break;
-        }
-        
-        case NODE_STMT_LOADEXTERN: {
-            Value p = evaluate(vm, node->loadexternStmt.pathExpr);
-            if (!IS_STRING(p)) { error("loadextern path must be string", 0); break; }
-            ObjString* s = (ObjString*)AS_OBJ(p);
-            
-            void* handle = dlopen(s->chars, RTLD_NOW);
-            if (!handle) {
-                printf("Failed to load extern: %s\n", dlerror());
-                break;
-            }
-             if (vm->externHandleCount < 256) {
-                 vm->externHandles[vm->externHandleCount++] = handle;
-             }
-             
-             typedef void (*InitFn)(VM*);
-             InitFn init = (InitFn)dlsym(handle, "init_unnarize_module");
-             if (init) init(vm);
              break;
         }
         
