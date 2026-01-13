@@ -92,15 +92,15 @@ a:hover {
 }
 
 .nav-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 
 .nav-title {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    padding: 0.4rem 0;
 }
 
 .nav-links {
@@ -108,7 +108,7 @@ a:hover {
 }
 
 .nav-links li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .nav-links a {
