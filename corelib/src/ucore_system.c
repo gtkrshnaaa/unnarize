@@ -127,8 +127,8 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
         return OBJ_VAL(empty);
     }
     
-    fread(buf, 1, size, f);
-    buf[size] = '\0';
+    size_t bytesRead = fread(buf, 1, size, f);
+    buf[bytesRead] = '\0';
     fclose(f);
     
     ObjString* s = internString(vm, buf, (int)size);
