@@ -10,6 +10,6 @@
  */
 
 // Compile AST to bytecode chunk
-bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk);
+bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk, const char* modulePath);
 
 #endif // BYTECODE_COMPILER_H

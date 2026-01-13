@@ -24,15 +24,18 @@ typedef struct {
         int slot;
     } locals[256];
     int localCount;
+
     int scopeDepth;
+    const char* modulePath;
     
     // Error tracking
     bool hadError;
 } Compiler;
 
-static void initCompiler(Compiler* c, VM* vm, BytecodeChunk* chunk) {
+static void initCompiler(Compiler* c, VM* vm, BytecodeChunk* chunk, const char* modulePath) {
     c->vm = vm;
     c->chunk = chunk;
+    c->modulePath = modulePath;
     c->hadError = false;
     c->scopeDepth = 0;
     
@@ -622,6 +625,7 @@ static void compileStatement(Compiler* c, Node* node) {
             func->paramCount = node->function.paramCount;
             func->isNative = false;
             func->isAsync = false;
+            func->modulePath = c->modulePath ? strdup(c->modulePath) : NULL;
             
             // Create independent chunk for function
             func->bytecodeChunk = malloc(sizeof(BytecodeChunk));
@@ -639,7 +643,7 @@ static void compileStatement(Compiler* c, Node* node) {
             
             // Compile function body in new context
             Compiler funcCompiler;
-            initCompiler(&funcCompiler, c->vm, func->bytecodeChunk);
+            initCompiler(&funcCompiler, c->vm, func->bytecodeChunk, c->modulePath);
             
             // Add parameters as locals (slot 0..N)
             for (int i = 0; i < func->paramCount; i++) {
@@ -753,8 +757,13 @@ static void compileStatement(Compiler* c, Node* node) {
              Token alias = node->importStmt.alias; // "math"
              
              // 1. Emit OP_IMPORT <name_string_index>
-             char* modName = strndup(name.start, name.length);
-             ObjString* modStr = internString(c->vm, modName, name.length);
+             char* modName = NULL;
+             if (name.type == TOKEN_STRING) {
+                 modName = strndup(name.start + 1, name.length - 2); // Strip quotes
+             } else {
+                 modName = strndup(name.start, name.length);
+             }
+             ObjString* modStr = internString(c->vm, modName, strlen(modName));
              free(modName);
              int constIdx = addConstant(c->chunk, OBJ_VAL(modStr));
              emitBytes(c, OP_IMPORT, (uint8_t)constIdx, line);
@@ -798,28 +807,33 @@ static void compileNode(Compiler* c, Node* node) {
     }
 }
 
-bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk) {
+bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk, const char* modulePath) {
     Compiler compiler;
-    initCompiler(&compiler, vm, chunk);
+    initCompiler(&compiler, vm, chunk, modulePath);
     
-    // Parser wraps program in a BLOCK. We must compile contents as global scope (0).
-    // Do not call compileNode(BLOCK) because it increments scope depth.
+    // Compile AST
+    if (ast) {} // printf("DEBUG: compileToBytecode AST Type: %d\n", ast->type);
+    
     if (ast && ast->type == NODE_STMT_BLOCK) {
+        // printf("DEBUG: compileToBytecode BLOCK count=%d\n", ast->block.count);
         for (int i = 0; i < ast->block.count; i++) {
-            compileNode(&compiler, ast->block.statements[i]);
+            Node* s = ast->block.statements[i];
+            // printf("DEBUG: Compiling statement %d type=%d\n", i, s->type);
+            compileNode(&compiler, s);
         }
     } else {
+        // printf("DEBUG: Compiling single node type=%d\n", ast ? ast->type : -1);
         compileNode(&compiler, ast);
     }
     
-    // Emit halt
-    emitByte(&compiler, OP_HALT, 1);
+    emitByte(&compiler, OP_RETURN_NIL, 0); // Implicit return
     
-#ifdef DEBUG_PRINT_CODE
+    #ifdef DEBUG_PRINT_CODE
     if (!compiler.hadError) {
-        disassembleChunk(chunk, "code");
+        printf("== Bytecode ==\n");
+        disassembleChunk(chunk, "script");
     }
-#endif
+    #endif
     
     return !compiler.hadError;
 }
