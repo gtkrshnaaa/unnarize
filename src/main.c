@@ -244,14 +244,6 @@ static void freeAST(Node* node) {
                     Node* next = current->next;
                     freeAST(current);
                     current = next; // current->next pointer logic is slightly weird here as freeAST frees the node itself.
-                    // Wait, freeAST frees 'node'. If 'elements' is a linked list of nodes, then freeAST on head will free head.
-                    // But 'next' is used for linked list.
-                    // In freeAST(node), the switch case handles children. But 'next' is not traversed in freeAST usually unless it's a list like block statements.
-                    // Actually, existing freeAST does NOT traverse 'next' automatically. 
-                    // 'next' is used for linked list.
-                    // For block statements, it's an array of pointers.
-                    // For arguments, it's a linked list. `NODE_EXPR_CALL` says `freeAST(node->call.arguments)`.
-                    // If `freeAST` assumes it frees the tree rooted at node, does it free siblings (next)?
                 }
             }
             break;
@@ -364,11 +356,6 @@ int main(int argc, char** argv) {
             frame->env = vm.globalEnv; // Bind global env
             frame->fp = 0;
         }
-        // if (!vm.callStack[0].function->bytecodeChunk) {
-        //    // Should be set
-        // }
-        // printf("== Main Script Disassembly ==\n");
-        // disassembleChunk(chunk, "script");
         
         // Execute VM
         executeBytecode(&vm, chunk, 0);
