@@ -350,11 +350,12 @@ int main(int argc, char** argv) {
     script->closure = NULL;
     script->isNative = false;
     script->bytecodeChunk = chunk;
+    script->modulePath = g_filename ? strdup(g_filename) : NULL;
     
     // Root script on stack
     vm.stack[vm.stackTop++] = OBJ_VAL(script);
     
-    if (compileToBytecode(&vm, ast, chunk)) {
+    if (compileToBytecode(&vm, ast, chunk, g_filename)) {
         // Setup CallFrame
         if (vm.callStackTop < CALL_STACK_MAX) {
             CallFrame* frame = &vm.callStack[vm.callStackTop++];
@@ -364,9 +365,14 @@ int main(int argc, char** argv) {
             frame->env = vm.globalEnv; // Bind global env
             frame->fp = 0;
         }
+        // if (!vm.callStack[0].function->bytecodeChunk) {
+        //    // Should be set
+        // }
+        // printf("== Main Script Disassembly ==\n");
+        // disassembleChunk(chunk, "script");
         
         // Execute VM
-        executeBytecode(&vm, chunk);
+        executeBytecode(&vm, chunk, 0);
         
         vm.callStackTop--; // Pop frame
     } else {
