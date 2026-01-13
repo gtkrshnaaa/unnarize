@@ -284,23 +284,12 @@ Unnarize delivers exceptional performance with its optimized bytecode VM:
 
 - **Bytecode VM:** Optimized stack-based virtual machine with 100+ specialized opcodes
 - **Specialized Operations:** Type-specific opcodes (e.g., `ADD_II` for integer addition)
-- **Hotspot Detection:** Automatic profiling for future JIT compilation
+
 - **Stack-Based Locals:** O(1) array access for local variables
 - **Mark-and-Sweep GC:** Efficient automatic memory management
 - **String Interning:** Request-scoped string deduplication
 
-### 🚀 JIT Compiler (Experimental)
 
-**Status**: Infrastructure complete (90%), compilation working, execution debugging in progress
-
-Unnarize includes a **Full Native JIT compiler** targeting 1.2B ops/sec:
-- ✅ **x86-64 code generation** - Manual instruction encoding, zero dependencies
-- ✅ **50+ opcodes implemented** - Arithmetic, comparisons, control flow
-- ✅ **Jump patching** - Bytecode-to-native offset mapping
-- ✅ **Compilation working** - Successfully generates native code (45 bytes → 183 bytes)
-- ⚠️ **Execution debugging** - Generated code needs validation (1 bug remaining)
-
-The JIT infrastructure is complete and ready for community contributions. See `z_docs/jit_status_final.md` for details.
 
 *Benchmark: `bin/unnarize examples/benchmarks/simple_loop.unna`*
 
