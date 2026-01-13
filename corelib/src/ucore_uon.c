@@ -202,7 +202,7 @@ static Value uon_next_impl(VM* vm, Value* args, int argCount) {
     if (c == ',') { fgetc(f); fskipSpace(f); c = fpeek(f); }
     if (c == ']') return NIL_VAL;
     
-          return NIL_VAL;
+    if (c != '{') return NIL_VAL; // Not a valid record start
     fgetc(f); // eat {
     
     // Parse fields
