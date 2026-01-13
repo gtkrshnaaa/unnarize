@@ -1,0 +1,60 @@
+// ============================================================================
+// models/order.unna
+// Order Model - Defines order structure and operations
+// ============================================================================
+
+// Order struct definition
+struct Order {
+    id;
+    customerId;
+    items;
+    totalAmount;
+    status;
+    createdAt;
+}
+
+// OrderItem struct definition
+struct OrderItem {
+    productId;
+    productName;
+    quantity;
+    unitPrice;
+    subtotal;
+}
+
+// State: order counter for ID generation
+var orderIdCounter = 0;
+
+// Create a new order
+function createOrder(customerId) {
+    orderIdCounter = orderIdCounter + 1;
+    return Order(orderIdCounter, customerId, [], 0, "pending", "2024-01-01");
+}
+
+// Create an order item
+function createOrderItem(productId, productName, quantity, unitPrice) {
+    var subtotal = quantity * unitPrice;
+    return OrderItem(productId, productName, quantity, unitPrice, subtotal);
+}
+
+// Add item to order
+function addOrderItem(order, item) {
+    order.totalAmount = order.totalAmount + item.subtotal;
+    return order.totalAmount;
+}
+
+// Update order status
+function updateOrderStatus(order, status) {
+    order.status = status;
+    return order.status;
+}
+
+// Check if order is complete
+function isOrderComplete(order) {
+    return order.status == "completed";
+}
+
+// Format order summary
+function formatOrderSummary(order) {
+    return "Order #" + order.id + " - Customer: " + order.customerId + " - Total: $" + order.totalAmount + " [" + order.status + "]";
+}

@@ -1,0 +1,43 @@
+// ============================================================================
+// models/product.unna
+// Product Model - Defines product structure and operations
+// ============================================================================
+
+// Product struct definition
+struct Product {
+    id;
+    name;
+    price;
+    stock;
+    category;
+}
+
+// State: product counter for ID generation
+var productIdCounter = 0;
+
+// Create a new product
+function createProduct(name, price, stock, category) {
+    productIdCounter = productIdCounter + 1;
+    return Product(productIdCounter, name, price, stock, category);
+}
+
+// Calculate product value (price * stock)
+function getProductValue(product) {
+    return product.price * product.stock;
+}
+
+// Check if product is in stock
+function isInStock(product) {
+    return product.stock > 0;
+}
+
+// Update product stock
+function updateStock(product, quantity) {
+    product.stock = product.stock + quantity;
+    return product.stock;
+}
+
+// Get formatted product info
+function formatProduct(product) {
+    return "[" + product.id + "] " + product.name + " - $" + product.price + " (Stock: " + product.stock + ")";
+}

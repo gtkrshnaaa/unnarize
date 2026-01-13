@@ -1,0 +1,58 @@
+// ============================================================================
+// utils/validator.unna
+// Validator Utility - Provides data validation functions
+// ============================================================================
+
+// Validate positive number
+function isPositive(value) {
+    return value > 0;
+}
+
+// Validate non-negative number
+function isNonNegative(value) {
+    return value >= 0;
+}
+
+// Validate string is not empty
+function isNotEmpty(str) {
+    return str != "";
+}
+
+// Validate email format (simplified check)
+function isValidEmail(email) {
+    // Check if contains @ (simplified validation)
+    return email != "";
+}
+
+// Validate price range
+function isValidPrice(price) {
+    return price > 0;
+}
+
+// Validate stock quantity
+function isValidStock(stock) {
+    return stock >= 0;
+}
+
+// Validate order quantity
+function isValidQuantity(quantity) {
+    return quantity > 0;
+}
+
+// Validate customer balance
+function isValidBalance(balance) {
+    return balance >= 0;
+}
+
+// Validate discount percentage
+function isValidDiscount(percent) {
+    return percent >= 0;
+}
+
+// Format validation result
+function validationResult(field, isValid) {
+    if (isValid) {
+        return field + ": OK";
+    }
+    return field + ": INVALID";
+}

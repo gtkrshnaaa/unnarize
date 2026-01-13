@@ -1,0 +1,64 @@
+// ============================================================================
+// models/customer.unna
+// Customer Model - Defines customer structure and operations
+// ============================================================================
+
+// Customer struct definition
+struct Customer {
+    id;
+    name;
+    email;
+    balance;
+    tier;
+}
+
+// State: customer counter for ID generation
+var customerIdCounter = 0;
+
+// Create a new customer
+function createCustomer(name, email) {
+    customerIdCounter = customerIdCounter + 1;
+    return Customer(customerIdCounter, name, email, 0, "Bronze");
+}
+
+// Add balance to customer account
+function addBalance(customer, amount) {
+    customer.balance = customer.balance + amount;
+    return customer.balance;
+}
+
+// Deduct balance from customer account
+function deductBalance(customer, amount) {
+    if (customer.balance >= amount) {
+        customer.balance = customer.balance - amount;
+        return true;
+    }
+    return false;
+}
+
+// Upgrade customer tier based on spending
+function updateTier(customer, totalSpent) {
+    if (totalSpent >= 1000) {
+        customer.tier = "Gold";
+    } else if (totalSpent >= 500) {
+        customer.tier = "Silver";
+    } else {
+        customer.tier = "Bronze";
+    }
+    return customer.tier;
+}
+
+// Get discount rate based on tier
+function getDiscountRate(customer) {
+    if (customer.tier == "Gold") {
+        return 15;
+    } else if (customer.tier == "Silver") {
+        return 10;
+    }
+    return 0;
+}
+
+// Format customer info
+function formatCustomer(customer) {
+    return "[" + customer.id + "] " + customer.name + " (" + customer.tier + ") - Balance: $" + customer.balance;
+}

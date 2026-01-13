@@ -1,55 +1,122 @@
-// examplesvtwo/testcase/main.unna
-// Complex Modularity Test
-// Demonstrates interacting modules, state, and structs
+// ============================================================================
+// main.unna
+// SME Store Management System - Entry Point
+// ============================================================================
+// This demonstrates a Small-Medium Enterprise (SME) store management system
+// with modular architecture: Models, Services, and Utilities.
+// ============================================================================
 
-import "./math_lib.unna" as math;
-import "./logger.unna" as log;
+// Import Models
+import "./models/product.unna" as product;
+import "./models/customer.unna" as customer;
+import "./models/order.unna" as order;
 
-print("=== Complex App Simulation ===");
+// Import Services  
+import "./services/reporting.unna" as report;
 
-log.logInfo("Application started.");
-log.logInfo("Math library version: " + math.PI);
+// Import Utilities
+import "./utils/logger.unna" as log;
 
-// 1. Basic Math Ops
-log.logInfo("Performing basic calculations...");
-var a = 10;
-var b = 2;
-var sum = math.add(a, b);
-var sub = math.sub(a, b);
+// ============================================================================
+// SYSTEM INITIALIZATION
+// ============================================================================
 
-log.logInfo("Sum: " + sum);
-log.logInfo("Sub: " + sub);
-
-// 2. Struct Operations
-log.logInfo("Testing Vector operations...");
-
-var v1 = math.createVector(1, 2);
-var v2 = math.createVector(3, 4);
-
-log.logInfo("v1: [" + v1.x + ", " + v1.y + "]");
-log.logInfo("v2: [" + v2.x + ", " + v2.y + "]");
-
-var v3 = math.addVectors(v1, v2);
-log.logInfo("v3 (v1 + v2): [" + v3.x + ", " + v3.y + "]");
-
-if (v3.x == 4 && v3.y == 6) {
-    log.logInfo("Vector addition correct!");
-} else {
-    log.logError("Vector addition failed!");
-}
-
-// 3. Check State
-log.logWarn("Checking module state...");
-var ops = math.getOpCount();
-var logs = log.getLogCount();
-
+print("============================================================");
+print("  SME STORE MANAGEMENT SYSTEM");
+print("  Version 1.0 - Powered by Unnarize");
+print("============================================================");
 print("");
-print("=== Final Stats ===");
-print("Math Operations: " + ops);
-print("Log Entries: " + logs);
 
-if (ops > 0 && logs > 0) {
-    print("SUCCESS: State tracked correctly across modules.");
-} else {
-    print("FAILURE: State tracking issue.");
-}
+log.logInfo("System", "Starting SME Store System...");
+
+// ============================================================================
+// STEP 1: CREATE PRODUCTS
+// ============================================================================
+
+print(report.generateReportHeader("INVENTORY SETUP"));
+
+var laptop = product.createProduct("Laptop Pro", 999, 50, "Electronics");
+var phone = product.createProduct("SmartPhone X", 599, 100, "Electronics");
+var headset = product.createProduct("Wireless Headset", 89, 200, "Accessories");
+
+log.logInfo("Inventory", "Created 3 products");
+
+print(product.formatProduct(laptop));
+print(product.formatProduct(phone));
+print(product.formatProduct(headset));
+
+print(report.separator());
+print("");
+
+// ============================================================================
+// STEP 2: REGISTER CUSTOMERS
+// ============================================================================
+
+print(report.generateReportHeader("CUSTOMER REGISTRATION"));
+
+var alice = customer.createCustomer("Alice Johnson", "alice@email.com");
+var bob = customer.createCustomer("Bob Smith", "bob@email.com");
+
+customer.updateTier(alice, 1200);  // Gold
+customer.updateTier(bob, 600);      // Silver
+
+customer.addBalance(alice, 2000);
+customer.addBalance(bob, 1500);
+
+log.logInfo("Customers", "Registered 2 customers");
+
+print(customer.formatCustomer(alice));
+print(customer.formatCustomer(bob));
+
+print(report.separator());
+print("");
+
+// ============================================================================
+// STEP 3: PROCESS ORDER
+// ============================================================================
+
+print(report.generateReportHeader("ORDER PROCESSING"));
+
+var order1 = order.createOrder(alice.id);
+var item1 = order.createOrderItem(laptop.id, laptop.name, 1, laptop.price);
+order.addOrderItem(order1, item1);
+
+// Apply discount for Gold customer
+var discount = customer.getDiscountRate(alice);
+var discountAmount = (order1.totalAmount * discount) / 100;
+var finalAmount = order1.totalAmount - discountAmount;
+
+order.updateOrderStatus(order1, "completed");
+laptop.stock = laptop.stock - 1;
+
+log.logSuccess("Sales", "Order #" + order1.id + " completed - Final: $" + finalAmount);
+print(order.formatOrderSummary(order1));
+print("Discount applied: " + discount + "%");
+
+print(report.separator());
+print("");
+
+// ============================================================================
+// STEP 4: GENERATE SUMMARY
+// ============================================================================
+
+print(report.generateReportHeader("BUSINESS SUMMARY"));
+
+print("Products in catalog: 3");
+print("Registered customers: 2");
+print("Orders processed: 1");
+print("Revenue: $" + finalAmount);
+
+print(report.separator());
+print("");
+
+// ============================================================================
+// SYSTEM SHUTDOWN
+// ============================================================================
+
+log.logInfo("System", "SME Store System shutdown complete");
+
+print("============================================================");
+print("  SYSTEM COMPLETE");
+print("  Reports Generated: " + report.getReportCount());
+print("============================================================");

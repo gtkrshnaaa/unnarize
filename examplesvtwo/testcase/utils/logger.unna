@@ -1,0 +1,48 @@
+// ============================================================================
+// utils/logger.unna
+// Logger Utility - Provides structured logging capabilities
+// ============================================================================
+
+// State: log counters by level
+var infoCount = 0;
+var warnCount = 0;
+var errorCount = 0;
+
+// Log info message
+function logInfo(module, message) {
+    infoCount = infoCount + 1;
+    print("[INFO] [" + module + "] " + message);
+}
+
+// Log warning message
+function logWarn(module, message) {
+    warnCount = warnCount + 1;
+    print("[WARN] [" + module + "] " + message);
+}
+
+// Log error message
+function logError(module, message) {
+    errorCount = errorCount + 1;
+    print("[ERROR] [" + module + "] " + message);
+}
+
+// Log debug message
+function logDebug(module, message) {
+    // Debug messages disabled in production
+    // print("[DEBUG] [" + module + "] " + message);
+}
+
+// Log success message
+function logSuccess(module, message) {
+    print("[OK] [" + module + "] " + message);
+}
+
+// Get log statistics
+function getLogStats() {
+    return "Info: " + infoCount + ", Warn: " + warnCount + ", Error: " + errorCount;
+}
+
+// Get total log count
+function getTotalLogs() {
+    return infoCount + warnCount + errorCount;
+}
