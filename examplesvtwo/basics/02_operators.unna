@@ -1,0 +1,33 @@
+// ==========================================
+// 02_operators.unna
+// Arithmetic and Comparison Operators
+// ==========================================
+
+print("=== Operators ===");
+
+var a = 20;
+var b = 6;
+
+// Arithmetic
+print("a = " + a + ", b = " + b);
+print("a + b = " + (a + b));
+print("a - b = " + (a - b));
+print("a * b = " + (a * b));
+print("a / b = " + (a / b));
+print("a % b = " + (a % b));
+
+// Comparison
+print("a > b: " + (a > b));
+print("a < b: " + (a < b));
+print("a >= b: " + (a >= b));
+print("a == b: " + (a == b));
+print("a != b: " + (a != b));
+
+// Order of operations
+var result = a + b * 2;
+print("a + b * 2 = " + result);
+
+var grouped = (a + b) * 2;
+print("(a + b) * 2 = " + grouped);
+
+print("=== Complete ===");
