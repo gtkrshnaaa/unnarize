@@ -3,44 +3,21 @@
 // Reporting Service - Generates business reports and analytics
 // ============================================================================
 
+import "../utils/logger.unna" as log;
+
 // State: report counter
 var reportCount = 0;
 
-// Generate daily report header
+// Generate report header
 function generateReportHeader(title) {
     reportCount = reportCount + 1;
+    log.logInfo("Reports", "Generating report: " + title);
     return "=== REPORT #" + reportCount + ": " + title + " ===";
 }
 
-// Format currency
-function formatCurrency(amount) {
-    return "$" + amount;
-}
-
-// Format percentage
-function formatPercent(value) {
-    return value + "%";
-}
-
-// Calculate percentage
-function calculatePercent(part, total) {
-    if (total == 0) return 0;
-    return (part * 100) / total;
-}
-
-// Generate inventory summary line
-function inventorySummaryLine(category, count, value) {
-    return "  " + category + ": " + count + " items, Value: $" + value;
-}
-
-// Generate customer summary line
-function customerSummaryLine(tier, count) {
-    return "  " + tier + " Customers: " + count;
-}
-
-// Generate sales summary line
-function salesSummaryLine(period, orders, revenue) {
-    return "  " + period + ": " + orders + " orders, Revenue: $" + revenue;
+// Generate separator
+function separator() {
+    return "----------------------------------------";
 }
 
 // Get report count
@@ -48,7 +25,12 @@ function getReportCount() {
     return reportCount;
 }
 
-// Generate separator
-function separator() {
-    return "----------------------------------------";
+// Format currency
+function formatCurrency(amount) {
+    return "$" + amount;
+}
+
+// Generate summary line
+function summaryLine(label, value) {
+    return "  " + label + ": " + value;
 }

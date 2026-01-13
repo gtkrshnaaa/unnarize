@@ -2,7 +2,8 @@
 // services/inventory.unna
 // Inventory Service - Manages product inventory operations
 // ============================================================================
-// Self-contained service - operates on product structs passed as parameters
+
+import "../models/product.unna" as productLib;
 
 // State: track total inventory movements
 var totalRestocks = 0;
@@ -10,7 +11,7 @@ var totalSales = 0;
 
 // Restock a product
 function restockProduct(prod, quantity) {
-    prod.stock = prod.stock + quantity;
+    productLib.updateStock(prod, quantity);
     totalRestocks = totalRestocks + quantity;
     return prod.stock;
 }
@@ -18,7 +19,7 @@ function restockProduct(prod, quantity) {
 // Sell product (reduce stock)
 function sellProduct(prod, quantity) {
     if (prod.stock >= quantity) {
-        prod.stock = prod.stock - quantity;
+        productLib.updateStock(prod, 0 - quantity);
         totalSales = totalSales + quantity;
         return true;
     }
@@ -35,22 +36,7 @@ function getInventoryStats() {
     return "Restocks: " + totalRestocks + ", Sales: " + totalSales;
 }
 
-// Calculate total inventory value
-function calculateInventoryValue(products) {
-    var total = 0;
-    for (var p : products) {
-        total = total + (p.price * p.stock);
-    }
-    return total;
-}
-
-// Find products by category
-function countByCategory(products, category) {
-    var count = 0;
-    for (var p : products) {
-        if (p.category == category) {
-            count = count + 1;
-        }
-    }
-    return count;
+// Get product value using product library
+function getProductValue(prod) {
+    return productLib.getProductValue(prod);
 }

@@ -2,46 +2,34 @@
 // services/sales.unna
 // Sales Service - Handles sales transactions and order processing
 // ============================================================================
-// Self-contained service - operates on order/customer structs passed as params
+
+import "../models/order.unna" as orderLib;
+import "../models/customer.unna" as customerLib;
+import "../utils/logger.unna" as log;
 
 // State: track sales metrics
 var totalOrders = 0;
 var totalRevenue = 0;
 
-// Get discount rate based on tier (inline helper)
-function getDiscountRate(tier) {
-    if (tier == "Gold") {
-        return 15;
-    } else if (tier == "Silver") {
-        return 10;
-    }
-    return 0;
-}
-
 // Process a sale
 function processSale(customer, order, paymentAmount) {
     // Apply discount based on customer tier
-    var discount = getDiscountRate(customer.tier);
+    var discount = customerLib.getDiscountRate(customer);
     var discountAmount = (order.totalAmount * discount) / 100;
     var finalAmount = order.totalAmount - discountAmount;
     
     // Check payment
     if (paymentAmount >= finalAmount) {
-        order.status = "completed";
+        orderLib.updateOrderStatus(order, "completed");
         totalOrders = totalOrders + 1;
         totalRevenue = totalRevenue + finalAmount;
+        log.logInfo("Sales", "Order completed: $" + finalAmount);
         return finalAmount;
     }
     
-    order.status = "failed";
+    orderLib.updateOrderStatus(order, "failed");
+    log.logWarn("Sales", "Order failed - insufficient payment");
     return 0;
-}
-
-// Calculate order total with discount
-function calculateFinalPrice(customer, subtotal) {
-    var discount = getDiscountRate(customer.tier);
-    var discountAmount = (subtotal * discount) / 100;
-    return subtotal - discountAmount;
 }
 
 // Get sales summary
@@ -52,10 +40,4 @@ function getSalesSummary() {
 // Check if customer qualifies for bulk discount
 function qualifiesForBulkDiscount(order) {
     return order.totalAmount >= 500;
-}
-
-// Apply bulk discount (additional 5%)
-function applyBulkDiscount(amount) {
-    var discount = (amount * 5) / 100;
-    return amount - discount;
 }
