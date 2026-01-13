@@ -1,6 +1,0 @@
-// Basic prints & comments
-// This is a comment.
-var x = 10; // This is also a comment.
-print("Hello, World!");
-print(42);
-print(3.14);

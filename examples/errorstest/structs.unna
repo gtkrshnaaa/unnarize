@@ -1,4 +1,0 @@
-// Struct Error: Invalid field
-struct Point { x; y; }
-var p = Point(1, 2);
-print(p.z); // 'z' does not exist

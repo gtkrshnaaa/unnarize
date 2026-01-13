@@ -1,8 +1,0 @@
-// Arithmetic operators
-var a = 15;
-var b = 4;
-print(a + b); // 19
-print(a - b); // 11
-print(a * b); // 60
-print(a / b); // integer division behavior
-print(a % b); // 3

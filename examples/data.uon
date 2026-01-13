@@ -1,9 +1,0 @@
-@schema {
-    items: [id, name, price]
-}
-@flow {
-    items: [
-        [1, "Potion", 10.5],
-        [2, "Sword", 150]
-    ]
-}

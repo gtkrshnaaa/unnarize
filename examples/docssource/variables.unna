@@ -1,6 +1,0 @@
-// Variables & dynamic typing
-var message = "This is a string";
-var number = 100;
-message = 123; // Valid! Now an integer.
-print(message);
-print(number);

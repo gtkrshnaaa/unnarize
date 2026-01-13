@@ -1,9 +1,0 @@
-// Comparison operators
-var result1 = 10 == 10;
-print(result1); // true
-var result2 = 10 != 5;
-print(result2); // true
-var result3 = 10 > 5;
-print(result3); // true
-var result4 = 10 < 5;
-print(result4); // false
