@@ -126,6 +126,12 @@ a:hover {
     color: var(--text-primary);
 }
 
+.nav-links a.active::after {
+    content: '•';
+    margin-left: 0.5rem;
+    color: var(--text-secondary);
+}
+
 /* Main Content */
 .main {
     flex: 1;
