@@ -249,6 +249,7 @@ struct Function {
     NativeFn native;
     bool isAsync;
     struct BytecodeChunk* bytecodeChunk; // Bytecode for this function
+    char* modulePath; // Path of the module/file this function is defined in
 };
 
 // Forward declaration
