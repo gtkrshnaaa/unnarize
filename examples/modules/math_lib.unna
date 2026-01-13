@@ -1,4 +1,4 @@
-// examples/modules/math_lib.unna
+var PI = 3.14159;
 
 function add(a, b) {
     return a + b;
