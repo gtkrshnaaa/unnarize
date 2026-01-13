@@ -1,11 +1,6 @@
 // examplesvtwo/benchmark/benchmark.unna
 // Performance Benchmark using ucoreTimer
 
-// ucoreTimer is a built-in library, no import needed if built into VM
-// but generally we shouldn't rely on implicit imports if the design says otherwise.
-// However, the examples indicate ucore* are often globals or built-ins.
-// Let's assume ucoreTimer is available as a global object.
-
 function fib(n) {
     if (n < 2) return n;
     return fib(n - 1) + fib(n - 2);
@@ -15,29 +10,55 @@ function heavyLoop(iterations) {
     var sum = 0;
     var i = 0;
     while (i < iterations) {
-        sum = sum + i;
+        sum = sum + 1;
         i = i + 1;
     }
     return sum;
 }
 
-print("=== Unnarize Benchmark ===");
+print("========================================");
+print("      UNNARIZE PERFORMANCE TEST");
+print("========================================");
+print("");
 
 // 1. Fibonacci
-print("1. Running Fibonacci(30)...");
+print("[ TEST 1 ] Recursive Fibonacci");
+print("Target: fib(30)");
 var startFib = ucoreTimer.now();
 var resFib = fib(30);
 var endFib = ucoreTimer.now();
-print("   Result: " + resFib);
-print("   Time: " + (endFib - startFib) + " ms");
+var timeFib = endFib - startFib;
+
+print("Result: " + resFib);
+print("Time  : " + timeFib + " ms");
+print("");
 
 // 2. Heavy Loop
-var iterations = 1000000;
-print("2. Running Heavy Loop (" + iterations + " iterations)...");
+var iterations = 10000000; // 10 Million
+print("[ TEST 2 ] Heavy Loop");
+print("Target: " + iterations + " iterations");
+
 var startLoop = ucoreTimer.now();
 var resLoop = heavyLoop(iterations);
 var endLoop = ucoreTimer.now();
-print("   Result: " + resLoop);
-print("   Time: " + (endLoop - startLoop) + " ms");
+var timeLoop = endLoop - startLoop;
 
-print("=== Benchmark Complete ===");
+// Calculate Ops/Sec
+// Assuming 1 iteration ~= 3 ops (compare, add, add) + loop overhead
+// or just pure iterations per second.
+// Let's report Iterations/Sec and normalized Ops/Sec (x3)
+
+var timeSec = timeLoop / 1000;
+if (timeSec == 0) timeSec = 0.0001; // Avoid div by zero if too fast
+
+var iterPerSec = iterations / timeSec;
+var opsPerSec = iterPerSec * 3; 
+var opsPerSecMillions = opsPerSec / 1000000;
+
+print("Result: " + resLoop);
+print("Time  : " + timeLoop + " ms");
+print("----------------------------------------");
+print("Speed : " + opsPerSecMillions + " M ops/sec");
+print("----------------------------------------");
+print("");
+print("========================================");
