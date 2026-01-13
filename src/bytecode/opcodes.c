@@ -22,6 +22,8 @@ static const OpcodeInfo OPCODE_TABLE[] = {
     {"LOAD_LOCAL_0", 0, false},
     {"LOAD_LOCAL_1", 0, false},
     {"LOAD_LOCAL_2", 0, false},
+    {"INC_LOCAL", 1, true},
+    {"DEC_LOCAL", 1, true},
     
     // Global variables
     {"LOAD_GLOBAL", 2, false},
