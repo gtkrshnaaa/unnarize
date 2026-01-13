@@ -153,7 +153,7 @@ struct FuncEntry {
 };
 
 // Initial hash table size for environments (increased to next prime ~256)
-#define TABLE_SIZE 251
+#define TABLE_SIZE 1021
 
 // String interning pool for performance optimization
 typedef struct StringPool {

@@ -92,13 +92,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
     // #define TRACE_EXECUTION 1
     #ifdef TRACE_EXECUTION
         #define DISPATCH() do { \
-            instructionCount++; \
             const OpcodeInfo* info = getOpcodeInfo(*ip); \
             printf("Exec: %s (StackDepth: %ld)\n", info ? info->name : "???", sp - vm->stack); fflush(stdout); \
             goto *dispatchTable[*ip++]; \
         } while(0)
     #else
-        #define DISPATCH() do { instructionCount++; goto *dispatchTable[*ip++]; } while(0)
+        #define DISPATCH() do { goto *dispatchTable[*ip++]; } while(0)
     #endif
     #define NEXT() DISPATCH()
     
