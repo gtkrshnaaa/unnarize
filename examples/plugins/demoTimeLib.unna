@@ -1,9 +1,0 @@
-// Demo for loadextern() with timeLib plugin
-// Expected output:
-// <epoch int>
-// <random int between 0..9>
-
-loadextern("timeLib.so");
-
-print(nowEpoch());
-print(randInt(10));

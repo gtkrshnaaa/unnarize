@@ -1,6 +1,0 @@
-// Demo for loadextern() with mathLib plugin
-// Expected output: 8
-
-loadextern("mathLib.so");
-
-print(mathPower(2, 3));

@@ -1,6 +1,0 @@
-// Native plugin demo using existing mathLib.so
-// Uses examples/plugins/build/mathLib.so which is built by Makefile target build-plugins-all
-loadextern("examples/plugins/build/mathLib.so");
-
-var res = mathPower(2, 8); // 256.0
-print("2^8 = " + res);

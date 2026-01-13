@@ -1,9 +1,0 @@
-// Demo for loadextern() with stringLib plugin
-// Expected output:
-// HELLOHELLO
-// 3
-
-loadextern("stringLib.so");
-
-print(toUpper("hello" + "hello"));
-print(length(strRepeat("1", 3)));
