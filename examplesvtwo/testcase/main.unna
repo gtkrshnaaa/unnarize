@@ -1,0 +1,24 @@
+// examplesvtwo/testcase/main.unna
+// Demonstrating modularity with imports
+
+print("=== Modularity Test ===");
+
+// Import the math library
+// Note: Path is relative to the execution directory or search path
+// Assuming running from root: ./bin/unnarize examplesvtwo/testcase/main.unna
+// imports usually look for files.
+import "examplesvtwo/testcase/math_lib.unna" as math;
+
+print("Math library imported.");
+
+print("PI using math.PI: " + math.PI);
+
+var a = 10;
+var b = 5;
+
+print("Adding " + a + " + " + b + ": " + math.add(a, b));
+print("Subtracting " + a + " - " + b + ": " + math.sub(a, b));
+print("Multiplying " + a + " * " + b + ": " + math.mul(a, b));
+print("Dividing " + a + " / " + b + ": " + math.div(a, b));
+
+print("=== End of Modularity Test ===");
