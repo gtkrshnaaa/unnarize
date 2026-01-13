@@ -2,8 +2,8 @@
 // Complex Modularity Test
 // Demonstrates interacting modules, state, and structs
 
-import "examplesvtwo/testcase/math_lib.unna" as math;
-import "examplesvtwo/testcase/logger.unna" as log;
+import "./math_lib.unna" as math;
+import "./logger.unna" as log;
 
 print("=== Complex App Simulation ===");
 
