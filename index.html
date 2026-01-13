@@ -166,7 +166,7 @@
             if (!window.Prism) return;
             Prism.languages.unnarize = Prism.languages.extend('clike', {
                 'comment': /\/\/.*|\/\*[\s\S]*?\*\//,
-                'keyword': /\b(function|var|return|if|else|while|for|async|await|import|as|print|loadextern|delete|push|pop|length|keys|has|array|map)\b/,
+                'keyword': /\b(function|var|return|if|else|while|for|async|await|import|as|print|delete|push|pop|length|keys|has|array|map)\b/,
                 'number': /\b-?(0x[\da-fA-F]+|\d*\.?\d+)\b/,
                 'string': {
                     pattern: /(["'])(?:\\.|(?!\1)[^\\\r\n])*\1/,
@@ -959,8 +959,7 @@ async function runSimulation() {
 runSimulation();
 </code></pre>
                     
-                    <h3 id="native-extensions" class="font-display font-bold text-2xl tracking-tight">4.3 Native C Extensions (loadextern)</h3>
-                    <p>Unnarize's <code>loadextern</code> system allows loading compiled C shared libraries (.so files) for high-performance operations. This follows Unnarize's philosophy of delegation: let C handle computation while Unnarize orchestrates.</p>
+
                     
                     <h4>Library Resolution</h4>
                     <p>Similar to modules, <code>loadextern</code> searches for libraries:</p>
