@@ -1,0 +1,92 @@
+// ==========================================
+// examplesvtwo/basic.unna
+// Basic Syntax Showcase for Unnarize
+// ==========================================
+
+print("=== 1. Variables and Data Types ===");
+
+var num = 42;
+var pi = 3.14159;
+var str = "Hello, Unnarize!";
+var boolTrue = true;
+var boolFalse = false;
+
+print("Number: " + num);
+print("PI: " + pi);
+print("String: " + str);
+print("Boolean: " + boolTrue);
+
+print("");
+print("=== 2. Arrays ===");
+
+var arr = [1, 2, 3, "four", true];
+print("Array: " + arr);
+print("Element 0: " + arr[0]);
+print("Element 3: " + arr[3]);
+
+arr[0] = 100;
+print("Modified Element 0: " + arr[0]);
+
+print("");
+print("=== 3. Control Flow ===");
+
+var x = 10;
+if (x > 5) {
+    print("x is greater than 5");
+} else {
+    print("x is not greater than 5");
+}
+
+print("While Loop:");
+var i = 0;
+while (i < 3) {
+    print("  i = " + i);
+    i = i + 1;
+}
+
+print("For Loop:");
+for (var j = 0; j < 3; j = j + 1) {
+    print("  j = " + j);
+}
+
+print("Foreach Loop:");
+var list = ["apple", "banana", "cherry"];
+for (var item : list) {
+    print("  Fruit: " + item);
+}
+
+print("");
+print("=== 4. Functions ===");
+
+function greet(name) {
+    return "Hello, " + name + "!";
+}
+
+print(greet("World"));
+
+// Async Function (simulated)
+async function complexTask(id) {
+    print("  Start task " + id);
+    // await sleep(100); // If sleep was available
+    print("  End task " + id);
+    return id * 2;
+}
+
+print("Async Function Call:");
+// Note: In a real async environment, we would await this.
+// For now, we just call it to show syntax.
+complexTask(10); 
+
+print("");
+print("=== 5. Structs ===");
+
+struct Person {
+    name;
+    age;
+}
+
+var alice = Person("Alice", 30);
+print("Person: " + alice.name + ", Age: " + alice.age);
+
+alice.age = 31;
+print("Happy Birthday " + alice.name + "! New Age: " + alice.age);
