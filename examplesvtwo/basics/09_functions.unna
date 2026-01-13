@@ -1,0 +1,48 @@
+// ==========================================
+// 09_functions.unna
+// Functions and Return Values
+// ==========================================
+
+print("=== Functions ===");
+
+// Simple function
+function greet(name) {
+    return "Hello, " + name + "!";
+}
+
+// Math functions
+function add(a, b) {
+    return a + b;
+}
+
+function multiply(a, b) {
+    return a * b;
+}
+
+function max(a, b) {
+    if (a > b) return a;
+    return b;
+}
+
+function min(a, b) {
+    if (a < b) return a;
+    return b;
+}
+
+function clamp(value, minVal, maxVal) {
+    if (value < minVal) return minVal;
+    if (value > maxVal) return maxVal;
+    return value;
+}
+
+// Using functions
+print(greet("World"));
+print("add(5, 3) = " + add(5, 3));
+print("multiply(4, 7) = " + multiply(4, 7));
+print("max(10, 25) = " + max(10, 25));
+print("min(10, 25) = " + min(10, 25));
+print("clamp(150, 0, 100) = " + clamp(150, 0, 100));
+print("clamp(-20, 0, 100) = " + clamp(-20, 0, 100));
+print("clamp(50, 0, 100) = " + clamp(50, 0, 100));
+
+print("=== Complete ===");
