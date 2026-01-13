@@ -1,0 +1,35 @@
+// ==========================================
+// 07_control_for.unna
+// Control Flow: For Loops
+// ==========================================
+
+print("=== For Loops ===");
+
+// Basic for loop
+print("Counting 1 to 5:");
+for (var i = 1; i <= 5; i = i + 1) {
+    print("  i = " + i);
+}
+
+// Squares
+print("Squares of 1 to 5:");
+for (var n = 1; n <= 5; n = n + 1) {
+    var square = n * n;
+    print("  " + n + "^2 = " + square);
+}
+
+// Countdown
+print("Countdown:");
+for (var t = 5; t >= 1; t = t - 1) {
+    print("  " + t + "...");
+}
+print("  Liftoff!");
+
+// Factorial using for
+var factorial = 1;
+for (var f = 1; f <= 5; f = f + 1) {
+    factorial = factorial * f;
+}
+print("5! = " + factorial);
+
+print("=== Complete ===");
