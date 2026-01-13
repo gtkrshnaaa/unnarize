@@ -1,75 +1,45 @@
 // ============================================================================
-// ucoreUon Example
+// ucoreUon Practical Example
 // ============================================================================
-// Demonstrates UON database operations: load(), get(), next()
+// Demonstrates reading from actual .uon file: sample.uon
 // ============================================================================
 
-print("=== ucoreUon Demo ===");
+print("=== ucoreUon Practical Demo ===");
 print("");
 
-// UON File Format:
-// -----------------
-// A .uon file has two sections:
-//
-// @schema {
-//     tableName: [field1, field2, field3]
-// }
-//
-// @flow {
-//     tableName: [
-//         { field1: value1, field2: "string", field3: 123 },
-//         { field1: value2, field2: "other", field3: 456 }
-//     ]
-// }
+// Load UON file (gitignored sample.uon)
+print("Loading sample.uon...");
+var loaded = ucoreUon.load("examples/corelib/uon/sample.uon");
 
-// Load UON file (path relative to working directory)
-// var loaded = ucoreUon.load("data/sample.uon");
-// if (!loaded) {
-//     print("Error: Could not load UON file");
-// }
-
-// Get cursor for a table
-// var cursor = ucoreUon.get("users");
-
-// Iterate through records
-// var row = ucoreUon.next(cursor);
-// while (row) {
-//     print("User: " + row["name"] + " - " + row["email"]);
-//     row = ucoreUon.next(cursor);
-// }
-
-// Example: Create sample data structure
-print("Creating sample data structure...");
-
-var users = [];
-
-var user1 = map();
-user1["id"] = 1;
-user1["name"] = "Alice";
-user1["email"] = "alice@example.com";
-push(users, user1);
-
-var user2 = map();
-user2["id"] = 2;
-user2["name"] = "Bob";
-user2["email"] = "bob@example.com";
-push(users, user2);
-
-var user3 = map();
-user3["id"] = 3;
-user3["name"] = "Carol";
-user3["email"] = "carol@example.com";
-push(users, user3);
-
-print("");
-print("Users:");
-for (var user : users) {
-    print("  [" + user["id"] + "] " + user["name"] + " <" + user["email"] + ">");
+if (!loaded) {
+    print("Error: Could not load sample.uon");
+    print("Make sure the file exists!");
+} else {
+    print("File loaded successfully!");
+    print("");
+    
+    // Read users table
+    print("--- Users Table ---");
+    var userCursor = ucoreUon.get("users");
+    var user = ucoreUon.next(userCursor);
+    
+    while (user) {
+        print("[" + user["id"] + "] " + user["name"] + " <" + user["email"] + "> (" + user["role"] + ")");
+        user = ucoreUon.next(userCursor);
+    }
+    
+    print("");
+    
+    // Read products table
+    print("--- Products Table ---");
+    var productCursor = ucoreUon.get("products");
+    var product = ucoreUon.next(productCursor);
+    
+    while (product) {
+        print("[" + product["id"] + "] " + product["name"] + " - $" + product["price"] + " (Stock: " + product["stock"] + ")");
+        product = ucoreUon.next(productCursor);
+    }
 }
 
 print("");
 print("Done!");
-print("");
-print("To test with actual UON files:");
-print("1. Create a .uon file with @schema and @flow sections");
-print("2. Use ucoreUon.load(), ucoreUon.get(), ucoreUon.next()");
