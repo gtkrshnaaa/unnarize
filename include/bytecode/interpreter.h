@@ -11,6 +11,6 @@
  */
 
 // Execute bytecode chunk
-uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk);
+uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth);
 
 #endif // BYTECODE_INTERPRETER_H

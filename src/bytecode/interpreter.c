@@ -1,5 +1,12 @@
 #include "bytecode/interpreter.h"
 #include "bytecode/opcodes.h"
+#include <unistd.h>
+#include "parser.h"
+#include "lexer.h"
+#include "bytecode/compiler.h"
+#include "vm.h" // For Environment
+#include <libgen.h>
+
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -17,9 +24,29 @@ static inline uint64_t getMicroseconds() {
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+
+static char* readFile_internal(const char* path) {
+    FILE* file = fopen(path, "rb");
+    if (!file) return NULL;
+    fseek(file, 0L, SEEK_END);
+    size_t fileSize = ftell(file);
+    rewind(file);
+    char* buffer = malloc(fileSize + 1);
+    if (!buffer) { fclose(file); return NULL; }
+    size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+    if (bytesRead < fileSize) { free(buffer); fclose(file); return NULL; }
+    buffer[bytesRead] = '\0';
+    fclose(file);
+    return buffer;
+}
+
 #define STACK_MAX 65536
 
-uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
+uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
+    if (entryStackDepth > 0) {
+        // printf("DEBUG: executeBytecode ENTRY depth=%d current=%d codeSize=%d\n", entryStackDepth, vm->callStackTop, chunk->codeSize);
+        // disassembleChunk(chunk, "imported_module");
+    }
     // Performance tracking
     uint64_t startTime = getMicroseconds();
     uint64_t instructionCount = 0;
@@ -81,11 +108,149 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     op_import: {
         uint8_t constIdx = *ip++;
         Value nameVal = constants[constIdx];
-        // char* name = AS_CSTRING(nameVal);
-        // printf("DEBUG: Importing '%s'\n", name);
-        // Mock math_lib map
-        Map* m = newMap(vm);
-        *sp++ = OBJ_VAL(m); 
+        char* rawPath = AS_CSTRING(nameVal);
+        
+        // 1. Resolve Path
+        char* importPath = rawPath;
+        char* resolvedPath = NULL;
+        char* basePath = NULL;
+        
+        // Check if relative import (./ or ../)
+        if (rawPath[0] == '.') {
+            // Get current frame's module path
+             CallFrame* frame = &vm->callStack[vm->callStackTop - 1];
+             // printf("DEBUG: op_import raw='%s' frame_idx=%d func=%p path=%s\n", rawPath, vm->callStackTop-1, frame->function, frame->function ? frame->function->modulePath : "NULL_FUNC");
+             
+             if (frame->function && frame->function->modulePath) {
+                 char* tmp = strdup(frame->function->modulePath);
+                 char* dir = dirname(tmp);
+                 
+                 // manual join because standard C is barebones
+                 size_t lenDir = strlen(dir);
+                 size_t lenName = strlen(rawPath);
+                 resolvedPath = malloc(lenDir + 1 + lenName + 1);
+                 sprintf(resolvedPath, "%s/%s", dir, rawPath);
+                 
+                 // printf("DEBUG: Resolved '%s' + '%s' -> '%s'\n", dir, rawPath, resolvedPath);
+                 
+                 importPath = resolvedPath;
+                 free(tmp);
+             } else {
+                 // printf("DEBUG: No module path found for frame.\n");
+             }
+        }
+        
+        // 2. Load File
+        char* source = readFile_internal(importPath);
+        if (!source) {
+            fprintf(stderr, "Runtime Error: Could not import module '%s' (Resolved: '%s')\n", rawPath, importPath ? importPath : "null");
+            exit(1);
+        }
+        // printf("DEBUG: Loaded source for %s: len=%ld preview='%.20s...'\n", importPath, strlen(source), source);
+        
+        // 3. Compile
+        Lexer lex;
+        initLexer(&lex, source);
+        Parser p;
+        p.tokens = malloc(64 * sizeof(Token)); p.count = 0; p.capacity = 64; p.current = 0;
+        
+        while(true) {
+             Token t = scanToken(&lex);
+             if (p.count >= p.capacity) {
+                 p.capacity *= 2;
+                 p.tokens = realloc(p.tokens, p.capacity * sizeof(Token));
+             }
+             p.tokens[p.count++] = t;
+             if (t.type == TOKEN_EOF) break;
+        }
+        
+        Node* ast = parse(&p);
+        
+        // 3. Compile
+        BytecodeChunk* modChunk = malloc(sizeof(BytecodeChunk));
+        initChunk(modChunk);
+        
+        // Pass the resolved path as the module path for the new chunk
+        bool success = compileToBytecode(vm, ast, modChunk, importPath);
+        if (!success) {
+             fprintf(stderr, "Import Error: Failed to compile module '%s'\n", rawPath);
+             exit(1);
+        }
+        
+        // 4. Create Module Environment (Enclosed by Global)
+        Environment* oldEnv = vm->globalEnv;
+        Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
+        modEnv->enclosing = oldEnv;
+        memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
+        memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
+        
+        vm->globalEnv = modEnv; // Switch context
+        
+        // 5. Execute
+        // Create Function wrapper for the module script
+        Function* modFunc = ALLOCATE_OBJ(vm, Function, OBJ_FUNCTION);
+        modFunc->bytecodeChunk = modChunk;
+        modFunc->modulePath = strdup(importPath);
+        modFunc->name.start = importPath; 
+        modFunc->name.length = strlen(importPath);
+        modFunc->paramCount = 0;
+        modFunc->body = ast; // Keep AST reachable if needed, or NULL
+        modFunc->closure = NULL; // Globals are closure? No.
+        modFunc->isNative = false;
+        
+        // Push Function to stack (roots it and acts as slot 0)
+        *sp++ = OBJ_VAL(modFunc);
+        vm->stackTop = (int)(sp - vm->stack); // Sync stackTop
+        
+        // Push CallFrame
+        if (vm->callStackTop >= CALL_STACK_MAX) {
+            printf("Stack overflow in import.\n"); exit(1);
+        }
+        CallFrame* frame = &vm->callStack[vm->callStackTop++];
+        frame->function = modFunc;
+        frame->chunk = modChunk;
+        frame->ip = modChunk->code;
+        frame->env = vm->globalEnv; 
+        frame->fp = vm->stackTop - 1; // Points to func
+        
+        int entryDepth = vm->callStackTop - 1; // Return when we pop this frame
+        
+        executeBytecode(vm, modChunk, entryDepth);
+        
+        // Function is popped by OP_RETURN logic inside executeBytecode?
+        // Wait, OP_RETURN decrements vm->callStackTop.
+        // But does it pop the Stack (Value stack)?
+        // op_return: `Value retVal = *(--sp); ... sp = calleeFp - 1; *sp++ = retVal;`
+        // It resets SP to `calleeFp - 1` (where Function was) and pushes return value.
+        // So `modFunc` is replaced by return value (NIL usually for script).
+        
+        // Sync local SP
+        sp = vm->stack + vm->stackTop;
+        
+        // Pop the return value of the script (usually NIL)
+        sp--; // Now we are back to pre-import stack state
+        
+        // 6. Return Module Object
+        
+        // 6. Return Module Object
+        // Using OBJ_MODULE allows dot-property access via op_load_property
+        Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
+        mod->env = modEnv;
+        mod->name = strdup(importPath);
+        mod->source = NULL; // Source freed below
+        
+        // Restore Env
+        vm->globalEnv = oldEnv;
+        
+        // Cleanup
+        free(source);
+        if (resolvedPath) free(resolvedPath);
+        if (p.tokens) free(p.tokens);
+        // Do NOT free modChunk. It is owned by modFunc which is GC'd.
+        // freeChunk(modChunk);
+        // free(modChunk);
+        
+        *sp++ = OBJ_VAL(mod); // Push result
         NEXT();
     }
 
@@ -214,6 +379,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         unsigned int h = name->hash % TABLE_SIZE;
         
         // Define or Update
+        // printf("DEBUG: DEFINING GLOBAL '%s' in env %p\n", name->chars, vm->globalEnv);
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
             if (entry->key == name->chars) {
@@ -855,14 +1021,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     do_return: {
         Value retVal = *(--sp);
         
-        if (vm->callStackTop == 0) {
+        Value* calleeFp = vm->stack + vm->fp;
+        vm->callStackTop--;
+        if (vm->callStackTop == entryStackDepth) {
             return instructionCount;
         }
         
-        // Save pointer to current frame base (Callee args start)
-        Value* calleeFp = vm->stack + vm->fp;
-        
-        vm->callStackTop--;
         CallFrame* frame = &vm->callStack[vm->callStackTop];
         vm->fp = frame->fp;
         fp = vm->stack + vm->fp;
@@ -911,10 +1075,21 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                      if (e->key == name->chars) { // Pointer equality safe
                          sp--; // Pop instance
                          *sp++ = e->value;
+                         // printf("DEBUG: Module Get '%s' -> Value type %d\n", name->chars, getValueType(e->value));
                          NEXT();
                      }
+                     // printf("DEBUG: Module Skip '%s' vs '%s'\n", e->key, name->chars);
                      e = e->next;
                  }
+                 /*
+                 printf("DEBUG: Module '%s' does not contain property '%s'. Keys:\n", mod->name, name->chars);
+                 for(int i=0; i<TABLE_SIZE; i++) {
+                     VarEntry* de = mod->env->buckets[i];
+                     while(de) {
+                         printf(" - %s\n", de->key);
+                         de = de->next;
+                     }
+                 } */
             }
             else if (obj->type == OBJ_STRING) {
                  if (name->length == 6 && memcmp(name->chars, "length", 6) == 0) {
