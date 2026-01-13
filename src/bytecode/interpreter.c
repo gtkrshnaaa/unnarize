@@ -39,6 +39,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     // === COMPUTED GOTO DISPATCH TABLE ===
     // Direct threading dispatch table
     static void* dispatchTable[] = {
+        &&op_import, // NEW
         &&op_load_imm, &&op_load_const, &&op_load_nil, &&op_load_true, &&op_load_false,
         &&op_pop, &&op_dup,
         &&op_load_local, &&op_store_local, &&op_load_local_0, &&op_load_local_1, &&op_load_local_2,
@@ -77,6 +78,17 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     DISPATCH();  // Start execution
     
     // === STACK OPERATIONS ===
+    op_import: {
+        uint8_t constIdx = *ip++;
+        Value nameVal = constants[constIdx];
+        // char* name = AS_CSTRING(nameVal);
+        // printf("DEBUG: Importing '%s'\n", name);
+        // Mock math_lib map
+        Map* m = newMap(vm);
+        *sp++ = OBJ_VAL(m); 
+        NEXT();
+    }
+
     op_load_imm: {
         // Load 32-bit immediate (4 bytes)
         int32_t value = (ip[0] << 24) | (ip[1] << 16) | (ip[2] << 8) | ip[3];
