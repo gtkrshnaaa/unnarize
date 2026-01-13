@@ -254,12 +254,7 @@ This section details the core features of the Unnarize programming language.
   - **String Concatenation:** Concatenation renders compact descriptors, e.g., array as `[array length=N]` and map as `{map size=N}`.
   - **Futures Rendering:** Similarly, a Future renders as `[future pending]` or `[future done]` when printed or concatenated.
 
-**Plugin System (loadextern)**
 
-  - **Dynamic Loading:** Load native C libraries at runtime using `loadextern("plugin.so")`.
-  - **Self-Contained Plugins:** Minimal plugin interface with automatic function registration.
-  - **Performance Extensions:** Write performance-critical code in C while keeping logic in Unnarize.
-  - **Built-in Plugins:** Math operations, string manipulation, timing functions, and benchmarking tools.
 
 ## Performance Benchmarks
 
