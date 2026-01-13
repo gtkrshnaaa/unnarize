@@ -1,0 +1,31 @@
+// ==========================================
+// 10_recursion.unna
+// Recursive Functions
+// ==========================================
+
+print("=== Recursion ===");
+
+// Factorial
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+// Fibonacci
+function fibonacci(n) {
+    if (n < 2) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Using recursive functions
+print("Factorial calculations:");
+print("  3! = " + factorial(3));
+print("  5! = " + factorial(5));
+print("  7! = " + factorial(7));
+
+print("Fibonacci sequence:");
+print("  fib(5) = " + fibonacci(5));
+print("  fib(8) = " + fibonacci(8));
+print("  fib(10) = " + fibonacci(10));
+
+print("=== Complete ===");
