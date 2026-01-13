@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
     // Parse
     Node* ast = parse(&parser);
 
-    // VM - FULL JIT MODE ENABLED  
+    // VM
     VM vm;
     initVM(&vm);
     vm.argc = argc;
@@ -336,8 +336,7 @@ int main(int argc, char** argv) {
     
 
     
-    // FULL JIT MODE - NO FALLBACK TO INTERPRETER
-    // Always use bytecode VM with JIT compilation
+    // VM Execution
     BytecodeChunk* chunk = malloc(sizeof(BytecodeChunk));
     initChunk(chunk);
     
@@ -366,7 +365,7 @@ int main(int argc, char** argv) {
             frame->fp = 0;
         }
         
-        // Execute with JIT compiler - will auto-compile hot code
+        // Execute VM
         executeBytecode(&vm, chunk);
         
         vm.callStackTop--; // Pop frame
