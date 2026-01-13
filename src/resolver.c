@@ -243,10 +243,6 @@ static void resolve(Resolver* r, Node* node) {
              // Nothing to resolve in import path?
              break;
 
-        case NODE_STMT_LOADEXTERN:
-             resolve(r, node->loadexternStmt.pathExpr);
-             break;
-
         case NODE_STMT_STRUCT_DECL:
              // Struct name is global usually? Or scoped?
              // Unnarize structs are currently globals.
