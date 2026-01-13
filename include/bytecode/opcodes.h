@@ -28,6 +28,8 @@ typedef enum {
     OP_LOAD_LOCAL_0,    // Fast path for local 0
     OP_LOAD_LOCAL_1,    // Fast path for local 1
     OP_LOAD_LOCAL_2,    // Fast path for local 2
+    OP_INC_LOCAL,       // Increment local by 1 (1-byte slot) - optimized i++
+    OP_DEC_LOCAL,       // Decrement local by 1 (1-byte slot) - optimized i--
     
     // === Global Variables ===
     OP_LOAD_GLOBAL,     // Load global (with inline cache)
