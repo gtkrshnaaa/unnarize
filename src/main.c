@@ -7,6 +7,7 @@
 #include "ucore_http.h"
 #include "ucore_timer.h"
 #include "ucore_system.h"
+#include "ucore_benchmark.h"
 #include "bytecode/chunk.h"
 #include "bytecode/compiler.h"
 #include "bytecode/interpreter.h"
@@ -328,6 +329,7 @@ int main(int argc, char** argv) {
     registerUCoreUON(&vm); // Register built-in core libraries
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
+    registerUCoreBenchmark(&vm); // Register Benchmark
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)
     
