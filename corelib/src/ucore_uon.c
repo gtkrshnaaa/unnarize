@@ -372,6 +372,161 @@ static Value fparseValue(VM* vm, FILE* f) {
     return NIL_VAL;
 }
 
+// ---- UON Generator ----
+// Helper to append string to buffer
+static void uon_buf_append(char** buf, int* len, int* cap, const char* str) {
+    int l = (int)strlen(str);
+    if (*len + l >= *cap) {
+        *cap = *cap * 2 + l + 1024;
+        *buf = realloc(*buf, *cap);
+    }
+    strcpy(*buf + *len, str);
+    *len += l;
+}
+
+// Serialize value for UON format
+static void uon_serialize_val(Value v, char** buf, int* len, int* cap) {
+    char temp[64];
+    if (IS_NIL(v)) {
+        uon_buf_append(buf, len, cap, "null");
+        return;
+    }
+    
+    switch (getValueType(v)) {
+        case VAL_INT:
+            snprintf(temp, sizeof(temp), "%lld", (long long)AS_INT(v));
+            uon_buf_append(buf, len, cap, temp);
+            break;
+        case VAL_FLOAT:
+            snprintf(temp, sizeof(temp), "%.6g", AS_FLOAT(v));
+            uon_buf_append(buf, len, cap, temp);
+            break;
+        case VAL_BOOL:
+            uon_buf_append(buf, len, cap, AS_BOOL(v) ? "true" : "false");
+            break;
+        case VAL_OBJ: {
+            Obj* o = AS_OBJ(v);
+            if (o->type == OBJ_STRING) {
+                uon_buf_append(buf, len, cap, "\"");
+                uon_buf_append(buf, len, cap, ((ObjString*)o)->chars);
+                uon_buf_append(buf, len, cap, "\"");
+            } else {
+                uon_buf_append(buf, len, cap, "null");
+            }
+            break;
+        }
+        default:
+            uon_buf_append(buf, len, cap, "null");
+            break;
+    }
+}
+
+// ucoreUon.generate(schemaMap, dataMap) -> string
+// schemaMap: { tableName: ["field1", "field2"], ... }
+// dataMap: { tableName: [{ field1: val, ... }, ...], ... }
+static Value uon_generate(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_OBJ(args[0]) || !IS_OBJ(args[1])) {
+        printf("Error: ucoreUon.generate(schema, data) expects 2 map arguments.\n");
+        ObjString* empty = internString(vm, "", 0);
+        return OBJ_VAL(empty);
+    }
+    
+    Obj* schemaObj = AS_OBJ(args[0]);
+    Obj* dataObj = AS_OBJ(args[1]);
+    
+    if (schemaObj->type != OBJ_MAP || dataObj->type != OBJ_MAP) {
+        printf("Error: ucoreUon.generate expects map arguments.\n");
+        ObjString* empty = internString(vm, "", 0);
+        return OBJ_VAL(empty);
+    }
+    
+    Map* schema = (Map*)schemaObj;
+    Map* data = (Map*)dataObj;
+    
+    int cap = 4096;
+    int len = 0;
+    char* buf = malloc(cap);
+    buf[0] = '\0';
+    
+    // Generate @schema block
+    uon_buf_append(&buf, &len, &cap, "@schema {\n");
+    
+    bool firstTable = true;
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        MapEntry* e = schema->buckets[i];
+        while (e) {
+            if (!firstTable) uon_buf_append(&buf, &len, &cap, ",\n");
+            firstTable = false;
+            
+            uon_buf_append(&buf, &len, &cap, "    ");
+            uon_buf_append(&buf, &len, &cap, e->key);
+            uon_buf_append(&buf, &len, &cap, ": [");
+            
+            // Schema value should be an array of field names
+            if (IS_OBJ(e->value) && AS_OBJ(e->value)->type == OBJ_ARRAY) {
+                Array* fields = (Array*)AS_OBJ(e->value);
+                for (int j = 0; j < fields->count; j++) {
+                    if (j > 0) uon_buf_append(&buf, &len, &cap, ", ");
+                    if (IS_STRING(fields->items[j])) {
+                        uon_buf_append(&buf, &len, &cap, AS_CSTRING(fields->items[j]));
+                    }
+                }
+            }
+            uon_buf_append(&buf, &len, &cap, "]");
+            e = e->next;
+        }
+    }
+    uon_buf_append(&buf, &len, &cap, "\n}\n\n");
+    
+    // Generate @flow block
+    uon_buf_append(&buf, &len, &cap, "@flow {\n");
+    
+    firstTable = true;
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        MapEntry* e = data->buckets[i];
+        while (e) {
+            if (!firstTable) uon_buf_append(&buf, &len, &cap, ",\n");
+            firstTable = false;
+            
+            uon_buf_append(&buf, &len, &cap, "    ");
+            uon_buf_append(&buf, &len, &cap, e->key);
+            uon_buf_append(&buf, &len, &cap, ": [\n");
+            
+            // Data value should be an array of maps (records)
+            if (IS_OBJ(e->value) && AS_OBJ(e->value)->type == OBJ_ARRAY) {
+                Array* records = (Array*)AS_OBJ(e->value);
+                for (int j = 0; j < records->count; j++) {
+                    if (j > 0) uon_buf_append(&buf, &len, &cap, ",\n");
+                    uon_buf_append(&buf, &len, &cap, "        { ");
+                    
+                    if (IS_OBJ(records->items[j]) && AS_OBJ(records->items[j])->type == OBJ_MAP) {
+                        Map* record = (Map*)AS_OBJ(records->items[j]);
+                        bool firstField = true;
+                        for (int k = 0; k < TABLE_SIZE; k++) {
+                            MapEntry* f = record->buckets[k];
+                            while (f) {
+                                if (!firstField) uon_buf_append(&buf, &len, &cap, ", ");
+                                firstField = false;
+                                uon_buf_append(&buf, &len, &cap, f->key);
+                                uon_buf_append(&buf, &len, &cap, ": ");
+                                uon_serialize_val(f->value, &buf, &len, &cap);
+                                f = f->next;
+                            }
+                        }
+                    }
+                    uon_buf_append(&buf, &len, &cap, " }");
+                }
+            }
+            uon_buf_append(&buf, &len, &cap, "\n    ]");
+            e = e->next;
+        }
+    }
+    uon_buf_append(&buf, &len, &cap, "\n}\n");
+    
+    ObjString* result = internString(vm, buf, len);
+    free(buf);
+    return OBJ_VAL(result);
+}
 
 static Value uon_save_dummy(VM* vm, Value* args, int argCount) {
     (void)vm; (void)args; (void)argCount;
@@ -400,6 +555,7 @@ void registerUCoreUON(VM* vm) {
     defineNative(vm, mod->env, "load", uon_load_impl, 1);
     defineNative(vm, mod->env, "get", uon_get_impl, 1);
     defineNative(vm, mod->env, "next", uon_next_impl, 1);
+    defineNative(vm, mod->env, "generate", uon_generate, 2);
     defineNative(vm, mod->env, "save", uon_save_dummy, 1);
     defineNative(vm, mod->env, "insert", uon_noop, 2);
 
