@@ -1,0 +1,16 @@
+// Benchmark using ucoreBenchmark library
+print("Starting benchmark...");
+
+var count = 1000000;
+var start = ucoreBenchmark.start();
+
+var acc = 0;
+for (var i = 0; i < count; i = i + 1) {
+    acc = acc + 1;
+}
+
+var end = ucoreBenchmark.end();
+var res = ucoreBenchmark.result(start, end, count);
+
+print("Benchmark Complete:");
+print("Result: " + res);
