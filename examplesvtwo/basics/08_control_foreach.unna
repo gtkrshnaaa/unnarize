@@ -1,0 +1,33 @@
+// ==========================================
+// 08_control_foreach.unna
+// Control Flow: Foreach Loops
+// ==========================================
+
+print("=== Foreach Loops ===");
+
+// Iterate over strings
+var fruits = ["Apple", "Banana", "Cherry", "Date"];
+print("Fruit list:");
+for (var fruit : fruits) {
+    print("  - " + fruit);
+}
+
+// Iterate over numbers
+var scores = [85, 92, 78, 95, 88];
+var total = 0;
+for (var s : scores) {
+    total = total + s;
+}
+var average = total / 5;
+print("Scores: " + scores);
+print("Total: " + total);
+print("Average: " + average);
+
+// Processing items
+var items = ["sword", "shield", "potion"];
+print("Inventory check:");
+for (var item : items) {
+    print("  Found: " + item);
+}
+
+print("=== Complete ===");
