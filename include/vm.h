@@ -371,7 +371,7 @@ Obj* allocateObject(VM* vm, size_t size, ObjType type);
 void freeObject(VM* vm, Obj* object);
 
 // Register core built-in functions (has, keys, len, etc.)
-// String concatenation helper (exposed for JIT and Interpreter)
+// String concatenation helper (exposed for VM)
 Value vm_concatenate(VM* vm, Value a, Value b);
 
 void registerBuiltins(VM* vm);
