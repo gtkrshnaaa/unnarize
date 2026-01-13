@@ -21,8 +21,8 @@ ucoreUon.parse(rawData);
 print("Fetching users table...");
 var users = ucoreUon.get("users");
 
-print("User 1 Name: " + users[0].name);
-print("User 1 Role: " + users[0].role);
+print("User 1 Name: " + users[0]["name"]); 
+print("User 1 Role: " + users[0]["role"]);
 print("User 2 Name: " + users[1].name);
 
 print("Fetching logs table...");

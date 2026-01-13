@@ -5,19 +5,18 @@
 
 print("=== 1. Variables and Types ===");
 
-// Integer
+// 01_basics.unna
+print("=== 1. Variables and Types ===");
+
 var age = 25;
 print("Age: " + age);
 
-// Float
 var pi = 3.14159;
 print("Pi: " + pi);
 
-// String
 var name = "Unnarize";
 print("Language: " + name);
 
-// Boolean (New!)
 var isFun = true;
 var isHard = false;
 print("Is Fun? " + isFun);
@@ -40,7 +39,6 @@ if (isFun) {
 print("");
 print("=== 3. Control Flow ===");
 
-// If-Else
 var score = 85;
 if (score >= 90) {
     print("Grade: A");
@@ -50,7 +48,6 @@ if (score >= 90) {
     print("Grade: C");
 }
 
-// While Loop
 print("Counting down:");
 var count = 3;
 while (count > 0) {
@@ -59,7 +56,6 @@ while (count > 0) {
 }
 print("Lift off!");
 
-// For Loop
 print("For loop:");
 for (var i = 0; i < 3; i = i + 1) {
     print("Iteration " + i);

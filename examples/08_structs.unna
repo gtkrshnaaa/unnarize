@@ -1,3 +1,4 @@
+// 08_structs.unna
 print("=== Structs ===");
 
 struct Point {

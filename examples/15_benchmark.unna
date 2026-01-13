@@ -1,12 +1,11 @@
+// 15_benchmark.unna
 print("Starting Benchmark...");
 
-// 1. Recursive Fibonacci (Function Call Overhead)
 function fib(n) {
     if (n < 2) return n;
     return fib(n - 1) + fib(n - 2);
 }
 
-// 2. Heavy Loop + Arithmetic
 function sumLoop(n) {
     var sum = 0;
     for (var i = 0; i < n; i = i + 1) {
@@ -15,7 +14,6 @@ function sumLoop(n) {
     return sum;
 }
 
-// 3. String Concatenation (Allocation Overhead)
 function stringConcat(n) {
     var s = "";
     for (var i = 0; i < n; i = i + 1) {
@@ -28,11 +26,6 @@ function stringConcat(n) {
 var start = 0.0;
 var end = 0.0;
 
-// Run Fib
-// print("Running Fibonacci(25)...");
-// print(fib(25));
-
-// Run Loop
 print "Running SumLoop(10)...";
 t1 = ucoreTimer.now();
 res = sumLoop(10);
@@ -40,7 +33,6 @@ t2 = ucoreTimer.now();
 print res;
 print "Time: " + (t2 - t1) + " ms";
 
-// Run String
 print "Running StringConcat(10)...";
 stringConcat(10);
 start = ucoreTimer.now();

@@ -1,3 +1,4 @@
+// 07_foreach.unna
 print("=== Foreach Loop ===");
 var arr = [10, 20, 30];
 var sum = 0;

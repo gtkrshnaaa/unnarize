@@ -5,12 +5,13 @@
 
 print("=== 1. Arrays ===");
 
-// Array Literal (New!)
+// 02_structures.unna
+print("=== 1. Arrays ===");
+
 var fruits = ["Apple", "Banana", "Cherry"];
 print("Initial fruits: " + fruits);
 print("First fruit: " + fruits[0]);
 
-// Push/Pop
 push(fruits, "Date");
 print("After push: " + fruits);
 print("Length: " + length(fruits));
@@ -19,7 +20,6 @@ var last = pop(fruits);
 print("Popped: " + last);
 print("Remaining: " + fruits);
 
-// Iteration
 print("Listing fruits:");
 for (var i = 0; i < length(fruits); i = i + 1) {
     print("- " + fruits[i]);
@@ -28,7 +28,6 @@ for (var i = 0; i < length(fruits); i = i + 1) {
 print("");
 print("=== 2. Maps ===");
 
-// Map creation
 var user = map();
 user["name"] = "Alice";
 user["role"] = "Admin";
@@ -37,16 +36,13 @@ user["level"] = 42;
 print("User: " + user["name"]);
 print("Role: " + user["role"]);
 
-// Check existence
 if (has(user, "level")) {
     print("Level exists: " + user["level"]);
 }
 
-// Keys
 var userKeys = keys(user);
 print("User keys: " + userKeys);
 
-// Complex Structure: Array of Arrays
 var matrix = [
     [1, 2, 3],
     [4, 5, 6],

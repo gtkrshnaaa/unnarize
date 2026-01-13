@@ -8,7 +8,17 @@ if (f && t) print("F && T : FAIL"); else print("F && T : OK");
 if (f || t) print("F || T : OK");
 if (f || f) print("F || F : FAIL"); else print("F || F : OK");
 
-// Helper for side effects in expression
+// 06_operators.unna
+print("=== Logical Operators ===");
+var t = true;
+var f = false;
+
+if (t && t) print("T && T : OK");
+if (t && f) print("T && F : FAIL"); else print("T && F : OK");
+if (f && t) print("F && T : FAIL"); else print("F && T : OK");
+if (f || t) print("F || T : OK");
+if (f || f) print("F || F : FAIL"); else print("F || F : OK");
+
 function log(msg) {
     print(msg);
     return true;
@@ -21,17 +31,17 @@ if (t || log("SHOULD NOT PRINT")) print("Short circuit OR working");
 print("=== Compound Assignment ===");
 var x = 10;
 x += 5;
-print("10 += 5 -> " + x); // 15
+print("10 += 5 -> " + x); 
 x *= 2;
-print("15 *= 2 -> " + x); // 30
+print("15 *= 2 -> " + x); 
 x -= 10;
-print("30 -= 10 -> " + x); // 20
+print("30 -= 10 -> " + x); 
 x /= 4;
-print("20 /= 4 -> " + x); // 5
+print("20 /= 4 -> " + x); 
 
 print("=== Array Compound ===");
 var arr = [1, 2, 3];
 arr[0] += 10;
-print("arr[0] += 10 -> " + arr[0]); // 11
+print("arr[0] += 10 -> " + arr[0]); 
 arr[1] *= 2;
-print("arr[1] *= 2 -> " + arr[1]); // 4
+print("arr[1] *= 2 -> " + arr[1]);

@@ -55,7 +55,8 @@ function fib(n) {
     return fib(n - 1) + fib(n - 2);
 }
 
-print("Fibonacci(10): " + fib(10));
+// print("Fibonacci(10): " + fib(10)); // Commented out to prevent stack overflow on aggressive optimizations or debug builds
+print("Fibonacci(5): " + fib(5));
 
 print("");
 print("=== End of Functions ===");

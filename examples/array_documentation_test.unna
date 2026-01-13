@@ -1,33 +1,22 @@
-// ==========================================
 // array_documentation_test.unna
-// Test all array examples from index.html documentation
-// ==========================================
-
 print("=== ARRAY DOCUMENTATION TEST ===");
 print("");
 
-// ==========================================
-// 1. Creating Arrays - Literal Syntax
-// ==========================================
 print("1. Creating Arrays - Literal Syntax");
 print("---");
 
-// Empty array
 var empty = [];
 print("Empty array: " + empty);
 
-// Array with initial values
 var numbers = [1, 2, 3, 4, 5];
 print("Numbers: " + numbers);
 
 var fruits = ["apple", "banana", "orange"];
 print("Fruits: " + fruits);
 
-// Mixed types (dynamic typing)
 var mixed = [42, "hello", 3.14];
 print("Mixed: " + mixed);
 
-// Nested arrays
 var matrix = [
     [1, 2, 3],
     [4, 5, 6],
@@ -36,17 +25,12 @@ var matrix = [
 print("Matrix: " + matrix);
 print("");
 
-// ==========================================
-// 2. Creating Arrays - Function Constructor
-// ==========================================
 print("2. Creating Arrays - Function Constructor");
 print("---");
 
-// Create empty array
 var arr = array();
 print("Empty array(): " + arr);
 
-// Add elements dynamically
 push(arr, "first");
 push(arr, "second");
 push(arr, "third");
@@ -54,102 +38,75 @@ print("After pushes: " + arr);
 print("Length: " + length(arr));
 print("");
 
-// ==========================================
-// 3. Accessing and Modifying Elements
-// ==========================================
 print("3. Accessing and Modifying Elements");
 print("---");
 
 var scores = [85, 90, 78, 92, 88];
 
-// Read by index (zero-based)
 var first = scores[0];
 var third = scores[2];
 print("First score: " + first);
 print("Third score: " + third);
 
-// Modify by index
 scores[1] = 95;
 scores[4] = 100;
 print("After modification: " + scores);
 
-// Get array length
 var total = length(scores);
 print("Total scores: " + total);
 print("");
 
-// ==========================================
-// 4. Built-in Array Functions
-// ==========================================
 print("4. Built-in Array Functions");
 print("---");
 
 var items = ["apple", "banana"];
 print("Initial items: " + items);
 
-// push(array, value) - Add to end, returns new length
 var newLen = push(items, "orange");
 print("After push, new length: " + newLen);
 print("Items: " + items);
 
-// pop(array) - Remove from end, returns removed item
 var last = pop(items);
 print("Popped item: " + last);
 
-// length(array) - Get number of elements
 var count = length(items);
 print("Final count: " + count);
 print("");
 
-// ==========================================
-// 5. Iterating Over Arrays - For Loop
-// ==========================================
 print("5. Iterating Over Arrays - For Loop");
 print("---");
 
 var colors = ["red", "green", "blue", "yellow"];
 
-// Traditional for loop with index
 for (var i = 0; i < length(colors); i = i + 1) {
     print("Color " + i + ": " + colors[i]);
 }
 print("");
 
-// ==========================================
-// 6. Iterating Over Arrays - Foreach
-// ==========================================
 print("6. Iterating Over Arrays - Foreach");
 print("---");
 
-// Foreach loop (cleaner syntax) - uses 'for' keyword
 for (var color : colors) {
     print("Color: " + color);
 }
 print("");
 
-// ==========================================
-// 7. Nested Arrays & Multi-dimensional Data
-// ==========================================
 print("7. Nested Arrays & Multi-dimensional Data");
 print("---");
 
-// 2D array (matrix)
 var grid = [
     [1, 2, 3],
     [4, 5, 6],
     [7, 8, 9]
 ];
 
-// Access nested elements
 print("grid[0][0]: " + grid[0][0]);
 print("grid[1][2]: " + grid[1][2]);
 print("grid[2][1]: " + grid[2][1]);
 
-// Modify nested elements
 grid[1][1] = 50;
 print("grid[1][1] after modification: " + grid[1][1]);
 
-// Array of arrays with mixed data
 var data = [
     ["Alice", 25],
     ["Bob", 30],
@@ -160,32 +117,25 @@ print("data[0][0]: " + data[0][0]);
 print("data[1][1]: " + data[1][1]);
 print("");
 
-// ==========================================
-// 8. Working with Structs in Arrays
-// ==========================================
 print("8. Working with Structs in Arrays");
 print("---");
 
-// Define a struct
 struct User {
     id;
     name;
     active;
 }
 
-// Create array of struct instances
 var users = [
     User(1, "Alice", true),
     User(2, "Bob", false),
     User(3, "Charlie", true)
 ];
 
-// Access struct fields in array
 print("users[0].name: " + users[0].name);
 print("users[1].id: " + users[1].id);
 print("users[2].active: " + users[2].active);
 
-// Iterate over struct array
 print("Active users:");
 for (var user : users) {
     if (user.active) {
@@ -194,9 +144,6 @@ for (var user : users) {
 }
 print("");
 
-// ==========================================
-// 9. Array Truthiness & Equality
-// ==========================================
 print("9. Array Truthiness & Equality");
 print("---");
 
@@ -204,7 +151,6 @@ var arr1 = [1, 2, 3];
 var arr2 = [1, 2, 3];
 var emptyArr = [];
 
-// Truthiness: non-empty arrays are truthy
 if (arr1) {
     print("arr1 is truthy!");
 }
@@ -216,7 +162,6 @@ if (!isEmpty) {
     }
 }
 
-// Equality: identity-based (pointer comparison)
 var isSame = arr1 == arr2;
 if (!isSame) {
     print("arr1 and arr2 are different objects");
@@ -229,26 +174,18 @@ if (isSameRef) {
 }
 print("");
 
-// ==========================================
-// 10. String Representation
-// ==========================================
 print("10. String Representation");
 print("---");
 
 var nums = [10, 20, 30];
 
-// When printed or concatenated, shows as object descriptor
-print(nums);                          // Output: <array> or [object]
-print("My array: " + nums);           // Output: My array: [object]
+print(nums);                          
+print("My array: " + nums);           
 print("");
 
-// ==========================================
-// 11. Complete Example: Shopping Cart
-// ==========================================
 print("11. Complete Example: Shopping Cart");
 print("---");
 
-// Shopping cart with array literal
 var cart = [
     ["Laptop", 999],
     ["Mouse", 25],
@@ -257,7 +194,6 @@ var cart = [
 
 print("=== Shopping Cart ===");
 
-// Calculate total
 var cartTotal = 0;
 for (var i = 0; i < length(cart); i = i + 1) {
     var item = cart[i];
@@ -270,14 +206,10 @@ for (var i = 0; i < length(cart); i = i + 1) {
 
 print("Total: $" + cartTotal);
 
-// Add new item
 push(cart, ["Monitor", 299]);
 print("Items in cart: " + length(cart));
 print("");
 
-// ==========================================
-// FINAL SUMMARY
-// ==========================================
 print("=== ALL TESTS COMPLETED SUCCESSFULLY ===");
 print("Array literal syntax works perfectly!");
 print("All documentation examples are verified!");
