@@ -83,6 +83,11 @@
                         <td>map/nil</td>
                         <td>Get next row from cursor</td>
                     </tr>
+                    <tr>
+                        <td><code>generate(schema, data)</code></td>
+                        <td>string</td>
+                        <td>Generate formatted UON string from maps</td>
+                    </tr>
                 </tbody>
             </table>
             
@@ -150,6 +155,27 @@ ucoreUon.<span class="token-function">load</span>(<span class="token-string">"da
     <span class="token-function">print</span>(prod[<span class="token-string">"name"</span>] + <span class="token-string">" - $"</span> + prod[<span class="token-string">"price"</span>]);
     prod = ucoreUon.<span class="token-function">next</span>(prodCursor);
 }</code></pre>
+            
+            <h2>generate(schema, data)</h2>
+            <p>Generates a formatted UON string from schema and data maps. Useful for creating UON files programmatically.</p>
+            <pre><code><span class="token-comment">// Define schema</span>
+<span class="token-keyword">var</span> schema = <span class="token-function">map</span>();
+schema[<span class="token-string">"users"</span>] = [<span class="token-string">"id"</span>, <span class="token-string">"name"</span>, <span class="token-string">"email"</span>];
+
+<span class="token-comment">// Create data</span>
+<span class="token-keyword">var</span> users = [];
+<span class="token-keyword">var</span> u1 = <span class="token-function">map</span>();
+u1[<span class="token-string">"id"</span>] = <span class="token-number">1</span>;
+u1[<span class="token-string">"name"</span>] = <span class="token-string">"Alice"</span>;
+u1[<span class="token-string">"email"</span>] = <span class="token-string">"alice@example.com"</span>;
+<span class="token-function">push</span>(users, u1);
+
+<span class="token-keyword">var</span> data = <span class="token-function">map</span>();
+data[<span class="token-string">"users"</span>] = users;
+
+<span class="token-comment">// Generate UON content</span>
+<span class="token-keyword">var</span> content = ucoreUon.<span class="token-function">generate</span>(schema, data);
+ucoreSystem.<span class="token-function">writeFile</span>(<span class="token-string">"output.uon"</span>, content);</code></pre>
             
             <h2>Example</h2>
             <pre><code>./bin/unnarize examples/corelib/uon/demo.unna</code></pre>
