@@ -234,10 +234,7 @@ static void freeAST(Node* node) {
         case NODE_STMT_IMPORT:
             // tokens only; nothing to free
             break;
-        case NODE_STMT_LOADEXTERN:
-            // free the expression used as path
-            freeAST(node->loadexternStmt.pathExpr);
-            break;
+
         case NODE_EXPR_ARRAY_LITERAL:
             // Free elements linked list
             {
