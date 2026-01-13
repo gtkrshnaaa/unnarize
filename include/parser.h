@@ -24,7 +24,7 @@ typedef enum {
     NODE_STMT_FUNCTION,
     NODE_STMT_RETURN,
     NODE_STMT_IMPORT,
-    NODE_STMT_LOADEXTERN,
+
     NODE_EXPR_ARRAY_LITERAL,
     NODE_STMT_FOREACH,
     NODE_STMT_STRUCT_DECL,
@@ -139,10 +139,8 @@ struct Node {
             Token module;
             Token alias;
         } importStmt;
-        // loadextern(pathExpr);
-        struct {
-            Node* pathExpr;
-        } loadexternStmt;
+        // importStmt...
+
         // Array literal [e1, e2, ...]
         struct {
             Node* elements; // Linked list
