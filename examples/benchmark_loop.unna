@@ -1,12 +1,11 @@
-// JIT Performance Benchmark with ucoreTimer
+// Performance Benchmark with ucoreTimer
 // import ucoreTimer as timer;
 
 function benchmarkLoop() {
     var sum = 0;
     var i = 0;
     
-    // This loop should trigger JIT compilation after 100 iterations
-    // Then execute as native code
+    // This loop executes 10 million iterations
     while (i < 10000000) {
         sum = sum + i;
         i = i + 1;
@@ -15,11 +14,11 @@ function benchmarkLoop() {
     return sum;
 }
 
-print("=== JIT Performance Benchmark ===");
+print("=== Performance Benchmark ===");
 print("");
 
-// Warmup - trigger JIT compilation
-print("Warming up (triggering JIT compilation)...");
+// Warmup
+print("Warming up...");
 var warmup = benchmarkLoop();
 print("Warmup complete. Result: ");
 print(warmup);
