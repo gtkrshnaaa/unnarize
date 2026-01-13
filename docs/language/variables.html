@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html" class="active">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Variables</h1>
+            <p class="lead">Declare and use variables in Unnarize.</p>
+            
+            <h2>Declaration</h2>
+            <p>Use the <code>var</code> keyword to declare variables:</p>
+            <pre><code><span class="token-keyword">var</span> name = <span class="token-string">"Unnarize"</span>;
+<span class="token-keyword">var</span> count = <span class="token-number">42</span>;
+<span class="token-keyword">var</span> price = <span class="token-number">19.99</span>;
+<span class="token-keyword">var</span> active = <span class="token-keyword">true</span>;</code></pre>
+            
+            <h2>Data Types</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Example</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Integer</td>
+                        <td><code>42</code>, <code>-10</code></td>
+                        <td>Whole numbers</td>
+                    </tr>
+                    <tr>
+                        <td>Float</td>
+                        <td><code>3.14</code>, <code>-0.5</code></td>
+                        <td>Decimal numbers</td>
+                    </tr>
+                    <tr>
+                        <td>String</td>
+                        <td><code>"hello"</code></td>
+                        <td>Text values</td>
+                    </tr>
+                    <tr>
+                        <td>Boolean</td>
+                        <td><code>true</code>, <code>false</code></td>
+                        <td>Logical values</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Reassignment</h2>
+            <p>Variables can be reassigned to new values:</p>
+            <pre><code><span class="token-keyword">var</span> x = <span class="token-number">10</span>;
+x = <span class="token-number">20</span>;          <span class="token-comment">// x is now 20</span>
+x = <span class="token-string">"text"</span>;     <span class="token-comment">// dynamic typing allowed</span></code></pre>
+            
+            <h2>String Concatenation</h2>
+            <p>Use <code>+</code> to concatenate strings and values:</p>
+            <pre><code><span class="token-keyword">var</span> name = <span class="token-string">"Alice"</span>;
+<span class="token-keyword">var</span> age = <span class="token-number">25</span>;
+<span class="token-function">print</span>(<span class="token-string">"Name: "</span> + name);      <span class="token-comment">// Name: Alice</span>
+<span class="token-function">print</span>(<span class="token-string">"Age: "</span> + age);        <span class="token-comment">// Age: 25</span></code></pre>
+            
+            <h2>Scope</h2>
+            <p>Variables have lexical scope:</p>
+            <pre><code><span class="token-keyword">var</span> global = <span class="token-string">"I am global"</span>;
+
+<span class="token-keyword">function</span> <span class="token-function">test</span>() {
+    <span class="token-keyword">var</span> local = <span class="token-string">"I am local"</span>;
+    <span class="token-function">print</span>(global);  <span class="token-comment">// Works</span>
+    <span class="token-function">print</span>(local);   <span class="token-comment">// Works</span>
+}
+
+<span class="token-function">print</span>(global);      <span class="token-comment">// Works</span>
+<span class="token-comment">// print(local);    // Error: local is out of scope</span></code></pre>
+        </main>
+    </div>
+</body>
+</html>

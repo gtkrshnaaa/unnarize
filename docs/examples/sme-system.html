@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SME System - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="basics.html">Basics</a></li>
+                    <li><a href="sme-system.html" class="active">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>SME Store System</h1>
+            <p class="lead">A complete modular application demonstrating real-world architecture.</p>
+            
+            <h2>Project Structure</h2>
+            <pre><code>testcase/
+├── main.unna           <span class="token-comment"># Entry point</span>
+├── models/
+│   ├── product.unna    <span class="token-comment"># Product struct & operations</span>
+│   ├── customer.unna   <span class="token-comment"># Customer struct & tiers</span>
+│   └── order.unna      <span class="token-comment"># Order struct & processing</span>
+├── services/
+│   ├── inventory.unna  <span class="token-comment"># Stock management</span>
+│   ├── sales.unna      <span class="token-comment"># Sales processing</span>
+│   └── reporting.unna  <span class="token-comment"># Report generation</span>
+└── utils/
+    ├── logger.unna     <span class="token-comment"># Logging utility</span>
+    └── validator.unna  <span class="token-comment"># Validation helpers</span></code></pre>
+            
+            <h2>Running the Demo</h2>
+            <pre><code>./bin/unnarize examples/testcase/main.unna</code></pre>
+            
+            <h2>Architecture Highlights</h2>
+            
+            <h3>Models Layer</h3>
+            <p>Defines data structures and basic operations:</p>
+            <pre><code><span class="token-comment">// models/product.unna</span>
+<span class="token-keyword">struct</span> Product {
+    id;
+    name;
+    price;
+    stock;
+}
+
+<span class="token-keyword">function</span> <span class="token-function">createProduct</span>(name, price, stock) {
+    <span class="token-keyword">return</span> <span class="token-function">Product</span>(nextId(), name, price, stock);
+}</code></pre>
+            
+            <h3>Services Layer</h3>
+            <p>Contains business logic and imports from models:</p>
+            <pre><code><span class="token-comment">// services/sales.unna</span>
+<span class="token-keyword">import</span> <span class="token-string">"../models/order.unna"</span> <span class="token-keyword">as</span> orderLib;
+<span class="token-keyword">import</span> <span class="token-string">"../utils/logger.unna"</span> <span class="token-keyword">as</span> log;
+
+<span class="token-keyword">function</span> <span class="token-function">processSale</span>(customer, order) {
+    log.<span class="token-function">logInfo</span>(<span class="token-string">"Processing order..."</span>);
+    orderLib.<span class="token-function">updateOrderStatus</span>(order, <span class="token-string">"completed"</span>);
+}</code></pre>
+            
+            <h3>Utils Layer</h3>
+            <p>Provides shared utilities used across the system:</p>
+            <pre><code><span class="token-comment">// utils/logger.unna</span>
+<span class="token-keyword">function</span> <span class="token-function">logInfo</span>(module, msg) {
+    <span class="token-function">print</span>(<span class="token-string">"[INFO] ["</span> + module + <span class="token-string">"] "</span> + msg);
+}</code></pre>
+            
+            <h2>Output</h2>
+            <pre><code>============================================================
+  SME STORE MANAGEMENT SYSTEM
+  Version 1.0 - Powered by Unnarize
+============================================================
+
+[INFO] [System] Starting SME Store System...
+[INFO] [Reports] Generating report: INVENTORY SETUP
+=== REPORT #1: INVENTORY SETUP ===
+[1] Laptop Pro - $999 (Stock: 50)
+[2] SmartPhone X - $599 (Stock: 100)
+----------------------------------------
+
+=== REPORT #2: CUSTOMER REGISTRATION ===
+[1] Alice Johnson (Gold) - Balance: $2000
+----------------------------------------
+
+=== REPORT #3: ORDER PROCESSING ===
+[OK] [Sales] Order #1 completed - Final: $999
+----------------------------------------
+
+============================================================
+  SYSTEM COMPLETE
+============================================================</code></pre>
+            
+            <h2>Key Concepts Demonstrated</h2>
+            <ul style="color: var(--text-secondary); margin-left: 1.5rem;">
+                <li>Modular folder structure</li>
+                <li>Cross-module imports with relative paths</li>
+                <li>Struct definitions and operations</li>
+                <li>State management within modules</li>
+                <li>Real-world business logic patterns</li>
+            </ul>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modules - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="variables.html">Variables</a></li>
+                    <li><a href="operators.html">Operators</a></li>
+                    <li><a href="arrays.html">Arrays</a></li>
+                    <li><a href="structs.html">Structs</a></li>
+                    <li><a href="control-flow.html">Control Flow</a></li>
+                    <li><a href="functions.html">Functions</a></li>
+                    <li><a href="modules.html" class="active">Modules</a></li>
+                    <li><a href="async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="../core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="../core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="../core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="../core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Modules</h1>
+            <p class="lead">Organize code with the module system.</p>
+            
+            <h2>Import Syntax</h2>
+            <pre><code><span class="token-keyword">import</span> <span class="token-string">"./path/to/module.unna"</span> <span class="token-keyword">as</span> alias;</code></pre>
+            
+            <h2>Path Resolution</h2>
+            <p>Import paths are <strong>relative to the importing file</strong>, similar to PHP's <code>include</code> or HTML's <code>href</code>.</p>
+            
+            <h3>Same Directory</h3>
+            <pre><code><span class="token-comment">// main.unna imports helper.unna in same folder</span>
+<span class="token-keyword">import</span> <span class="token-string">"./helper.unna"</span> <span class="token-keyword">as</span> helper;</code></pre>
+            
+            <h3>Parent Directory</h3>
+            <pre><code><span class="token-comment">// services/sales.unna imports from models/</span>
+<span class="token-keyword">import</span> <span class="token-string">"../models/product.unna"</span> <span class="token-keyword">as</span> product;</code></pre>
+            
+            <h2>Example Structure</h2>
+            <pre><code>project/
+├── main.unna
+├── models/
+│   └── product.unna
+├── services/
+│   └── inventory.unna    <span class="token-comment">// imports ../models/product.unna</span>
+└── utils/
+    └── logger.unna</code></pre>
+            
+            <h2>Using Imported Modules</h2>
+            
+            <h3>Creating a Module</h3>
+            <pre><code><span class="token-comment">// utils/logger.unna</span>
+<span class="token-keyword">function</span> <span class="token-function">logInfo</span>(msg) {
+    <span class="token-function">print</span>(<span class="token-string">"[INFO] "</span> + msg);
+}
+
+<span class="token-keyword">function</span> <span class="token-function">logError</span>(msg) {
+    <span class="token-function">print</span>(<span class="token-string">"[ERROR] "</span> + msg);
+}</code></pre>
+            
+            <h3>Importing and Using</h3>
+            <pre><code><span class="token-comment">// main.unna</span>
+<span class="token-keyword">import</span> <span class="token-string">"./utils/logger.unna"</span> <span class="token-keyword">as</span> log;
+
+log.<span class="token-function">logInfo</span>(<span class="token-string">"Application started"</span>);
+log.<span class="token-function">logError</span>(<span class="token-string">"Something went wrong"</span>);</code></pre>
+            
+            <h2>Cross-Module Imports</h2>
+            <p>Modules can import other modules:</p>
+            <pre><code><span class="token-comment">// services/reporting.unna</span>
+<span class="token-keyword">import</span> <span class="token-string">"../utils/logger.unna"</span> <span class="token-keyword">as</span> log;
+
+<span class="token-keyword">function</span> <span class="token-function">generateReport</span>(title) {
+    log.<span class="token-function">logInfo</span>(<span class="token-string">"Generating: "</span> + title);
+    <span class="token-keyword">return</span> <span class="token-string">"=== "</span> + title + <span class="token-string">" ==="</span>;
+}</code></pre>
+            
+            <h2>Exporting</h2>
+            <p>All top-level functions and variables in a module are automatically exported.</p>
+        </main>
+    </div>
+</body>
+</html>

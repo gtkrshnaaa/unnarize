@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started - Unnarize</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="index.html">Introduction</a></li>
+                    <li><a href="getting-started.html" class="active">Installation</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="language/variables.html">Variables</a></li>
+                    <li><a href="language/operators.html">Operators</a></li>
+                    <li><a href="language/arrays.html">Arrays</a></li>
+                    <li><a href="language/structs.html">Structs</a></li>
+                    <li><a href="language/control-flow.html">Control Flow</a></li>
+                    <li><a href="language/functions.html">Functions</a></li>
+                    <li><a href="language/modules.html">Modules</a></li>
+                    <li><a href="language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="core-libraries/timer.html">ucoreTimer</a></li>
+                    <li><a href="core-libraries/http.html">ucoreHttp</a></li>
+                    <li><a href="core-libraries/system.html">ucoreSystem</a></li>
+                    <li><a href="core-libraries/uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="examples/basics.html">Basics</a></li>
+                    <li><a href="examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>Getting Started</h1>
+            <p class="lead">Install and run Unnarize in minutes.</p>
+            
+            <h2>Prerequisites</h2>
+            <p>Ensure you have a standard C development environment:</p>
+            <ul style="color: var(--text-secondary); margin-left: 1.5rem; margin-bottom: 1rem;">
+                <li><code>gcc</code> (GNU Compiler Collection)</li>
+                <li><code>make</code></li>
+                <li><code>git</code></li>
+            </ul>
+            
+            <h2>Installation</h2>
+            <h3>Clone and Build</h3>
+            <pre><code>git clone https://github.com/gtkrshnaaa/unnarize.git
+cd unnarize
+make</code></pre>
+            
+            <h3>System-wide Installation (Optional)</h3>
+            <pre><code>sudo make install</code></pre>
+            <p>This installs the <code>unnarize</code> binary to <code>/usr/local/bin/</code>.</p>
+            
+            <h3>Uninstall</h3>
+            <pre><code>sudo make uninstall</code></pre>
+            
+            <h2>Running Scripts</h2>
+            <pre><code>./bin/unnarize path/to/script.unna</code></pre>
+            
+            <h3>Try the Examples</h3>
+            <pre><code><span class="token-comment"># Basic demos</span>
+./bin/unnarize examples/basics/01_variables.unna
+./bin/unnarize examples/basics/04_structs.unna
+
+<span class="token-comment"># SME Store System</span>
+./bin/unnarize examples/testcase/main.unna
+
+<span class="token-comment"># Benchmark</span>
+./bin/unnarize examples/benchmark/benchmark.unna</code></pre>
+            
+            <h2>Project Structure</h2>
+            <pre><code>unnarize/
+├── bin/              # Built executable
+├── examples/         # Language examples
+│   ├── basics/       # Core language demos
+│   ├── benchmark/    # Performance testing
+│   └── testcase/     # SME System demo
+├── include/          # Header files
+├── src/              # Source files
+├── Makefile
+└── README.md</code></pre>
+            
+            <h2>Next Steps</h2>
+            <p>Explore the language documentation starting with <a href="language/variables.html">Variables</a>.</p>
+        </main>
+    </div>
+</body>
+</html>
