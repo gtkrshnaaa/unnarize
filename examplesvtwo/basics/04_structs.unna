@@ -1,0 +1,42 @@
+// ==========================================
+// 04_structs.unna
+// Structures (Custom Data Types)
+// ==========================================
+
+print("=== Structs ===");
+
+// Define a struct
+struct Point {
+    x;
+    y;
+}
+
+struct Person {
+    name;
+    age;
+}
+
+// Create struct instances
+var p1 = Point(10, 20);
+var p2 = Point(30, 40);
+
+print("Point 1: (" + p1.x + ", " + p1.y + ")");
+print("Point 2: (" + p2.x + ", " + p2.y + ")");
+
+// Modify struct fields
+p1.x = 15;
+p1.y = 25;
+print("Modified Point 1: (" + p1.x + ", " + p1.y + ")");
+
+// Person struct
+var alice = Person("Alice", 30);
+var bob = Person("Bob", 25);
+
+print("Person: " + alice.name + ", Age: " + alice.age);
+print("Person: " + bob.name + ", Age: " + bob.age);
+
+// Modify person
+alice.age = alice.age + 1;
+print("Alice's new age: " + alice.age);
+
+print("=== Complete ===");
