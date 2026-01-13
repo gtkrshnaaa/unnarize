@@ -1,0 +1,89 @@
+// ============================================================================
+// ucoreHttp Simple API Server
+// ============================================================================
+// Demonstrates a REST-like API with JSON responses
+// Run: unnarize examples/corelib/http/api_server.unna
+// Test: curl http://localhost:8080/api/users
+// ============================================================================
+
+print("=== Simple API Server ===");
+print("");
+
+// In-memory data store
+var users = [];
+
+var u1 = map();
+u1["id"] = 1;
+u1["name"] = "Alice";
+u1["email"] = "alice@example.com";
+push(users, u1);
+
+var u2 = map();
+u2["id"] = 2;
+u2["name"] = "Bob";
+u2["email"] = "bob@example.com";
+push(users, u2);
+
+var u3 = map();
+u3["id"] = 3;
+u3["name"] = "Carol";
+u3["email"] = "carol@example.com";
+push(users, u3);
+
+// API Handlers
+function handleRoot(req) {
+    var res = map();
+    res["message"] = "Welcome to Unnarize API";
+    res["version"] = "1.0";
+    res["endpoints"] = ["/api/users", "/api/status", "/api/time"];
+    return ucoreHttp.json(res);
+}
+
+function handleUsers(req) {
+    var res = map();
+    res["count"] = length(users);
+    res["data"] = users;
+    return ucoreHttp.json(res);
+}
+
+function handleStatus(req) {
+    var res = map();
+    res["status"] = "ok";
+    res["uptime_ms"] = ucoreTimer.now();
+    return ucoreHttp.json(res);
+}
+
+function handleTime(req) {
+    var res = map();
+    res["timestamp_ms"] = ucoreTimer.now();
+    return ucoreHttp.json(res);
+}
+
+function handleEcho(req) {
+    var res = map();
+    res["method"] = req["method"];
+    res["path"] = req["path"];
+    res["body"] = req["body"];
+    return ucoreHttp.json(res);
+}
+
+// Register routes
+ucoreHttp.route("GET", "/", "handleRoot");
+ucoreHttp.route("GET", "/api/users", "handleUsers");
+ucoreHttp.route("GET", "/api/status", "handleStatus");
+ucoreHttp.route("GET", "/api/time", "handleTime");
+ucoreHttp.route("POST", "/api/echo", "handleEcho");
+
+print("Routes:");
+print("  GET  /            -> API info");
+print("  GET  /api/users   -> List users");
+print("  GET  /api/status  -> Server status");
+print("  GET  /api/time    -> Current time");
+print("  POST /api/echo    -> Echo request");
+print("");
+print("Starting server on port 3456...");
+print("Test with: curl http://localhost:3456/api/users");
+print("Press Ctrl+C to stop");
+print("");
+
+ucoreHttp.listen(3456);
