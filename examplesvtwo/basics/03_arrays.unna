@@ -1,0 +1,31 @@
+// ==========================================
+// 03_arrays.unna
+// Arrays and Collections
+// ==========================================
+
+print("=== Arrays ===");
+
+// Creating arrays
+var numbers = [1, 2, 3, 4, 5];
+var names = ["Alice", "Bob", "Charlie"];
+var mixed = [42, "hello", true];
+
+print("Numbers: " + numbers);
+print("Names: " + names);
+print("Mixed: " + mixed);
+
+// Accessing elements
+print("First number: " + numbers[0]);
+print("Second name: " + names[1]);
+print("Last number: " + numbers[4]);
+
+// Modifying elements
+numbers[0] = 100;
+print("After modification: " + numbers);
+
+// Nested arrays (2D)
+var matrix = [[1, 2], [3, 4], [5, 6]];
+print("Matrix: " + matrix);
+print("matrix[1][0] = " + matrix[1][0]);
+
+print("=== Complete ===");
