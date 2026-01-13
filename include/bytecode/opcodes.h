@@ -13,6 +13,7 @@
 
 typedef enum {
     // === Stack Operations ===
+    OP_IMPORT,          // Import module (string const index)
     OP_LOAD_IMM,        // Load 32-bit immediate value
     OP_LOAD_CONST,      // Load from constant pool
     OP_LOAD_NIL,        // Push nil
