@@ -37,7 +37,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
     
 #ifdef __GNUC__
     // === COMPUTED GOTO DISPATCH TABLE ===
-    // This is the KEY to performance - direct threading!
+    // Direct threading dispatch table
     static void* dispatchTable[] = {
         &&op_load_imm, &&op_load_const, &&op_load_nil, &&op_load_true, &&op_load_false,
         &&op_pop, &&op_dup,
@@ -770,7 +770,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
         }
         
         Obj* obj = AS_OBJ(funcVal);
-        // printf("DEBUG: Call object type: %d (Expected %d, OBJ_FUNCTION)\n", obj->type, OBJ_FUNCTION);
         if (obj->type == OBJ_FUNCTION) {
              Function* func = (Function*)obj;
              if (func->isNative) {
@@ -778,10 +777,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk) {
                  Value result = func->native(vm, sp - argCount, argCount);
                  sp -= argCount + 1; 
                  *sp++ = result;
-                 // vm->stackTop is potentially modified by native (e.g. if it uses stack)
-                 // But typically native returns value and we manage stack.
-                 // We don't need to reload sp from stackTop unless native messed with it uniquely?
-                 // Standard native contract: uses args pointer, returns Value.
                  NEXT();
              } else {
                  if (argCount != func->paramCount) {
