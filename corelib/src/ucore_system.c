@@ -79,6 +79,63 @@ static Value sys_fileExists(VM* vm, Value* args, int argCount) {
     return BOOL_VAL(false);
 }
 
+// writeFile(path, content) -> bool
+static Value sys_writeFile(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        printf("Error: ucoreSystem.writeFile(path, content) expects 2 string arguments.\n");
+        return BOOL_VAL(false);
+    }
+    
+    char* path = AS_CSTRING(args[0]);
+    char* content = AS_CSTRING(args[1]);
+    
+    FILE* f = fopen(path, "w");
+    if (!f) {
+        printf("Error: Could not open file for writing: %s\n", path);
+        return BOOL_VAL(false);
+    }
+    
+    fprintf(f, "%s", content);
+    fclose(f);
+    
+    return BOOL_VAL(true);
+}
+
+// readFile(path) -> string or ""
+static Value sys_readFile(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        ObjString* empty = internString(vm, "", 0);
+        return OBJ_VAL(empty);
+    }
+    
+    char* path = AS_CSTRING(args[0]);
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        ObjString* empty = internString(vm, "", 0);
+        return OBJ_VAL(empty);
+    }
+    
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    char* buf = malloc(size + 1);
+    if (!buf) {
+        fclose(f);
+        ObjString* empty = internString(vm, "", 0);
+        return OBJ_VAL(empty);
+    }
+    
+    fread(buf, 1, size, f);
+    buf[size] = '\0';
+    fclose(f);
+    
+    ObjString* s = internString(vm, buf, (int)size);
+    free(buf);
+    return OBJ_VAL(s);
+}
+
 
 void registerUCoreSystem(VM* vm) {
     ObjString* modNameObj = internString(vm, "ucoreSystem", 11);
@@ -97,6 +154,8 @@ void registerUCoreSystem(VM* vm) {
     defineNative(vm, mod->env, "input", sys_input, 1);
     defineNative(vm, mod->env, "getenv", sys_getenv, 1);
     defineNative(vm, mod->env, "fileExists", sys_fileExists, 1);
+    defineNative(vm, mod->env, "writeFile", sys_writeFile, 2);
+    defineNative(vm, mod->env, "readFile", sys_readFile, 1);
 
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreSystem", vMod);
