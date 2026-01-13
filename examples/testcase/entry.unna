@@ -1,0 +1,6 @@
+// Root entry point
+import "./components/app.unna" as app;
+
+print("Starting Complex Test...");
+app.run();
+print("Test Complete.");
