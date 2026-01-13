@@ -1,92 +1,113 @@
 // ==========================================
 // examplesvtwo/basic.unna
-// Basic Syntax Showcase for Unnarize
+// Unnarize Language Features Showcase
 // ==========================================
 
-print("=== 1. Variables and Data Types ===");
+// ==========================================
+// DEFINITIONS (Structs & Functions)
+// ==========================================
 
-var num = 42;
-var pi = 3.14159;
-var str = "Hello, Unnarize!";
-var boolTrue = true;
-var boolFalse = false;
-
-print("Number: " + num);
-print("PI: " + pi);
-print("String: " + str);
-print("Boolean: " + boolTrue);
-
-print("");
-print("=== 2. Arrays ===");
-
-var arr = [1, 2, 3, "four", true];
-print("Array: " + arr);
-print("Element 0: " + arr[0]);
-print("Element 3: " + arr[3]);
-
-arr[0] = 100;
-print("Modified Element 0: " + arr[0]);
-
-print("");
-print("=== 3. Control Flow ===");
-
-var x = 10;
-if (x > 5) {
-    print("x is greater than 5");
-} else {
-    print("x is not greater than 5");
+struct Address {
+    city;
+    zip;
 }
 
-print("While Loop:");
-var i = 0;
-while (i < 3) {
-    print("  i = " + i);
-    i = i + 1;
-}
-
-print("For Loop:");
-for (var j = 0; j < 3; j = j + 1) {
-    print("  j = " + j);
-}
-
-print("Foreach Loop:");
-var list = ["apple", "banana", "cherry"];
-for (var item : list) {
-    print("  Fruit: " + item);
-}
-
-print("");
-print("=== 4. Functions ===");
-
-function greet(name) {
-    return "Hello, " + name + "!";
-}
-
-print(greet("World"));
-
-// Async Function (simulated)
-async function complexTask(id) {
-    print("  Start task " + id);
-    // await sleep(100); // If sleep was available
-    print("  End task " + id);
-    return id * 2;
-}
-
-print("Async Function Call:");
-// Note: In a real async environment, we would await this.
-// For now, we just call it to show syntax.
-complexTask(10); 
-
-print("");
-print("=== 5. Structs ===");
-
-struct Person {
+struct User {
+    id;
     name;
-    age;
+    address;
+    tags;
 }
 
-var alice = Person("Alice", 30);
-print("Person: " + alice.name + ", Age: " + alice.age);
+function create_user(id, name, city) {
+    var addr = Address(city, 90210);
+    return User(id, name, addr, ["new", "active"]);
+}
 
-alice.age = 31;
-print("Happy Birthday " + alice.name + "! New Age: " + alice.age);
+function fib_recursive(n) {
+    if (n < 2) return n;
+    return fib_recursive(n - 1) + fib_recursive(n - 2);
+}
+
+var global_async_result = "";
+
+async function fetch_data(query) {
+    print("  ... Fetching: " + query);
+    global_async_result = "Data(" + query + ")";
+    return global_async_result; // Return for completeness, though we use global
+}
+
+async function run_async_test() {
+    print("Async Task Started");
+    
+    var t1 = fetch_data("UserA");
+    await t1;
+    print("  > Got: " + global_async_result);
+
+    var t2 = fetch_data("UserB");
+    await t2;
+    print("  > Got: " + global_async_result);
+    
+    print("Async Task Finished");
+}
+
+// ==========================================
+// EXECUTION
+// ==========================================
+
+print("--------------------------------------------------");
+print("UNNARIZE FEATURE SHOWCASE");
+print("--------------------------------------------------");
+
+// [1] DATA TYPES
+print("\n[1] DATA TYPES");
+var numberVar = 123.456;
+var stringVar = "Hello World";
+var boolVar = true;
+
+print("Number : " + numberVar);
+print("String : " + stringVar);
+print("Bool   : " + boolVar);
+
+// [2] STRUCTS
+print("\n[2] STRUCTS & NESTING");
+var alice = create_user(1, "Alice", "Wonderland");
+var bob = create_user(2, "Bob", "Builderland");
+
+print("User 1: " + alice.name + " from " + alice.address.city);
+alice.address.city = "New York";
+print("User 1 Moved to: " + alice.address.city);
+
+// [3] COLLECTIONS
+print("\n[3] COLLECTIONS & LOOPS");
+var users = [alice, bob];
+
+for (var user : users) {
+    print("Processing User: " + user.name);
+    // Nested loop simulation
+    var tagCount = 0;
+    for (var i = 0; i < 2; i = i + 1) { 
+        tagCount = tagCount + 1;
+    }
+    print("  Tags processed: " + tagCount);
+}
+
+if (users[0].id == 1) {
+    print("Alice is #1");
+} else {
+    print("User order changed");
+}
+
+// [4] RECURSION
+print("\n[4] RECURSION");
+var target = 10;
+var result = fib_recursive(target);
+print("Fibonacci(" + target + ") = " + result);
+
+// [5] ASYNC
+print("\n[5] ASYNC EXECUTION");
+run_async_test();
+
+print("\n--------------------------------------------------");
+print("SHOWCASE COMPLETE");
+print("--------------------------------------------------");
