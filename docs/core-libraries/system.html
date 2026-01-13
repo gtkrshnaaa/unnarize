@@ -83,6 +83,16 @@
                         <td>bool</td>
                         <td>Check if file exists</td>
                     </tr>
+                    <tr>
+                        <td><code>writeFile(path, content)</code></td>
+                        <td>bool</td>
+                        <td>Write string content to file</td>
+                    </tr>
+                    <tr>
+                        <td><code>readFile(path)</code></td>
+                        <td>string</td>
+                        <td>Read entire file as string</td>
+                    </tr>
                 </tbody>
             </table>
             
@@ -119,6 +129,22 @@
     ucoreUon.<span class="token-function">load</span>(<span class="token-string">"config.uon"</span>);
 } <span class="token-keyword">else</span> {
     <span class="token-function">print</span>(<span class="token-string">"Using defaults"</span>);
+}</code></pre>
+            
+            <h2>writeFile(path, content)</h2>
+            <p>Writes string content to a file. Returns true on success, false on failure.</p>
+            <pre><code><span class="token-keyword">var</span> content = <span class="token-string">"Hello, World!"</span>;
+<span class="token-keyword">var</span> success = ucoreSystem.<span class="token-function">writeFile</span>(<span class="token-string">"output.txt"</span>, content);
+
+<span class="token-keyword">if</span> (success) {
+    <span class="token-function">print</span>(<span class="token-string">"File written successfully"</span>);
+}</code></pre>
+            
+            <h2>readFile(path)</h2>
+            <p>Reads the entire file content as a string. Returns empty string if file cannot be read.</p>
+            <pre><code><span class="token-keyword">var</span> content = ucoreSystem.<span class="token-function">readFile</span>(<span class="token-string">"data.txt"</span>);
+<span class="token-keyword">if</span> (<span class="token-function">length</span>(content) > <span class="token-number">0</span>) {
+    <span class="token-function">print</span>(<span class="token-string">"File content: "</span> + content);
 }</code></pre>
             
             <h2>Example</h2>
