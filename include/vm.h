@@ -250,6 +250,7 @@ struct Function {
     bool isAsync;
     struct BytecodeChunk* bytecodeChunk; // Bytecode for this function
     char* modulePath; // Path of the module/file this function is defined in
+    Environment* moduleEnv; // The global environment where this function was defined
 };
 
 // Forward declaration
@@ -262,6 +263,7 @@ struct BytecodeChunk;
 // Call frame structure for function calls
 struct CallFrame {
     Environment* env;       // Previous environment
+    Environment* prevGlobalEnv; // Previous global environment
     int fp;                 // Previous frame pointer (stack index)
     Value returnValue;      // Function return value
     bool hasReturned;       // Whether function has returned

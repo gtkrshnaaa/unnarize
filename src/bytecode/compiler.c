@@ -626,6 +626,7 @@ static void compileStatement(Compiler* c, Node* node) {
             func->isNative = false;
             func->isAsync = false;
             func->modulePath = c->modulePath ? strdup(c->modulePath) : NULL;
+            func->moduleEnv = c->vm->globalEnv; // Capture defining module/global env
             
             // Create independent chunk for function
             func->bytecodeChunk = malloc(sizeof(BytecodeChunk));

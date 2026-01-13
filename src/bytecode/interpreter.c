@@ -165,8 +165,17 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         }
         
         Node* ast = parse(&p);
+
+        // 3. Create Module Environment FIRST (so compiled functions capture it)
+        Environment* oldEnv = vm->globalEnv;
+        Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
+        modEnv->enclosing = oldEnv;
+        memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
+        memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
         
-        // 3. Compile
+        vm->globalEnv = modEnv; // Switch context BEFORE compilation
+
+        // 4. Compile
         BytecodeChunk* modChunk = malloc(sizeof(BytecodeChunk));
         initChunk(modChunk);
         
@@ -174,17 +183,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         bool success = compileToBytecode(vm, ast, modChunk, importPath);
         if (!success) {
              fprintf(stderr, "Import Error: Failed to compile module '%s'\n", rawPath);
+             vm->globalEnv = oldEnv; // Restore env on error
              exit(1);
         }
-        
-        // 4. Create Module Environment (Enclosed by Global)
-        Environment* oldEnv = vm->globalEnv;
-        Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
-        modEnv->enclosing = oldEnv;
-        memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
-        memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
-        
-        vm->globalEnv = modEnv; // Switch context
         
         // 5. Execute
         // Create Function wrapper for the module script
@@ -197,6 +198,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         modFunc->body = ast; // Keep AST reachable if needed, or NULL
         modFunc->closure = NULL; // Globals are closure? No.
         modFunc->isNative = false;
+        modFunc->moduleEnv = modEnv; // Set module env for the script execution
         
         // Push Function to stack (roots it and acts as slot 0)
         *sp++ = OBJ_VAL(modFunc);
@@ -972,6 +974,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                  frame->chunk = chunk;
                  frame->fp = vm->fp; 
                  frame->function = func; // Root the function 
+                 frame->prevGlobalEnv = vm->globalEnv; // Save current global env
+                 
+                 // Switch Global Env if function belongs to a module
+                 if (func->moduleEnv) {
+                     vm->globalEnv = func->moduleEnv;
+                 } 
                  
                  // Fix: Compiler expects slot 0 to be the function/receiver.
                  // So FP must point to the Function object on stack (sp - argCount - 1).
@@ -1028,6 +1036,15 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         }
         
         CallFrame* frame = &vm->callStack[vm->callStackTop];
+        // Restore Global Env
+        // Note: The frame we just popped (callStackTop) has the prev env.
+        // Wait, we decremented callStackTop above. So &callStack[callStackTop] IS the frames top?
+        // No, callStackTop points to next empty slot usually, but here we decremented it.
+        // So callStack[callStackTop] IS the frame we are returning FROM.
+        if (frame->prevGlobalEnv) {
+            vm->globalEnv = frame->prevGlobalEnv;
+        }
+        
         vm->fp = frame->fp;
         fp = vm->stack + vm->fp;
         chunk = frame->chunk;
