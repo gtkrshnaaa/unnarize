@@ -335,6 +335,8 @@ struct VM {
     uint64_t gcLastPauseUs;         // Last GC pause time
     uint64_t gcTotalFreed;          // Total bytes freed
     size_t gcPeakMemory;            // Peak memory usage
+    uint64_t gcLastCollectTime;     // Timestamp of last GC (for pacing)
+    size_t gcBytesAllocSinceGC;     // Bytes allocated since last GC
     
     // CLI Arguments
     int argc;
