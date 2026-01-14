@@ -19,6 +19,77 @@ This document details the Garbage Collector improvements implemented to support 
 
 ---
 
+## Comparison: Unnarize vs Node.js (V8) vs Go
+
+### Feature Matrix
+
+| Feature | Unnarize | Node.js (V8) | Go |
+|---------|----------|--------------|-----|
+| **Algorithm** | Mark-Sweep | Mark-Sweep-Compact | Tri-color Mark-Sweep |
+| **Tri-color marking** | ✅ | ✅ | ✅ |
+| **Generational** | ❌ | ✅ (Young/Old) | ❌ |
+| **Incremental marking** | ❌ | ✅ | ❌ |
+| **Concurrent marking** | ❌ | ✅ | ✅ |
+| **Write barriers** | ❌ | ✅ | ✅ |
+| **Compaction** | ❌ | ✅ | ❌ |
+| **Parallel sweeping** | ❌ | ✅ | ✅ |
+| **Stats/Monitoring** | ✅ | ✅ | ✅ |
+| **Adaptive threshold** | ✅ | ✅ | ✅ |
+
+### Pause Time Characteristics
+
+| Runtime | Typical Pause | Worst Case | Target |
+|---------|---------------|------------|--------|
+| Unnarize | 1-50ms | 100ms+ | STW |
+| Node.js (V8) | <1ms | 5-10ms | <10ms |
+| Go | <1ms | 1-2ms | <1ms |
+
+### What Unnarize Currently Has (After Improvements)
+
+✅ **Implemented:**
+- Tri-color mark-and-sweep
+- GC statistics (pause time, freed bytes, peak memory)
+- Adaptive threshold (adjusts based on heap pressure)
+- Phase tracking (for future incremental work)
+- Minimum threshold (256KB prevents thrashing)
+
+### Roadmap to Node.js/Go Level
+
+| Phase | Feature | Effort | Pause Reduction |
+|-------|---------|--------|-----------------|
+| **Current** | Basic Mark-Sweep | ✅ Done | Baseline |
+| **Phase 1** | Stats + Adaptive | ✅ Done | ~10% |
+| **Phase 2** | Incremental Marking | 2-3 days | ~50% |
+| **Phase 3** | Write Barriers | 2 days | Required for P2 |
+| **Phase 4** | Parallel Sweeping | 3-4 days | ~30% |
+| **Phase 5** | Concurrent Marking | 1 week | ~70% |
+| **Phase 6** | Generational | 2 weeks | ~80% |
+
+### Key Differences Explained
+
+**1. Generational GC (V8)**
+- Separates objects into "young" (nursery) and "old" generations
+- Young objects collected frequently (most die young)
+- Old objects collected less often
+- Reduces overall work significantly
+
+**2. Incremental Marking (V8/Go)**
+- Breaks marking into small chunks
+- Interleaves with mutator (application code)
+- Keeps pauses under 10ms
+
+**3. Concurrent Marking (V8/Go)**
+- Background thread marks while app runs
+- Write barriers track changes during marking
+- Near-zero pause for large heaps
+
+**4. Compaction (V8 only)**
+- Moves live objects together
+- Eliminates fragmentation
+- Improves cache locality
+
+---
+
 ## New GC Features
 
 ### 1. Statistics Tracking
