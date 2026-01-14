@@ -28,6 +28,7 @@ typedef struct Obj Obj;
 struct Obj {
     ObjType type;
     bool isMarked;
+    uint8_t generation;  // 0 = young (nursery), 1+ = old
     Obj* next;
 };
 
@@ -321,7 +322,10 @@ struct VM {
     ValuePool valuePool;            // Value pool for basic types
     
     // GC State (Enhanced)
-    Obj* objects;                   // Linked list of all objects
+    Obj* objects;                   // Linked list of all objects (old gen)
+    Obj* nursery;                   // Young generation objects
+    int nurseryCount;               // Count of nursery objects
+    int nurseryThreshold;           // Trigger minor GC when exceeded
     int grayCount;
     int grayCapacity;
     Obj** grayStack;
