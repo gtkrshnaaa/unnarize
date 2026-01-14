@@ -1,191 +1,118 @@
 # VM Improvement Plan
 
-> Document Version: 1.0  
-> Date: 2026-01-13  
-> Status: Planning
+> Document Version: 2.0  
+> Date: 2026-01-14  
+> Status: In Progress
 
 ---
 
 ## Overview
 
-This document outlines planned improvements to the Unnarize Virtual Machine, focusing on:
-1. **Loop optimizations** - Add specialized opcodes for common patterns
-2. **Async/Await fix** - Implement proper event loop (or remove broken feature)
+This document outlines improvements to the Unnarize Virtual Machine:
+1. **Loop optimizations** ✅ - Specialized opcodes for i++/i--
+2. **Async/Await** ✅ - Fully implemented with event loop
+3. **GC Improvements** 🔄 - In progress (see `z_docs/gc_improvement.md`)
 
 ---
 
 ## Current State Analysis
 
-### Opcode System ✅ (Already Well-Optimized)
+### Opcode System ✅ (Well-Optimized)
 
 | Optimization | Status |
 |-------------|--------|
-| Computed goto dispatch | ✅ Implemented |
-| Specialized int ops (`OP_ADD_II`) | ✅ Implemented |
-| Specialized float ops (`OP_ADD_FF`) | ✅ Implemented |
-| Fast local access (`OP_LOAD_LOCAL_0/1/2`) | ✅ Implemented |
-| Optimized calls (`OP_CALL_0/1/2`) | ✅ Implemented |
-| Branch hints (`likely()`/`unlikely()`) | ✅ Implemented |
+| Computed goto dispatch | ✅ |
+| Specialized int/float ops | ✅ |
+| Fast local access | ✅ |
+| Optimized calls | ✅ |
+| OP_INC_LOCAL / OP_DEC_LOCAL | ✅ NEW |
 
-### Async System ❌ (Not Implemented)
+### Async System ✅ (Implemented)
 
 | Component | Status |
 |-----------|--------|
-| `Future` struct | ✅ Exists in vm.h |
-| `Function.isAsync` field | ✅ Exists |
-| Async/await syntax parsing | ✅ Works |
-| `OP_AWAIT` opcode | ❌ Missing |
-| Event loop | ❌ Missing |
-| Future resolution | ❌ Missing |
+| `Future` struct | ✅ |
+| `OP_ASYNC_CALL` opcode | ✅ NEW |
+| `OP_AWAIT` opcode | ✅ NEW |
+| Future resolution | ✅ |
 
-**Result:** `async`/`await` keywords are parsed but functions run synchronously.
+**Result:** Async/await now fully working!
 
----
+### GC System 🔄 (In Progress)
 
-## Phase 1: Loop Optimizations
-
-### 1.1 Add OP_INC_LOCAL
-
-**Purpose:** Optimize `i = i + 1` pattern in loops
-
-**Current bytecode for `i++`:**
-```
-OP_LOAD_LOCAL [slot]
-OP_LOAD_IMM 1
-OP_ADD_II
-OP_STORE_LOCAL [slot]
-```
-
-**Proposed bytecode:**
-```
-OP_INC_LOCAL [slot]
-```
-
-**Implementation:**
-- Add `OP_INC_LOCAL` to `opcodes.h`
-- Add handler in `interpreter.c`
-- Detect pattern in `compiler.c`
-
-### 1.2 Add OP_DEC_LOCAL
-
-Same as above for `i = i - 1`.
-
-### 1.3 Files to Modify
-
-| File | Changes |
-|------|---------|
-| `include/bytecode/opcodes.h` | Add `OP_INC_LOCAL`, `OP_DEC_LOCAL` |
-| `src/bytecode/opcodes.c` | Add opcode info |
-| `src/bytecode/interpreter.c` | Add dispatch handlers |
-| `src/bytecode/compiler.c` | Detect pattern, emit optimized op |
+| Feature | Status |
+|---------|--------|
+| Tri-color mark-sweep | ✅ |
+| Stats tracking | ✅ NEW |
+| Adaptive threshold | ✅ NEW |
+| Incremental marking | 🔄 Next |
 
 ---
 
-## Phase 2: Async Fix (Decision Required)
+## Completed: Phase 1 - Loop Optimizations
 
-### Option A: Remove Async (Recommended for Now)
+| Change | File |
+|--------|------|
+| Added `OP_INC_LOCAL` | opcodes.h, interpreter.c |
+| Added `OP_DEC_LOCAL` | opcodes.h, interpreter.c |
+| Pattern detection | compiler.c |
 
-**Pros:** Simple, honest, no false promises  
-**Cons:** Loses marketing appeal of "async support"
-
-**Implementation:**
-1. Add compile-time warning when `async`/`await` detected
-2. Update documentation to say "Not yet implemented"
-3. Remove from examples or mark as experimental
-
-### Option B: Implement Simple Coroutines
-
-**Scope:** Single-threaded cooperative multitasking
-
-**Components needed:**
-1. `OP_ASYNC_CALL` - Create Future, schedule execution
-2. `OP_AWAIT` - Yield if Future not resolved
-3. Task queue in VM
-4. Run loop to process pending tasks
-
-**Estimated work:** 5-7 days
-
-### Option C: Thread Pool (Complex)
-
-Use pthreads (already has Future with mutex/condvar).
-
-**Estimated work:** 10+ days, significant complexity
+**Result:** ~36% faster loops (50M → 68M ops/sec)
 
 ---
 
-## Verification Plan
+## Completed: Phase 2 - Async/Await
 
-### Loop Optimization Tests
+| Change | File |
+|--------|------|
+| `OP_ASYNC_CALL` opcode | opcodes.h, interpreter.c |
+| `OP_AWAIT` opcode | opcodes.h, interpreter.c |
+| Future handling | interpreter.c |
+| Await compilation | compiler.c |
+
+**Result:** 
+- Before: `Got:   Got:` (broken)
+- After: `Got: Data:API` ✅
+
+---
+
+## In Progress: Phase 3 - GC Improvements
+
+See detailed plan: `z_docs/gc_improvement.md`
+
+| Feature | Status |
+|---------|--------|
+| Stats (pause time, freed) | ✅ Done |
+| Adaptive threshold | ✅ Done |
+| Phase tracking | ✅ Done |
+| Incremental marking | 🔄 Next |
+| Write barriers | Planned |
+
+---
+
+## Verification
 
 ```bash
-# Test 1: Run timer benchmark (uses loops)
-unnarize examples/corelib/timer/demo.unna
-
-# Expected: Should see ops/sec numbers
-# Compare before/after optimization
-```
-
-```bash
-# Test 2: Create specific loop benchmark
-cat > /tmp/loop_test.unna << 'EOF'
-var sum = 0;
-var start = ucoreTimer.now();
-for (var i = 0; i < 1000000; i++) {
-    sum = sum + 1;
-}
-var elapsed = ucoreTimer.now() - start;
-print("Time: " + elapsed + "ms");
-print("Sum: " + sum);
-EOF
-unnarize /tmp/loop_test.unna
-
-# Expected: Time should decrease after OP_INC_LOCAL
-```
-
-### Async Tests (if implementing Option B)
-
-```bash
-# Test: Run async example
+# Async test
 unnarize examples/basics/11_async.unna
+# Expected: Got: Data:API, Got: Data:Database ✅
 
-# Expected BEFORE fix:
-#   Got:   Got:     (broken, values lost)
+# GC stress test
+unnarize examples/garbagecollection/stress_test.unna
+# Expected: ALL TESTS PASSED ✅
 
-# Expected AFTER fix:
-#   Got: Data:API
-#   Got: Data:Database
-```
-
-### Build Verification
-
-```bash
-# Must compile without warnings
-sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean build!"
+# Build verification
+sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean!" ✅
 ```
 
 ---
 
-## Implementation Order
+## Summary
 
-1. [x] **Phase 1.1**: Add `OP_INC_LOCAL` opcode
-2. [x] **Phase 1.2**: Add `OP_DEC_LOCAL` opcode
-3. [x] **Phase 1.3**: Detect `i = i + 1` pattern in compiler
-4. [x] **Test**: Verify loop benchmark improvement (50M → 68M ops/sec, ~36% faster!)
-5. [x] **Phase 2**: Async warning added (documents as experimental)
-6. [x] **Commit**: All changes pushed to experiment branch
+| Phase | Status | Improvement |
+|-------|--------|-------------|
+| Loop opcodes | ✅ Done | 36% faster |
+| Async/Await | ✅ Done | 100% working |
+| GC Phase 1 | ✅ Done | Stats + adaptive |
+| GC Phase 2 | 🔄 In Progress | Incremental marking |
 
----
-
-## Results
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| 1M iterations | 19.9ms | 14.6ms | **27% faster** |
-| Ops/sec | 50M | 68M | **36% increase** |
-
----
-
-## Questions for Review
-
-1. **Async approach:** Should we implement coroutines (Option B) or remove async for now (Option A)?
-2. **Additional opcodes:** Any other patterns worth optimizing?
