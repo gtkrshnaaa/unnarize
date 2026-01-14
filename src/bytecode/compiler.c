@@ -188,6 +188,14 @@ static void compileExpression(Compiler* c, Node* node) {
             }
             break;
         }
+        
+        case NODE_EXPR_AWAIT: {
+            // Compile the awaited expression (should produce a Future)
+            compileExpression(c, node->unary.expr);
+            // Emit await opcode to wait and extract result
+            emitByte(c, OP_AWAIT, line);
+            break;
+        }
 
         case NODE_EXPR_CALL: {
             // Check for built-ins first (optimization)
