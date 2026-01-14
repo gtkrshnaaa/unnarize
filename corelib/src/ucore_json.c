@@ -159,14 +159,22 @@ static Value parseNumber(JsonParser* parser) {
     }
 
     size_t len = parser->current - start;
-    char* tmp = (char*)malloc(len + 1);
+    
+    // OPTIMIZATION: Use stack buffer for small numbers (most common case)
+    char stackBuf[64];
+    char* tmp = stackBuf;
+    bool heapAlloc = false;
+    if (len >= sizeof(stackBuf)) {
+        tmp = (char*)malloc(len + 1);
+        heapAlloc = true;
+    }
     memcpy(tmp, start, len);
     tmp[len] = '\0';
     
-    // Check if int or double
+    // OPTIMIZATION: Check for float during scan instead of second loop
     bool isInt = true;
-    for (size_t i = 0; i < len; i++) {
-        if (tmp[i] == '.' || tmp[i] == 'e' || tmp[i] == 'E') {
+    for (const char* p = start; p < parser->current; p++) {
+        if (*p == '.' || *p == 'e' || *p == 'E') {
             isInt = false; 
             break;
         }
@@ -174,15 +182,13 @@ static Value parseNumber(JsonParser* parser) {
 
     Value val;
     if (isInt) {
-        // use strtoll for proper parsing
         long long v = strtoll(tmp, NULL, 10);
-        // check ranges?
         val = INT_VAL((int)v);
     } else {
         double v = strtod(tmp, NULL);
         val = FLOAT_VAL(v);
     }
-    free(tmp);
+    if (heapAlloc) free(tmp);
     return val;
 }
 
@@ -427,20 +433,35 @@ static void stringifyValue(JsonHeader* header, Value val) {
         int len = snprintf(buf, sizeof(buf), "%g", AS_FLOAT(val));
         jsonAppend(header, buf, len);
     } else if (IS_STRING(val)) {
-        jsonAppend(header, "\"", 1);
         ObjString* s = AS_STRING(val);
-        // Minimal escaping
-        for (int i=0; i < s->length; i++) {
+        // OPTIMIZATION: Pre-calculate escaped length and batch write
+        int escapeCount = 0;
+        for (int i = 0; i < s->length; i++) {
             char c = s->chars[i];
-            if (c == '"') jsonAppend(header, "\\\"", 2);
-            else if (c == '\\') jsonAppend(header, "\\\\", 2);
-            else if (c == '\n') jsonAppend(header, "\\n", 2);
-            else {
-                 char tmp[2] = {c, '\0'};
-                 jsonAppend(header, tmp, 1);
-            }
+            if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t') escapeCount++;
         }
-        jsonAppend(header, "\"", 1);
+        
+        // Reserve space: quotes(2) + length + escapes
+        size_t needed = 2 + s->length + escapeCount;
+        if (header->length + needed >= header->capacity) {
+            while (header->length + needed >= header->capacity) header->capacity *= 2;
+            header->buffer = (char*)realloc(header->buffer, header->capacity);
+        }
+        
+        char* dest = header->buffer + header->length;
+        *dest++ = '"';
+        for (int i = 0; i < s->length; i++) {
+            char c = s->chars[i];
+            if (c == '"') { *dest++ = '\\'; *dest++ = '"'; }
+            else if (c == '\\') { *dest++ = '\\'; *dest++ = '\\'; }
+            else if (c == '\n') { *dest++ = '\\'; *dest++ = 'n'; }
+            else if (c == '\r') { *dest++ = '\\'; *dest++ = 'r'; }
+            else if (c == '\t') { *dest++ = '\\'; *dest++ = 't'; }
+            else { *dest++ = c; }
+        }
+        *dest++ = '"';
+        header->length = dest - header->buffer;
+        header->buffer[header->length] = '\0';
     } else if (IS_ARRAY(val)) {
         stringifyArray(header, (Array*)AS_OBJ(val));
     } else if (IS_MAP(val)) {
@@ -455,7 +476,7 @@ static Value jsonStringify(VM* vm, Value* args, int argCount) {
     
     JsonHeader header;
     header.vm = vm;
-    header.capacity = 128;
+    header.capacity = 1024; // OPTIMIZATION: Larger initial buffer
     header.length = 0;
     header.buffer = (char*)malloc(header.capacity);
     header.buffer[0] = '\0';
@@ -545,7 +566,8 @@ static Value jsonWrite(VM* vm, Value* args, int argCount) {
         return BOOL_VAL(false);
     }
     
-    fprintf(file, "%s", header.buffer);
+    // OPTIMIZATION: Use fwrite for better performance than fprintf
+    fwrite(header.buffer, 1, header.length, file);
     fclose(file);
     free(header.buffer);
     
@@ -553,7 +575,9 @@ static Value jsonWrite(VM* vm, Value* args, int argCount) {
 }
 
 static Value jsonRemove(VM* vm, Value* args, int argCount) {
-    if (argCount != 1 || !IS_STRING(args[0])) {
+    (void)vm; // Unused
+    (void)argCount;
+    if (!IS_STRING(args[0])) {
         return BOOL_VAL(false);
     }
     char* path = AS_CSTRING(args[0]);

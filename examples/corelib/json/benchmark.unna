@@ -1,0 +1,39 @@
+// JSON Benchmark
+// Tests parsing and stringifying performance
+
+var iterations = 10000;
+var jsonData = '{"name": "Unnarize", "version": 1, "features": ["GC", "Async", "JSON"], "nested": {"a": 1, "b": 2, "c": 3}}';
+
+print("=== ucoreJson Benchmark ===");
+print("Iterations: " + iterations);
+
+// Parse Benchmark
+var startParse = ucoreTimer.now();
+var i = 0;
+while (i < iterations) {
+    var obj = ucoreJson.parse(jsonData);
+    i = i + 1;
+}
+var endParse = ucoreTimer.now();
+var parseTime = endParse - startParse;
+print("Parse: " + parseTime + " ms");
+
+// Stringify Benchmark
+var testObj = ucoreJson.parse(jsonData);
+var startStr = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var str = ucoreJson.stringify(testObj);
+    i = i + 1;
+}
+var endStr = ucoreTimer.now();
+var strTime = endStr - startStr;
+print("Stringify: " + strTime + " ms");
+
+// Calculate ops/sec
+var parseOps = iterations / (parseTime / 1000);
+var strOps = iterations / (strTime / 1000);
+print("Parse Speed: " + parseOps + " ops/sec");
+print("Stringify Speed: " + strOps + " ops/sec");
+
+print("=== Benchmark Complete ===");

@@ -1121,13 +1121,12 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                  unsigned int h = name->hash % TABLE_SIZE;
                  VarEntry* e = mod->env->buckets[h];
                  while (e) {
-                     if (e->key == name->chars) { // Pointer equality safe
+                     // Use strcmp for robust matching (pointer equality may fail if interning differs)
+                     if (strcmp(e->key, name->chars) == 0) {
                          sp--; // Pop instance
                          *sp++ = e->value;
-                         // printf("DEBUG: Module Get '%s' -> Value type %d\n", name->chars, getValueType(e->value));
                          NEXT();
                      }
-                     // printf("DEBUG: Module Skip '%s' vs '%s'\n", e->key, name->chars);
                      e = e->next;
                  }
                  // Property not found on module
