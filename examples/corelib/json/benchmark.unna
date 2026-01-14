@@ -1,4 +1,4 @@
-// JSON Benchmark
+// JSON Benchmark - Fixed Version
 // Tests parsing and stringifying performance
 
 var iterations = 10000;
@@ -9,31 +9,29 @@ print("Iterations: " + iterations);
 
 // Parse Benchmark
 var startParse = ucoreTimer.now();
-var i = 0;
-while (i < iterations) {
+var parseCounter = 0;
+while (parseCounter < iterations) {
     var obj = ucoreJson.parse(jsonData);
-    i = i + 1;
+    parseCounter = parseCounter + 1;
 }
 var endParse = ucoreTimer.now();
 var parseTime = endParse - startParse;
-print("Parse: " + parseTime + " ms");
+print("Parse Time: " + parseTime + " ms");
 
 // Stringify Benchmark
 var testObj = ucoreJson.parse(jsonData);
 var startStr = ucoreTimer.now();
-i = 0;
-while (i < iterations) {
+var strCounter = 0;
+while (strCounter < iterations) {
     var str = ucoreJson.stringify(testObj);
-    i = i + 1;
+    strCounter = strCounter + 1;
 }
 var endStr = ucoreTimer.now();
 var strTime = endStr - startStr;
-print("Stringify: " + strTime + " ms");
+print("Stringify Time: " + strTime + " ms");
 
-// Calculate ops/sec
-var parseOps = iterations / (parseTime / 1000);
-var strOps = iterations / (strTime / 1000);
-print("Parse Speed: " + parseOps + " ops/sec");
-print("Stringify Speed: " + strOps + " ops/sec");
+// Calculate ops/sec (approximate)
+print("Parse Speed: ~" + (iterations * 1000 / parseTime) + " ops/sec");
+print("Stringify Speed: ~" + (iterations * 1000 / strTime) + " ops/sec");
 
 print("=== Benchmark Complete ===");

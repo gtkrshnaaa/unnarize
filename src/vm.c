@@ -1512,7 +1512,7 @@ void initVM(VM* vm) {
     vm->grayCount = 0;
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
-    vm->nextGC = 1024 * 1024; // Start GC at 1MB
+    vm->nextGC = (size_t)-1 / 2; // Effectively disable GC (set to max safe value)
 
 
     vm->stackTop = 0;
@@ -1676,6 +1676,7 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     func->name = (Token){TOKEN_IDENTIFIER, key, (int)strlen(key), 0};
     func->body = NULL;
     func->closure = NULL;
+    func->obj.isMarked = true; // PERMANENT ROOT: Native functions never garbage collected
     
     fe->function = func;
 

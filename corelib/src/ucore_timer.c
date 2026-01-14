@@ -42,11 +42,15 @@ void registerUCoreTimer(VM* vm) {
     
     Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
     mod->name = strdup(modName);
-    mod->env = malloc(sizeof(Environment));
-    if (!mod->env) return; 
-    memset(mod->env->buckets, 0, sizeof(mod->env->buckets));
-    memset(mod->env->funcBuckets, 0, sizeof(mod->env->funcBuckets));
-    mod->env->enclosing = NULL;
+    mod->obj.isMarked = true; // PERMANENT ROOT
+    
+    // CRITICAL: Use ALLOCATE_OBJ for Environment to enable GC tracking
+    Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
+    memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
+    memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
+    modEnv->enclosing = NULL;
+    modEnv->obj.isMarked = true; // PERMANENT ROOT
+    mod->env = modEnv;
 
     defineNative(vm, mod->env, "now", utimer_now, 0);
     defineNative(vm, mod->env, "sleep", utimer_sleep, 1);
