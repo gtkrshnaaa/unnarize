@@ -293,6 +293,16 @@ typedef struct {
     uint64_t totalTimeMicros;        // Total execution time
 } PerformanceCounters;
 
+// Async Task for event loop
+typedef struct {
+    Future* future;         // The Future this task will resolve
+    Function* func;         // Function to execute
+    Value* args;           // Arguments array
+    int argCount;          // Number of arguments
+    bool started;          // Has execution started?
+    bool completed;        // Is execution complete?
+} Task;
+
 // Virtual Machine structure
 struct VM {
     Value stack[STACK_MAX];         // Value stack
@@ -321,6 +331,10 @@ struct VM {
     int argc;
     char** argv;
     
+    // Async Task Queue
+    Task* taskQueue;
+    int taskCount;
+    int taskCapacity;
 };
 
 // VM function prototypes
