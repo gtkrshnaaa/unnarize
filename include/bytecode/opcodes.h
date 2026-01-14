@@ -122,6 +122,10 @@ typedef enum {
     
 
     
+    // === Async Operations ===
+    OP_ASYNC_CALL,      // Call async function, return Future (1-byte arg count)
+    OP_AWAIT,           // Await Future result
+    
     // === Special ===
     OP_PRINT,           // Built-in print (debug)
     OP_HALT,            // Halt execution
