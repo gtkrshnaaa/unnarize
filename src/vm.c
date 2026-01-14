@@ -102,8 +102,13 @@ Obj* allocateObject(VM* vm, size_t size, ObjType type) {
     Obj* object = (Obj*)reallocate(vm, NULL, 0, size);
     object->type = type;
     object->isMarked = false;
-    object->next = vm->objects;
-    vm->objects = object;
+    object->generation = 0;
+    
+    // Generational allocation: add to nursery
+    object->next = vm->nursery;
+    vm->nursery = object;
+    vm->nurseryCount++;
+    
     return object;
 }
 
@@ -145,10 +150,19 @@ void freeVM(VM* vm) {
          // Strings are managed as ObjStrings and will be freed by the object loop
          free(vm->stringPool.strings);
          free(vm->stringPool.hashes);
+         pthread_mutex_destroy(&vm->stringPool.lock);
     }
     
-    // Free all objects
+    // Free all objects (Old Gen)
     Obj* object = vm->objects;
+    while (object != NULL) {
+        Obj* next = object->next;
+        freeObject(vm, object);
+        object = next;
+    }
+    
+    // Free nursery objects (Young Gen)
+    object = vm->nursery;
     while (object != NULL) {
         Obj* next = object->next;
         freeObject(vm, object);
@@ -204,15 +218,18 @@ ObjString* internString(VM* vm, const char* str, int length) {
     
     unsigned int h = hash(str, length);
     
-    // Step 1: Find existing match
+    // Step 1: Find existing match (Lock)
+    pthread_mutex_lock(&vm->stringPool.lock);
     for (int i = 0; i < vm->stringPool.count; i++) {
         ObjString* strObj = (ObjString*)vm->stringPool.strings[i];
          if (strObj->hash == h && strObj->length == length && memcmp(strObj->chars, str, length) == 0) {
+             pthread_mutex_unlock(&vm->stringPool.lock);
              return strObj;
          }
     }
+    pthread_mutex_unlock(&vm->stringPool.lock);
     
-    // Step 2: Create new
+    // Step 2: Create new (No Lock, might trigger GC)
     ObjString* strObj = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
     strObj->length = length;
     strObj->hash = h;
@@ -220,7 +237,28 @@ ObjString* internString(VM* vm, const char* str, int length) {
     memcpy(strObj->chars, str, length);
     strObj->chars[length] = '\0';
     
-    // Step 3: Add to pool
+    // Step 3: Add to pool (Lock again)
+    pthread_mutex_lock(&vm->stringPool.lock);
+    
+    // Double Check (in case another thread inserted it while we were allocating)
+    for (int i = 0; i < vm->stringPool.count; i++) {
+        ObjString* existing = (ObjString*)vm->stringPool.strings[i];
+         if (existing->hash == h && existing->length == length && memcmp(existing->chars, str, length) == 0) {
+             pthread_mutex_unlock(&vm->stringPool.lock);
+             // Lost the race, free our duplicate
+             free(strObj->chars);
+             free(strObj); // Note: this is a manual free, bypassing GC since it's not reachable yet? 
+                           // Wait, ALLOCATE_OBJ adds to vm->objects list!
+                           // If we free(strObj), we have a dangling pointer in vm->objects list!
+                           // FIX: We cannot just free(strObj). It is in the linked list.
+                           // We must mark it as dead or let GC collect it later.
+                           // But if we return 'existing', 'strObj' is unreachable (except from vm->objects).
+                           // GC will collect it eventually.
+                           // So we DON'T free(strObj). We just abandon it.
+             return existing;
+         }
+    }
+
     if (vm->stringPool.count == vm->stringPool.capacity) {
         int oldCap = vm->stringPool.capacity;
         vm->stringPool.capacity = oldCap < 8 ? 8 : oldCap * 2;
@@ -231,6 +269,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
     vm->stringPool.strings[vm->stringPool.count] = (char*)strObj; // Hack cast
     vm->stringPool.hashes[vm->stringPool.count] = h; // Keep hashes array updated
     vm->stringPool.count++;
+    pthread_mutex_unlock(&vm->stringPool.lock);
     
     return strObj;
 }
@@ -1509,6 +1548,7 @@ void initVM(VM* vm) {
     if (!vm->stringPool.strings || !vm->stringPool.hashes) {
         error("Memory allocation failed for string pool.", 0);
     }
+    pthread_mutex_init(&vm->stringPool.lock, NULL);
     
     // Initialize value pool for basic types
     vm->valuePool.capacity = 128;

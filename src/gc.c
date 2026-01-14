@@ -14,7 +14,7 @@ void markObject(VM* vm, Obj* object);
 void markValue(VM* vm, Value value);
 static void markRoots(VM* vm);
 static void traceReferences(VM* vm);
-static size_t sweep(VM* vm);
+static size_t sweep(VM* vm, Obj** listHead);
 static void garbageCollect(VM* vm) { collectGarbage(vm); } // Wrapper or just rename prototypes
 
 void* reallocate(VM* vm, void* pointer, size_t oldSize, size_t newSize) {
@@ -313,9 +313,25 @@ void freeObject(VM* vm, Obj* object) {
     }
 }
 
-static size_t sweep(VM* vm) {
+// Remove unmarked strings from the pool (must happen before sweep frees them)
+static void pruneStringPool(VM* vm) {
+    pthread_mutex_lock(&vm->stringPool.lock);
+    for (int i = 0; i < vm->stringPool.count; i++) {
+        ObjString* str = (ObjString*)vm->stringPool.strings[i];
+        if (!((Obj*)str)->isMarked) {
+            // Remove from pool (swap with last)
+            vm->stringPool.strings[i] = vm->stringPool.strings[vm->stringPool.count - 1];
+            vm->stringPool.hashes[i] = vm->stringPool.hashes[vm->stringPool.count - 1];
+            vm->stringPool.count--;
+            i--; // Retry this index with swapped element
+        }
+    }
+    pthread_mutex_unlock(&vm->stringPool.lock);
+}
+
+static size_t sweep(VM* vm, Obj** listHead) {
     Obj* previous = NULL;
-    Obj* object = vm->objects;
+    Obj* object = *listHead;
     size_t freedCount = 0;
     size_t freedBytes = 0;
     
@@ -369,14 +385,25 @@ void collectGarbage(VM* vm) {
         vm->gcPeakMemory = vm->bytesAllocated;
     }
     
+    // Promote nursery to old generation
+    if (vm->nursery) {
+        Obj* tail = vm->nursery;
+        while (tail->next) tail = tail->next;
+        tail->next = vm->objects;
+        vm->objects = vm->nursery;
+        vm->nursery = NULL;
+        vm->nurseryCount = 0;
+    }
+
     // Mark phase
     vm->gcPhase = 1;  // GC_MARKING
     markRoots(vm);
     traceReferences(vm);
     
     // Sweep phase
+    pruneStringPool(vm);
     vm->gcPhase = 2;  // GC_SWEEPING
-    size_t freedBytes = sweep(vm);
+    size_t freedBytes = sweep(vm, &vm->objects);
     vm->gcPhase = 0;  // GC_IDLE
     
     // Update statistics
@@ -437,7 +464,8 @@ bool collectGarbageIncremental(VM* vm, int workUnits) {
     
     // Phase 2: Sweeping
     if (vm->gcPhase == 2) {
-        size_t freedBytes = sweep(vm);
+        pruneStringPool(vm);
+        size_t freedBytes = sweep(vm, &vm->objects);
         vm->gcPhase = 0;  // GC_IDLE
         
         // Update statistics
@@ -529,8 +557,9 @@ static void* concurrentMarkWorker(void* arg) {
     }
     
     // Sweep (must be exclusive)
+    pruneStringPool(vm);
     vm->gcPhase = 2;
-    size_t freedBytes = sweep(vm);
+    size_t freedBytes = sweep(vm, &vm->objects);
     vm->gcPhase = 0;
     
     vm->gcCollectCount++;
@@ -552,6 +581,20 @@ static void* concurrentMarkWorker(void* arg) {
 void collectGarbageConcurrent(VM* vm, int workUnits) {
     // Don't start if already running
     if (gcConcurrentActive) return;
+    
+    pthread_mutex_lock(&gcMutex);
+    
+    // Snapshot: Promote current nursery to Old Generation (vm->objects)
+    if (vm->nursery) {
+         Obj* tail = vm->nursery;
+         while (tail->next) tail = tail->next;
+         tail->next = vm->objects;
+         vm->objects = vm->nursery;
+         vm->nursery = NULL;
+         vm->nurseryCount = 0;
+    }
+    
+    pthread_mutex_unlock(&gcMutex);
     
     ConcurrentGCArgs* args = malloc(sizeof(ConcurrentGCArgs));
     args->vm = vm;

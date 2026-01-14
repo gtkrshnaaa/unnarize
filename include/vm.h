@@ -158,10 +158,11 @@ struct FuncEntry {
 
 // String interning pool for performance optimization
 typedef struct StringPool {
-    char** strings;
+    char** strings;  // Actually ObjString* cast to char*
     unsigned int* hashes;
     int count;
     int capacity;
+    pthread_mutex_t lock; // Protects concurrent access
 } StringPool;
 
 // Value pool for basic types to reduce malloc/free overhead
