@@ -28,6 +28,7 @@ typedef struct Obj Obj;
 struct Obj {
     ObjType type;
     bool isMarked;
+    bool isPermanent;   // If true, never swept or unmarked
     uint8_t generation;  // 0 = young (nursery), 1+ = old
     Obj* next;
 };
@@ -139,16 +140,18 @@ typedef Value (*NativeFn)(VM*, Value* args, int argCount);
 
 // Variable entry structure for hash table
 struct VarEntry {
-    char* key;              // Variable name
+    char* key;              // Variable name (points to keyString->chars)
     int keyLength;          // Length of key
     bool ownsKey; 
+    ObjString* keyString;   // Reference to interned string for GC marking
     Value value;            // Variable value
     struct VarEntry* next;  // Next entry in hash bucket
 };
 
 // Function entry structure for hash table
 struct FuncEntry {
-    char* key;              // Function name
+    char* key;              // Function name (points to keyString->chars)
+    ObjString* keyString;   // Reference to interned string for GC marking
     Function* function;     // Function definition
     struct FuncEntry* next; // Next entry in hash bucket
 };

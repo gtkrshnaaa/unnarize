@@ -391,6 +391,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         // Insert new
         VarEntry* newEntry = malloc(sizeof(VarEntry));
         newEntry->key = name->chars;
+        newEntry->keyString = name; // Store for GC marking
         newEntry->keyLength = name->length;
         newEntry->ownsKey = false;
         newEntry->value = sp[-1];
@@ -422,6 +423,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         // Insert new
         VarEntry* newEntry = malloc(sizeof(VarEntry));
         newEntry->key = name->chars;
+        newEntry->keyString = name; // Store for GC marking
         newEntry->keyLength = name->length;
         newEntry->ownsKey = false; 
         newEntry->value = sp[-1];

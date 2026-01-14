@@ -102,6 +102,7 @@ Obj* allocateObject(VM* vm, size_t size, ObjType type) {
     Obj* object = (Obj*)reallocate(vm, NULL, 0, size);
     object->type = type;
     object->isMarked = (vm->gcPhase == 1 || isGCActive()); // Allocate Black during Marking to prevent Stack leaks
+    object->isPermanent = false; // Default: subject to GC
     object->generation = 0;
     
     // Generational allocation: add to nursery
@@ -449,6 +450,7 @@ static VarEntry* findEntry(VM* vm, Token name, bool insert) {
         }
         
         entry->key = (char*)name.start; // Already interned
+        entry->keyString = NULL; // Cannot get ObjString from char* here
         entry->keyLength = name.length;
         entry->ownsKey = false; // Owned by StringPool
         
@@ -802,8 +804,10 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
              int len = param.length; if(len>63)len=63;
              memcpy(buf, param.start, len); buf[len]=0;
              
+             ObjString* keyStrObj = internString(vm, buf, len);
              VarEntry* ve = malloc(sizeof(VarEntry));
-             ve->key = internString(vm, buf, len)->chars;
+             ve->key = keyStrObj->chars;
+             ve->keyString = keyStrObj; // Store for GC marking
              ve->keyLength = len;
              ve->ownsKey = false;
              ve->value = args[i];
@@ -1512,7 +1516,7 @@ void initVM(VM* vm) {
     vm->grayCount = 0;
     vm->grayCapacity = 0;
     vm->bytesAllocated = 0;
-    vm->nextGC = (size_t)-1 / 2; // Effectively disable GC (set to max safe value)
+    vm->nextGC = 1024 * 1024; // Start GC at 1MB
 
 
     vm->stackTop = 0;
@@ -1623,6 +1627,7 @@ void defineGlobal(VM* vm, const char* name, Value value) {
     entry = malloc(sizeof(VarEntry));
     if (!entry) error("Memory allocation failed.", 0);
     entry->key = key;
+    entry->keyString = keyObj; // Store for GC marking
     entry->keyLength = (int)strlen(key);
     entry->ownsKey = false;
     entry->value = value;
@@ -1651,6 +1656,7 @@ static void defineInEnv(VM* vm, Environment* env, Token name, Value value) {
     entry = malloc(sizeof(VarEntry));
     if (!entry) error("Memory allocation failed.", name.line);
     entry->key = (char*)name.start;
+    entry->keyString = NULL; // Cannot get ObjString from Token here
     entry->keyLength = name.length;
     entry->ownsKey = false;
     entry->value = value;
@@ -1666,6 +1672,7 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     
     FuncEntry* fe = malloc(sizeof(FuncEntry));
     fe->key = key;
+    fe->keyString = keyObj; // Store for GC marking
     fe->next = env->funcBuckets[h];
     env->funcBuckets[h] = fe;
     
@@ -1676,7 +1683,8 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     func->name = (Token){TOKEN_IDENTIFIER, key, (int)strlen(key), 0};
     func->body = NULL;
     func->closure = NULL;
-    func->obj.isMarked = true; // PERMANENT ROOT: Native functions never garbage collected
+    func->obj.isMarked = true; // PERMANENT ROOT
+    func->obj.isPermanent = true; // Never sweep
     
     fe->function = func;
 
@@ -1697,6 +1705,7 @@ void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int a
     // Create new variable entry
     ve = malloc(sizeof(VarEntry));
     ve->key = key;
+    ve->keyString = keyObj; // Store for GC marking
     ve->keyLength = (int)strlen(key);
     ve->ownsKey = false;
     ve->value = funcVal;

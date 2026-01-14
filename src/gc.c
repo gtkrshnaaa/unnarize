@@ -162,18 +162,22 @@ static void blackenObject(VM* vm, Obj* object) {
             // Mark parent? Yes if it's reachable.
             markObject(vm, (Obj*)env->enclosing);
             
-            // Mark values in buckets
+            // Mark values and key strings in buckets
             for (int i = 0; i < TABLE_SIZE; i++) {
                 VarEntry* entry = env->buckets[i];
                 while (entry) {
                     markValue(vm, entry->value);
+                    // CRITICAL: Mark the key string to prevent pruning
+                    if (entry->keyString) markObject(vm, (Obj*)entry->keyString);
                     entry = entry->next;
                 }
                 
-                // Functions in env?
+                // Functions in env
                 FuncEntry* funcEntry = env->funcBuckets[i];
                 while (funcEntry) {
                     if (funcEntry->function) markObject(vm, (Obj*)funcEntry->function);
+                    // CRITICAL: Mark the key string to prevent pruning
+                    if (funcEntry->keyString) markObject(vm, (Obj*)funcEntry->keyString);
                     funcEntry = funcEntry->next;
                 }
             }
@@ -370,8 +374,11 @@ static size_t sweep(VM* vm, Obj** listHead) {
     size_t freedBytes = 0;
     
     while (object != NULL) {
-        if (object->isMarked) {
-            object->isMarked = false;
+        // Permanent objects are always considered marked and their mark is never reset
+        if (object->isPermanent || object->isMarked) {
+            if (!object->isPermanent) {
+                object->isMarked = false;
+            }
             previous = object;
             object = object->next;
         } else {

@@ -552,7 +552,8 @@ void registerUCoreUON(VM* vm) {
     memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
     memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
     modEnv->enclosing = NULL;
-    modEnv->obj.isMarked = true; // PERMANENT ROOT
+    modEnv->obj.isMarked = true; 
+    modEnv->obj.isPermanent = true; // PERMANENT ROOT
     mod->env = modEnv;
 
     defineNative(vm, mod->env, "parse", uon_parse, 1);

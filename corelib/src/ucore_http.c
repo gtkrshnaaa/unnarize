@@ -763,14 +763,16 @@ void registerUCoreHttp(VM* vm) {
     
     Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
     mod->name = strdup(modName); 
-    mod->obj.isMarked = true; // PERMANENT ROOT
+    mod->obj.isMarked = true; 
+    mod->obj.isPermanent = true; // PERMANENT ROOT
     
     // CRITICAL: Use ALLOCATE_OBJ for Environment to enable GC tracking
     Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
     memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
     memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
     modEnv->enclosing = NULL; // Globals
-    modEnv->obj.isMarked = true; // PERMANENT ROOT
+    modEnv->obj.isMarked = true; 
+    modEnv->obj.isPermanent = true; // PERMANENT ROOT
     mod->env = modEnv;
     
     defineNative(vm, mod->env, "get", uhttp_get, 1);

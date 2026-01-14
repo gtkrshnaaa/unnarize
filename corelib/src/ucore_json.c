@@ -599,14 +599,16 @@ void registerUCoreJson(VM* vm) {
     Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
     mod->name = strdup(modName);
     mod->source = NULL;
-    mod->obj.isMarked = true; // PERMANENT ROOT: Never garbage collect core modules
+    mod->obj.isMarked = true; 
+    mod->obj.isPermanent = true; // PERMANENT ROOT
     
     // CRITICAL: Use ALLOCATE_OBJ for Environment to enable GC tracking
     Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
     memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
     memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
     modEnv->enclosing = NULL;
-    modEnv->obj.isMarked = true; // PERMANENT ROOT: Never garbage collect core module env
+    modEnv->obj.isMarked = true; 
+    modEnv->obj.isPermanent = true; // PERMANENT ROOT
     mod->env = modEnv;
     
     // Protect module during native registration
