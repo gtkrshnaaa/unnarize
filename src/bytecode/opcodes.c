@@ -113,7 +113,9 @@ static const OpcodeInfo OPCODE_TABLE[] = {
     {"ARRAY_POP", 0, true},
     {"ARRAY_LEN", 0, false},
     
-
+    // Async ops
+    {"ASYNC_CALL", 1, true},
+    {"AWAIT", 0, true},
     
     // Special
     {"PRINT", 0, true},
