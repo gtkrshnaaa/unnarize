@@ -319,13 +319,22 @@ struct VM {
     int externHandleCount;          // Count of loaded extern libraries
     StringPool stringPool;          // String interning pool for performance
     ValuePool valuePool;            // Value pool for basic types
-    // GC State
+    
+    // GC State (Enhanced)
     Obj* objects;                   // Linked list of all objects
     int grayCount;
     int grayCapacity;
     Obj** grayStack;
     size_t bytesAllocated;
     size_t nextGC;
+    int gcPhase;                    // 0=idle, 1=marking, 2=sweeping
+    
+    // GC Statistics
+    uint64_t gcCollectCount;        // Total GC runs
+    uint64_t gcTotalPauseUs;        // Total pause time (microseconds)
+    uint64_t gcLastPauseUs;         // Last GC pause time
+    uint64_t gcTotalFreed;          // Total bytes freed
+    size_t gcPeakMemory;            // Peak memory usage
     
     // CLI Arguments
     int argc;
