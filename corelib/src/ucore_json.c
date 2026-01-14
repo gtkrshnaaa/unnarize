@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 // ============================================================================
 // Helpers
@@ -467,6 +468,102 @@ static Value jsonStringify(VM* vm, Value* args, int argCount) {
 }
 
 // ============================================================================
+// File CRUD
+// ============================================================================
+
+static Value jsonRead(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+         return OBJ_VAL(copyString(vm, "Error: read(path) expects a file path string", 44));
+    }
+    char* path = AS_CSTRING(args[0]);
+    
+    FILE* file = fopen(path, "rb");
+    if (!file) {
+        return NIL_VAL; // File not found or err
+    }
+
+    fseek(file, 0L, SEEK_END);
+    size_t fileSize = ftell(file);
+    rewind(file);
+
+    char* buffer = malloc(fileSize + 1);
+    if (!buffer) {
+        fclose(file);
+        return NIL_VAL;
+    }
+    
+    size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+    buffer[bytesRead] = '\0';
+    fclose(file);
+    
+    // Create temp string value to pass to internal parse
+    ObjString* jsonStr = copyString(vm, buffer, bytesRead);
+    free(buffer);
+    
+    push(vm, OBJ_VAL(jsonStr));
+    
+    // Reuse parser logic manually
+    JsonParser parser;
+    parser.vm = vm;
+    parser.start = jsonStr->chars;
+    parser.current = jsonStr->chars;
+    parser.hasError = false;
+    parser.errorMsg[0] = '\0';
+
+    Value result = parseValue(&parser);
+    
+    pop(vm); // jsonStr
+
+    if (parser.hasError) {
+        printf("JSON Read Error: %s in %s\n", parser.errorMsg, path);
+        return NIL_VAL;
+    }
+    
+    return result;
+}
+
+static Value jsonWrite(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0])) {
+        return BOOL_VAL(false);
+    }
+    char* path = AS_CSTRING(args[0]);
+    Value data = args[1];
+    
+    // Stringify
+    JsonHeader header;
+    header.vm = vm;
+    header.capacity = 128;
+    header.length = 0;
+    header.buffer = (char*)malloc(header.capacity);
+    header.buffer[0] = '\0';
+    
+    stringifyValue(&header, data);
+    
+    FILE* file = fopen(path, "w");
+    if (!file) {
+        free(header.buffer);
+        return BOOL_VAL(false);
+    }
+    
+    fprintf(file, "%s", header.buffer);
+    fclose(file);
+    free(header.buffer);
+    
+    return BOOL_VAL(true);
+}
+
+static Value jsonRemove(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        return BOOL_VAL(false);
+    }
+    char* path = AS_CSTRING(args[0]);
+    if (unlink(path) == 0) {
+        return BOOL_VAL(true);
+    }
+    return BOOL_VAL(false);
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -489,6 +586,10 @@ void registerUCoreJson(VM* vm) {
     
     defineNative(vm, mod->env, "parse", jsonParse, 1);
     defineNative(vm, mod->env, "stringify", jsonStringify, 1);
+    
+    defineNative(vm, mod->env, "read", jsonRead, 1);
+    defineNative(vm, mod->env, "write", jsonWrite, 2);
+    defineNative(vm, mod->env, "remove", jsonRemove, 1);
     
     pop(vm); // unprotect
     

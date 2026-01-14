@@ -26,3 +26,29 @@ if (back["newField"] == "Dynamic Add") {
 } else {
     print("VERIFICATION FAILED");
 }
+
+// === CRUD FILE TEST ===
+var dbPath = "test_db.json";
+var dbData = ucoreJson.parse('{"users": ["Alice", "Bob"], "active": true}');
+
+print("Writing database...");
+if (ucoreJson.write(dbPath, dbData)) {
+    print("Write success.");
+} else {
+    print("Write failed.");
+}
+
+print("Reading database...");
+var readData = ucoreJson.read(dbPath);
+if (readData["active"] == true && length(readData["users"]) == 2) {
+    print("Read verification PASSED.");
+} else {
+    print("Read verification FAILED.");
+}
+
+print("Deleting database...");
+if (ucoreJson.remove(dbPath)) {
+    print("Delete success.");
+} else {
+    print("Delete failed.");
+}
