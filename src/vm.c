@@ -1538,6 +1538,11 @@ void initVM(VM* vm) {
     vm->gcPeakMemory = 0;
     vm->gcLastCollectTime = 0;
     vm->gcBytesAllocSinceGC = 0;
+    
+    // Generational GC
+    vm->nursery = NULL;
+    vm->nurseryCount = 0;
+    vm->nurseryThreshold = 1000;  // Minor GC after 1000 young objects
 
 }
 
