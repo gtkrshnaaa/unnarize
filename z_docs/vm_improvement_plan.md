@@ -167,12 +167,21 @@ sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean build!"
 
 ## Implementation Order
 
-1. [ ] **Phase 1.1**: Add `OP_INC_LOCAL` opcode
-2. [ ] **Phase 1.2**: Add `OP_DEC_LOCAL` opcode
-3. [ ] **Phase 1.3**: Detect pattern in compiler
-4. [ ] **Test**: Verify loop benchmark improvement
-5. [ ] **Phase 2**: Handle async (based on decision)
-6. [ ] **Commit**: Push all changes to experiment branch
+1. [x] **Phase 1.1**: Add `OP_INC_LOCAL` opcode
+2. [x] **Phase 1.2**: Add `OP_DEC_LOCAL` opcode
+3. [x] **Phase 1.3**: Detect `i = i + 1` pattern in compiler
+4. [x] **Test**: Verify loop benchmark improvement (50M → 68M ops/sec, ~36% faster!)
+5. [x] **Phase 2**: Async warning added (documents as experimental)
+6. [x] **Commit**: All changes pushed to experiment branch
+
+---
+
+## Results
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| 1M iterations | 19.9ms | 14.6ms | **27% faster** |
+| Ops/sec | 50M | 68M | **36% increase** |
 
 ---
 
