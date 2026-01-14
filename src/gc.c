@@ -1,6 +1,7 @@
 #include "vm.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "bytecode/chunk.h"
 
 // GC Helpers
@@ -8,7 +9,7 @@ void markObject(VM* vm, Obj* object);
 void markValue(VM* vm, Value value);
 static void markRoots(VM* vm);
 static void traceReferences(VM* vm);
-static void sweep(VM* vm);
+static size_t sweep(VM* vm);
 static void garbageCollect(VM* vm) { collectGarbage(vm); } // Wrapper or just rename prototypes
 
 void* reallocate(VM* vm, void* pointer, size_t oldSize, size_t newSize) {
@@ -295,9 +296,12 @@ void freeObject(VM* vm, Obj* object) {
     }
 }
 
-static void sweep(VM* vm) {
+static size_t sweep(VM* vm) {
     Obj* previous = NULL;
     Obj* object = vm->objects;
+    size_t freedCount = 0;
+    size_t freedBytes = 0;
+    
     while (object != NULL) {
         if (object->isMarked) {
             object->isMarked = false;
@@ -311,14 +315,78 @@ static void sweep(VM* vm) {
             } else {
                 vm->objects = object;
             }
+            
+            // Estimate freed bytes (rough estimation based on object type)
+            size_t objSize = sizeof(Obj);
+            switch (unreached->type) {
+                case OBJ_STRING: objSize = sizeof(ObjString) + ((ObjString*)unreached)->length; break;
+                case OBJ_ARRAY: objSize = sizeof(Array) + ((Array*)unreached)->capacity * sizeof(Value); break;
+                case OBJ_MAP: objSize = sizeof(Map); break;
+                case OBJ_FUNCTION: objSize = sizeof(Function); break;
+                case OBJ_ENVIRONMENT: objSize = sizeof(Environment); break;
+                default: objSize = sizeof(Obj); break;
+            }
+            freedBytes += objSize;
+            freedCount++;
+            
             freeObject(vm, unreached);
         }
     }
+    
+    return freedBytes;
+}
+
+// Helper: get current time in microseconds
+static uint64_t getCurrentTimeUs(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
 }
 
 void collectGarbage(VM* vm) {
+    uint64_t startTime = getCurrentTimeUs();
+    size_t beforeBytes = vm->bytesAllocated;
+    
+    // Track peak memory
+    if (vm->bytesAllocated > vm->gcPeakMemory) {
+        vm->gcPeakMemory = vm->bytesAllocated;
+    }
+    
+    // Mark phase
+    vm->gcPhase = 1;  // GC_MARKING
     markRoots(vm);
     traceReferences(vm);
-    sweep(vm);
-    vm->nextGC = vm->bytesAllocated * 2;
+    
+    // Sweep phase
+    vm->gcPhase = 2;  // GC_SWEEPING
+    size_t freedBytes = sweep(vm);
+    vm->gcPhase = 0;  // GC_IDLE
+    
+    // Update statistics
+    uint64_t pauseTime = getCurrentTimeUs() - startTime;
+    vm->gcCollectCount++;
+    vm->gcTotalPauseUs += pauseTime;
+    vm->gcLastPauseUs = pauseTime;
+    vm->gcTotalFreed += freedBytes;
+    
+    // Adaptive threshold: adjust based on heap pressure
+    // If we freed a lot (>50% of heap), we can be more relaxed
+    // If we freed little (<20%), trigger sooner
+    double freedRatio = (beforeBytes > 0) ? (double)freedBytes / (double)beforeBytes : 0.0;
+    
+    if (freedRatio > 0.5) {
+        // Freed a lot - can wait longer
+        vm->nextGC = vm->bytesAllocated * 3;
+    } else if (freedRatio < 0.2) {
+        // Freed little - trigger sooner
+        vm->nextGC = vm->bytesAllocated + (vm->bytesAllocated / 2);
+    } else {
+        // Normal doubling
+        vm->nextGC = vm->bytesAllocated * 2;
+    }
+    
+    // Minimum threshold to avoid too frequent GC
+    if (vm->nextGC < 1024 * 256) {
+        vm->nextGC = 1024 * 256;  // Minimum 256KB
+    }
 }
