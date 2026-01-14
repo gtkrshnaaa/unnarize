@@ -592,10 +592,6 @@ static Node* declaration(Parser* parser) {
         consume(parser, TOKEN_FUNCTION, "Expect 'function' after 'async'.");
         Node* fn = function(parser);
         fn->function.isAsync = true;
-        // WARNING: async/await is not fully implemented yet
-        fprintf(stderr, "Warning: async/await is experimental and not fully implemented. "
-                        "Function '%.*s' will run synchronously.\n", 
-                        fn->function.name.length, fn->function.name.start);
         return fn;
     }
     if (match(parser, TOKEN_FUNCTION)) {
