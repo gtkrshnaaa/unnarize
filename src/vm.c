@@ -1524,6 +1524,10 @@ void initVM(VM* vm) {
     }
     vm->valuePool.free_list[vm->valuePool.capacity - 1] = -1;
     
+    // Initialize async task queue
+    vm->taskQueue = NULL;
+    vm->taskCount = 0;
+    vm->taskCapacity = 0;
 
 }
 
