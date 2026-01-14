@@ -360,12 +360,43 @@ static void compileStatement(Compiler* c, Node* node) {
         }
         
         case NODE_STMT_ASSIGN: {
-            // Compile value
+            // Check for optimizable patterns: i = i + 1 or i = i - 1
+            Token name = node->assign.name;
+            int local = resolveLocal(c, name.start, name.length);
+            
+            // Pattern detection for i = i + 1 or i = i - 1
+            if (local != -1 && node->assign.value && node->assign.value->type == NODE_EXPR_BINARY) {
+                Node* bin = node->assign.value;
+                // Check if left side is same variable
+                if (bin->binary.left && bin->binary.left->type == NODE_EXPR_VAR) {
+                    Token leftName = bin->binary.left->var.name;
+                    // Check if same variable name
+                    if (leftName.length == name.length && 
+                        memcmp(leftName.start, name.start, name.length) == 0) {
+                        // Check if right side is literal 1
+                        if (bin->binary.right && bin->binary.right->type == NODE_EXPR_LITERAL) {
+                            Token lit = bin->binary.right->literal.token;
+                            if (lit.type == TOKEN_NUMBER && lit.length == 1 && lit.start[0] == '1') {
+                                // Detected pattern!
+                                if (bin->binary.op.type == TOKEN_PLUS) {
+                                    // i = i + 1 -> OP_INC_LOCAL
+                                    emitBytes(c, OP_INC_LOCAL, (uint8_t)local, line);
+                                    break;
+                                } else if (bin->binary.op.type == TOKEN_MINUS) {
+                                    // i = i - 1 -> OP_DEC_LOCAL
+                                    emitBytes(c, OP_DEC_LOCAL, (uint8_t)local, line);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Standard assignment (no optimization)
             compileExpression(c, node->assign.value);
             
             // Store to variable
-            Token name = node->assign.name;
-            int local = resolveLocal(c, name.start, name.length);
             if (local != -1) {
                 emitBytes(c, OP_STORE_LOCAL, (uint8_t)local, line);
             } else {
