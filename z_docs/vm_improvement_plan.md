@@ -1,17 +1,17 @@
 # VM Improvement Plan
 
-> Document Version: 2.0  
-> Date: 2026-01-14  
-> Status: In Progress
+> Document Version: 3.0
+> Date: 2026-01-15
+> Status: Completed
 
 ---
 
 ## Overview
 
-This document outlines improvements to the Unnarize Virtual Machine:
+This document outlines improvements to the Unnarize Virtual Machine (Now Completed):
 1. **Loop optimizations** ✅ - Specialized opcodes for i++/i--
 2. **Async/Await** ✅ - Fully implemented with event loop
-3. **GC Improvements** 🔄 - In progress (see `z_docs/gc_improvement.md`)
+3. **GC Improvements** ✅ - "Gapless" Generational GC implemented
 
 ---
 
@@ -36,16 +36,20 @@ This document outlines improvements to the Unnarize Virtual Machine:
 | `OP_AWAIT` opcode | ✅ NEW |
 | Future resolution | ✅ |
 
-**Result:** Async/await now fully working!
+**Result:** Async/await native runtime fully verified.
 
-### GC System 🔄 (In Progress)
+### GC System ✅ (Completed)
 
 | Feature | Status |
 |---------|--------|
 | Tri-color mark-sweep | ✅ |
-| Stats tracking | ✅ NEW |
-| Adaptive threshold | ✅ NEW |
-| Incremental marking | 🔄 Next |
+| Stats tracking | ✅ |
+| Adaptive threshold | ✅ |
+| Incremental marking | ✅ |
+| Write barriers | ✅ |
+| Generational Promotion | ✅ |
+| Parallel Sweeping | ✅ |
+| Thread Safety (Mutex) | ✅ |
 
 ---
 
@@ -70,23 +74,25 @@ This document outlines improvements to the Unnarize Virtual Machine:
 | Future handling | interpreter.c |
 | Await compilation | compiler.c |
 
-**Result:** 
-- Before: `Got:   Got:` (broken)
-- After: `Got: Data:API` ✅
+**Result:** Non-blocking I/O verified with `examples/basics/11_async.unna` and `examples/corelib/http/api_server.unna`.
 
 ---
 
-## In Progress: Phase 3 - GC Improvements
+## Completed: Phase 3 - GC Improvements
 
-See detailed plan: `z_docs/gc_improvement.md`
+See detailed documentation: `z_docs/gc_improvement.md`
 
 | Feature | Status |
 |---------|--------|
 | Stats (pause time, freed) | ✅ Done |
 | Adaptive threshold | ✅ Done |
 | Phase tracking | ✅ Done |
-| Incremental marking | 🔄 Next |
-| Write barriers | Planned |
+| Incremental marking | ✅ Done |
+| Write barriers | ✅ Done (Verified in interpreter.c) |
+| Parallel Sweeping | ✅ Done (Concurrent thread) |
+| Generational | ✅ Done (Nursery + Old Gen) |
+
+**Result:** "Gapless" GC verified under heavy stress tests (50k objects, 15k requests).
 
 ---
 
@@ -98,6 +104,13 @@ unnarize examples/basics/11_async.unna
 # Expected: Got: Data:API, Got: Data:Database ✅
 
 # GC stress test
+unnarize examples/garbagecollection/stress_test.unna
+# Expected: Created 50,000 total items... PASSED ✅
+
+# Full Verification
+unnarize examples/testcase/main.unna
+# Expected: SME Store System shutdown complete ✅
+```
 unnarize examples/garbagecollection/stress_test.unna
 # Expected: ALL TESTS PASSED ✅
 
