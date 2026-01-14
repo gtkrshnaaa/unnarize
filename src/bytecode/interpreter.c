@@ -854,6 +854,8 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
             *sp++ = BOOL_VAL(AS_BOOL(a) == AS_BOOL(b));
         } else if (IS_NIL(a) && IS_NIL(b)) {
             *sp++ = BOOL_VAL(true);
+        } else if (IS_OBJ(a) && IS_OBJ(b)) {
+            *sp++ = BOOL_VAL(AS_OBJ(a) == AS_OBJ(b)); // Pointer equality (Strings are interned)
         } else {
             *sp++ = BOOL_VAL(false);
         }

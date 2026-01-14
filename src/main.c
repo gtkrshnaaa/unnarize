@@ -7,6 +7,7 @@
 #include "ucore_http.h"
 #include "ucore_timer.h"
 #include "ucore_system.h"
+#include "ucore_json.h"
 
 #include "bytecode/chunk.h"
 #include "bytecode/compiler.h"
@@ -321,6 +322,7 @@ int main(int argc, char** argv) {
     registerUCoreUON(&vm); // Register built-in core libraries
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
+    registerUCoreJson(&vm);  // Register Json
 
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)

@@ -1,0 +1,28 @@
+// Demo for ucoreJson
+
+var jsonData = '{"name": "Unnarize", "version": 1, "features": ["GC", "Async", "JSON"]}';
+
+print("Original JSON: " + jsonData);
+
+var parsed = ucoreJson.parse(jsonData);
+
+print("Parsed Name: " + parsed["name"]);
+print("Parsed Version: " + parsed["version"]);
+print("Features Count: " + length(parsed["features"]));
+print("Feature 1: " + parsed["features"][0]);
+
+parsed["newField"] = "Dynamic Add";
+
+var str = ucoreJson.stringify(parsed);
+print("Stringified: " + str);
+
+// Verification Round Trip
+var back = ucoreJson.parse(str);
+print("Back newField: " + back["newField"]);
+print("Expected: Dynamic Add");
+
+if (back["newField"] == "Dynamic Add") {
+    print("VERIFICATION PASSED: Round-trip successful");
+} else {
+    print("VERIFICATION FAILED");
+}
