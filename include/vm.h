@@ -393,6 +393,8 @@ ObjString* internString(VM* vm, const char* str, int length);
 void* reallocate(VM* vm, void* pointer, size_t oldSize, size_t newSize);
 void collectGarbage(VM* vm);
 bool collectGarbageIncremental(VM* vm, int workUnits);
+void collectGarbageConcurrent(VM* vm, int workUnits);
+bool isGCActive(void);
 #define ALLOCATE_OBJ(vm, type, objectType) \
     (type*)allocateObject(vm, sizeof(type), objectType)
 
