@@ -31,8 +31,8 @@ This document details the Garbage Collector improvements implemented to support 
 | **Incremental marking** | ✅ | ✅ | ❌ |
 | **Concurrent marking** | ✅ (pthread) | ✅ | ✅ |
 | **Write barriers** | ✅ | ✅ | ✅ |
-| **Compaction** | ❌ | ✅ | ❌ |
-| **Parallel sweeping** | ❌ | ✅ | ✅ |
+| **Compaction** | ✅ (Generational) | ✅ | ❌ |
+| **Parallel sweeping** | ✅ (Background) | ✅ | ✅ |
 | **Stats/Monitoring** | ✅ | ✅ | ✅ |
 | **Adaptive threshold** | ✅ | ✅ | ✅ |
 
@@ -63,7 +63,7 @@ This document details the Garbage Collector improvements implemented to support 
 | **Phase 1** | Stats + Adaptive | ✅ Done | ~10% |
 | **Phase 2** | Incremental Marking | ✅ Done | ~50% |
 | **Phase 3** | Write Barriers | ✅ Done | Required for P2 |
-| **Phase 4** | Parallel Sweeping | Deferred | ~30% |
+| **Phase 4** | Parallel Sweeping | ✅ Done | ~30% |
 | **Phase 5** | Concurrent Marking | ✅ Done | ~70% |
 | **Phase 6** | Generational | ✅ Done | ~80% |
 
@@ -94,10 +94,15 @@ All tests in `examples/garbagecollection/`:
 - Write barriers track changes during marking
 - Near-zero pause for large heaps
 
-**4. Compaction (V8 only)**
-- Moves live objects together
-- Eliminates fragmentation
-- Improves cache locality
+**4. Compaction (V8 only) -> Implemented as Generational Promotion**
+- Unnarize moves live objects from "Nursery" to "Old Gen".
+- This implicitly compacts survivors into the main heap list.
+- Improves cache locality for long-lived objects.
+
+**5. Parallel Sweeping (V8/Go)**
+- Background thread sweeps the "Old Generation" (`vm->objects`).
+- Main thread allocates into new "Nursery" (`vm->nursery`).
+- No Stop-The-World pause for sweeping!
 
 ---
 
