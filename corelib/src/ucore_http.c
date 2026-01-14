@@ -651,7 +651,7 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
             continue;
         }
         
-        // Build Request Map (Express-style)
+        // Build Request Map (Standard)
         Map* reqMap = newMap(vm);
         Value vMethod = OBJ_VAL(internString(vm, method, (int)strlen(method)));
         mapSetStr(reqMap, "method", 6, vMethod);
