@@ -1528,6 +1528,14 @@ void initVM(VM* vm) {
     vm->taskQueue = NULL;
     vm->taskCount = 0;
     vm->taskCapacity = 0;
+    
+    // Initialize GC statistics
+    vm->gcPhase = 0;  // GC_IDLE
+    vm->gcCollectCount = 0;
+    vm->gcTotalPauseUs = 0;
+    vm->gcLastPauseUs = 0;
+    vm->gcTotalFreed = 0;
+    vm->gcPeakMemory = 0;
 
 }
 
