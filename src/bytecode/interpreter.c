@@ -86,6 +86,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         &&op_struct_def, // NEW
         &&op_array_push, &&op_array_pop, &&op_array_len,
 
+        &&op_async_call, &&op_await,
         &&op_print, &&op_halt, &&op_nop,
         &&op_array_push_clean
     };
@@ -1368,6 +1369,105 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         NEXT();
     }
     
+    // === ASYNC OPERATIONS ===
+    op_async_call: {
+        // Call an async function - execute immediately but wrap result in Future
+        uint8_t argCount = *ip++;
+        
+        // Get function from stack
+        Value* funcSlot = sp - 1 - argCount;
+        Value funcVal = *funcSlot;
+        
+        if (!IS_OBJ(funcVal) || AS_OBJ(funcVal)->type != OBJ_FUNCTION) {
+            printf("Runtime Error: Async call on non-function\n");
+            goto done;
+        }
+        
+        Function* func = (Function*)AS_OBJ(funcVal);
+        
+        // Create Future object
+        vm->stackTop = (int)(sp - vm->stack);
+        Future* future = ALLOCATE_OBJ(vm, Future, OBJ_FUTURE);
+        future->done = false;
+        future->result = NIL_VAL;
+        pthread_mutex_init(&future->mu, NULL);
+        pthread_cond_init(&future->cv, NULL);
+        
+        // Execute the function immediately (synchronous for now)
+        // Save current frame
+        CallFrame* callerFrame = (vm->callStackTop > 0) ? &vm->callStack[vm->callStackTop - 1] : NULL;
+        if (callerFrame) {
+            callerFrame->ip = ip;
+            callerFrame->chunk = chunk;
+        }
+        
+        // Push new call frame for async function
+        if (vm->callStackTop >= CALL_STACK_MAX) {
+            printf("Stack overflow in async call\n");
+            goto done;
+        }
+        
+        CallFrame* frame = &vm->callStack[vm->callStackTop++];
+        frame->function = func;
+        frame->chunk = func->bytecodeChunk;
+        frame->ip = func->bytecodeChunk->code;
+        frame->env = vm->globalEnv;
+        frame->fp = (int)(funcSlot - vm->stack);
+        
+        // Execute async function's bytecode
+        int asyncEntryDepth = vm->callStackTop - 1;
+        Value result = NIL_VAL;
+        
+        // Replace function slot with Future first (for caller to receive)
+        *funcSlot = OBJ_VAL(future);
+        sp = funcSlot + 1;  // Adjust stack: function+args replaced by Future
+        vm->stackTop = (int)(sp - vm->stack);
+        
+        // Execute and get result
+        executeBytecode(vm, func->bytecodeChunk, asyncEntryDepth);
+        
+        // The return value is stored in the frame
+        if (vm->callStackTop > asyncEntryDepth) {
+            // Function returned, get result from stack
+            result = vm->stack[vm->stackTop - 1];
+            vm->stackTop--; // Pop return value
+        }
+        
+        // Mark future as done with result
+        pthread_mutex_lock(&future->mu);
+        future->result = result;
+        future->done = true;
+        pthread_cond_broadcast(&future->cv);
+        pthread_mutex_unlock(&future->mu);
+        
+        // Restore sp
+        sp = vm->stack + vm->stackTop;
+        NEXT();
+    }
+    
+    op_await: {
+        // Pop Future, wait for result, push result
+        Value futureVal = *(--sp);
+        
+        if (!IS_OBJ(futureVal) || AS_OBJ(futureVal)->type != OBJ_FUTURE) {
+            // Not a Future, just return the value as-is
+            *sp++ = futureVal;
+            NEXT();
+        }
+        
+        Future* f = (Future*)AS_OBJ(futureVal);
+        
+        // Wait for completion
+        pthread_mutex_lock(&f->mu);
+        while (!f->done) {
+            pthread_cond_wait(&f->cv, &f->mu);
+        }
+        Value result = f->result;
+        pthread_mutex_unlock(&f->mu);
+        
+        *sp++ = result;
+        NEXT();
+    }
 
     
     // === SPECIAL ===
