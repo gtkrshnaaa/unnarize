@@ -1,0 +1,73 @@
+// ===========================================
+// GC Stress Test - Massive Object Allocation
+// ===========================================
+// Tests: Object creation, array allocation, 
+//        string concatenation, GC under heavy load
+
+print("=== GC Stress Test ===");
+print("");
+
+// Test 1: Massive Array Allocation
+print("Test 1: Massive Array Allocation (500 x 100)");
+
+for (var i = 0; i < 500; i = i + 1) {
+    var arr = array();
+    for (var j = 0; j < 100; j = j + 1) {
+        push(arr, j * i);
+    }
+    // arr goes out of scope here - should be collected
+}
+
+print("  PASSED: Created 50,000 total items");
+print("");
+
+// Test 2: String Concatenation (creates many temp strings)
+print("Test 2: String Concatenation (300 x 10)");
+
+for (var i = 0; i < 300; i = i + 1) {
+    var s = "";
+    for (var j = 0; j < 10; j = j + 1) {
+        s = s + "x";
+    }
+    // s and all intermediate strings should be collected
+}
+
+print("  PASSED: Created 3,000 string concatenations");
+print("");
+
+// Test 3: Map Allocation
+print("Test 3: Map Allocation (500 maps)");
+
+for (var i = 0; i < 500; i = i + 1) {
+    var m = map();
+    m["key1"] = i;
+    m["key2"] = i * 2;
+    m["key3"] = "value" + i;
+    // m goes out of scope
+}
+
+print("  PASSED: Created 500 maps with 3 entries each");
+print("");
+
+// Test 4: Mixed allocation (real-world simulation)
+print("Test 4: Mixed Allocation (100 nested structures)");
+
+for (var i = 0; i < 100; i = i + 1) {
+    var data = map();
+    data["id"] = i;
+    data["name"] = "Item " + i;
+    data["values"] = array();
+    
+    for (var j = 0; j < 10; j = j + 1) {
+        push(data["values"], j);
+    }
+    
+    var nested = map();
+    nested["parent"] = data;
+}
+
+print("  PASSED: Created 100 complex nested structures");
+print("");
+
+print("=== ALL TESTS PASSED ===");
+print("GC stress test completed successfully!");
