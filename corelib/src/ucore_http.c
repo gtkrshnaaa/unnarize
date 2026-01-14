@@ -8,6 +8,87 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+
+// URL decode helper
+static void urlDecode(char* dst, const char* src) {
+    char a, b;
+    while (*src) {
+        if ((*src == '%') && ((a = src[1]) && (b = src[2])) && isxdigit(a) && isxdigit(b)) {
+            if (a >= 'a') a -= 'a'-'A';
+            if (a >= 'A') a -= ('A' - 10);
+            else a -= '0';
+            if (b >= 'a') b -= 'a'-'A';
+            if (b >= 'A') b -= ('A' - 10);
+            else b -= '0';
+            *dst++ = 16*a + b;
+            src += 3;
+        } else if (*src == '+') {
+            *dst++ = ' ';
+            src++;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+}
+
+// Parse query string into Map: "foo=bar&baz=qux" -> {foo: "bar", baz: "qux"}
+static void parseQueryString(VM* vm, Map* queryMap, const char* queryStr) {
+    if (!queryStr || !*queryStr) return;
+    
+    char* copy = strdup(queryStr);
+    char* token = strtok(copy, "&");
+    while (token) {
+        char* eq = strchr(token, '=');
+        if (eq) {
+            *eq = '\0';
+            char key[256], val[1024];
+            urlDecode(key, token);
+            urlDecode(val, eq + 1);
+            
+            ObjString* valStr = internString(vm, val, (int)strlen(val));
+            mapSetStr(queryMap, key, (int)strlen(key), OBJ_VAL(valStr));
+        }
+        token = strtok(NULL, "&");
+    }
+    free(copy);
+}
+
+// Parse headers into Map
+static void parseHeaders(VM* vm, Map* headerMap, const char* request) {
+    const char* line = strchr(request, '\n');
+    if (!line) return;
+    line++; // Skip first line (GET /path HTTP/1.1)
+    
+    while (line && *line && *line != '\r' && *line != '\n') {
+        const char* colon = strchr(line, ':');
+        const char* end = strchr(line, '\r');
+        if (!end) end = strchr(line, '\n');
+        if (!colon || !end) break;
+        
+        // Extract key and value
+        int keyLen = colon - line;
+        const char* valStart = colon + 1;
+        while (*valStart == ' ') valStart++;
+        int valLen = end - valStart;
+        
+        if (keyLen > 0 && keyLen < 256 && valLen >= 0 && valLen < 1024) {
+            char key[256];
+            memcpy(key, line, keyLen);
+            key[keyLen] = '\0';
+            
+            // Convert key to lowercase for consistency
+            for (int i = 0; i < keyLen; i++) key[i] = tolower(key[i]);
+            
+            ObjString* valStr = internString(vm, valStart, valLen);
+            mapSetStr(headerMap, key, keyLen, OBJ_VAL(valStr));
+        }
+        
+        line = end + 1;
+        if (*line == '\n') line++;
+    }
+}
 
 // Helper to parse URL check for http://
 static bool parseUrl(const char* url, char* hostOut, char* pathOut, int* portOut) {
@@ -249,6 +330,30 @@ static Value uhttp_post(VM* vm, Value* args, int argCount) {
     return http_perform(vm, "POST", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
 }
 
+static Value uhttp_put(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        printf("Error: ucoreHttp.put(url, body) expects url and body strings.\n");
+        return NIL_VAL;
+    }
+    return http_perform(vm, "PUT", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
+}
+
+static Value uhttp_delete(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        printf("Error: ucoreHttp.delete(url) expects url string.\n");
+        return NIL_VAL;
+    }
+    return http_perform(vm, "DELETE", AS_CSTRING(args[0]), NULL);
+}
+
+static Value uhttp_patch(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        printf("Error: ucoreHttp.patch(url, body) expects url and body strings.\n");
+        return NIL_VAL;
+    }
+    return http_perform(vm, "PATCH", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
+}
+
 
 // ---- Routing ----
 typedef struct Route {
@@ -259,6 +364,146 @@ typedef struct Route {
 } Route;
 
 static Route* g_routes = NULL;
+
+// ---- Middleware ----
+typedef struct Middleware {
+    char* handlerName;
+    struct Middleware* next;
+} Middleware;
+
+static Middleware* g_middleware = NULL;
+
+// ---- Static Files ----
+typedef struct StaticMount {
+    char* urlPrefix;
+    char* dirPath;
+    struct StaticMount* next;
+} StaticMount;
+
+static StaticMount* g_static = NULL;
+
+// Add middleware
+static Value uhttp_use(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        printf("Error: ucoreHttp.use(handlerName) expects string.\n");
+        return BOOL_VAL(false);
+    }
+    
+    Middleware* m = malloc(sizeof(Middleware));
+    m->handlerName = strdup(AS_CSTRING(args[0]));
+    m->next = g_middleware;
+    g_middleware = m;
+    
+    return BOOL_VAL(true);
+}
+
+// Mount static files
+static Value uhttp_static(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        printf("Error: ucoreHttp.static(urlPrefix, dirPath) expects 2 strings.\n");
+        return BOOL_VAL(false);
+    }
+    
+    StaticMount* s = malloc(sizeof(StaticMount));
+    s->urlPrefix = strdup(AS_CSTRING(args[0]));
+    s->dirPath = strdup(AS_CSTRING(args[1]));
+    s->next = g_static;
+    g_static = s;
+    
+    return BOOL_VAL(true);
+}
+
+// Try to serve static file, returns true if served
+static bool tryServeStatic(int socket, const char* path) {
+    StaticMount* s = g_static;
+    while (s) {
+        size_t prefixLen = strlen(s->urlPrefix);
+        if (strncmp(path, s->urlPrefix, prefixLen) == 0) {
+            // Build file path
+            char filePath[2048];
+            snprintf(filePath, sizeof(filePath), "%s%s", s->dirPath, path + prefixLen);
+            
+            FILE* f = fopen(filePath, "rb");
+            if (f) {
+                // Get file size
+                fseek(f, 0, SEEK_END);
+                long size = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                
+                // Determine content type
+                const char* ct = "application/octet-stream";
+                if (strstr(filePath, ".html")) ct = "text/html";
+                else if (strstr(filePath, ".css")) ct = "text/css";
+                else if (strstr(filePath, ".js")) ct = "application/javascript";
+                else if (strstr(filePath, ".json")) ct = "application/json";
+                else if (strstr(filePath, ".png")) ct = "image/png";
+                else if (strstr(filePath, ".jpg") || strstr(filePath, ".jpeg")) ct = "image/jpeg";
+                else if (strstr(filePath, ".svg")) ct = "image/svg+xml";
+                
+                // Send headers
+                char header[512];
+                snprintf(header, sizeof(header),
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: %s\r\n"
+                    "Content-Length: %ld\r\n"
+                    "\r\n", ct, size);
+                send(socket, header, strlen(header), 0);
+                
+                // Send file content
+                char buf[4096];
+                size_t n;
+                while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+                    send(socket, buf, n, 0);
+                }
+                fclose(f);
+                return true;
+            }
+        }
+        s = s->next;
+    }
+    return false;
+}
+
+// Match route pattern with URL params (e.g., /users/:id matches /users/123)
+// Returns true if matched, and populates paramsMap with extracted params
+static bool matchRoute(const char* pattern, const char* path, VM* vm, Map* paramsMap) {
+    const char* p = pattern;
+    const char* u = path;
+    
+    while (*p && *u) {
+        if (*p == ':') {
+            // Extract param name
+            p++; // Skip ':'
+            const char* nameStart = p;
+            while (*p && *p != '/') p++;
+            int nameLen = p - nameStart;
+            
+            // Extract param value from URL
+            const char* valStart = u;
+            while (*u && *u != '/') u++;
+            int valLen = u - valStart;
+            
+            // Add to params map
+            char name[256];
+            if (nameLen < 256) {
+                memcpy(name, nameStart, nameLen);
+                name[nameLen] = '\0';
+                
+                ObjString* valStr = internString(vm, valStart, valLen);
+                mapSetStr(paramsMap, name, nameLen, OBJ_VAL(valStr));
+            }
+        } else {
+            if (*p != *u) return false;
+            p++;
+            u++;
+        }
+    }
+    
+    // Both should be at end for exact match
+    return (*p == '\0' && *u == '\0');
+}
 
 static Value uhttp_route(VM* vm, Value* args, int argCount) {
     (void)vm;
@@ -358,15 +603,41 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         char* bodyStart = strstr(buffer, "\r\n\r\n");
         if (bodyStart) body = bodyStart + 4;
         
-        // Determine Handler
+        // Parse path and query string first (needed for route matching)
+        char cleanPath[1024];
+        char queryStr[1024] = {0};
+        char* queryStart = strchr(path, '?');
+        if (queryStart) {
+            int pathLen = queryStart - path;
+            memcpy(cleanPath, path, pathLen);
+            cleanPath[pathLen] = '\0';
+            strncpy(queryStr, queryStart + 1, sizeof(queryStr) - 1);
+        } else {
+            strncpy(cleanPath, path, sizeof(cleanPath) - 1);
+            cleanPath[sizeof(cleanPath) - 1] = '\0';
+        }
+        
+        // Try serving static file first
+        if (tryServeStatic(new_socket, cleanPath)) {
+            close(new_socket);
+            continue;
+        }
+        
+        // req.params - will be populated by route matching
+        Map* paramsMap = newMap(vm);
+        
+        // Determine Handler (with pattern matching)
         Function* targetHandler = mainHandler;
         if (!targetHandler) {
             // Check routes
             Route* r = g_routes;
             while (r) {
-                if (strcmp(r->method, method) == 0 && strcmp(r->path, path) == 0) {
-                    targetHandler = findFunctionByName(vm, r->handlerName);
-                    break;
+                if (strcmp(r->method, method) == 0) {
+                    // Try pattern matching (supports :param syntax)
+                    if (matchRoute(r->path, cleanPath, vm, paramsMap)) {
+                        targetHandler = findFunctionByName(vm, r->handlerName);
+                        break;
+                    }
                 }
                 r = r->next;
             }
@@ -380,14 +651,28 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
             continue;
         }
         
-        // Build Request Map
+        // Build Request Map (Express-style)
         Map* reqMap = newMap(vm);
         Value vMethod = OBJ_VAL(internString(vm, method, (int)strlen(method)));
         mapSetStr(reqMap, "method", 6, vMethod);
         
-        Value vPath = OBJ_VAL(internString(vm, path, (int)strlen(path)));
+        Value vPath = OBJ_VAL(internString(vm, cleanPath, (int)strlen(cleanPath)));
         mapSetStr(reqMap, "path", 4, vPath);
+        
+        // req.query - parsed query string
+        Map* queryMap = newMap(vm);
+        parseQueryString(vm, queryMap, queryStr);
+        mapSetStr(reqMap, "query", 5, OBJ_VAL(queryMap));
+        
+        // req.headers - parsed headers
+        Map* headerMap = newMap(vm);
+        parseHeaders(vm, headerMap, buffer);
+        mapSetStr(reqMap, "headers", 7, OBJ_VAL(headerMap));
+        
+        // req.params - already populated by route matching
+        mapSetStr(reqMap, "params", 6, OBJ_VAL(paramsMap));
 
+        // req.body
         Value vBody = OBJ_VAL(internString(vm, body, (int)strlen(body)));
         mapSetStr(reqMap, "body", 4, vBody);
         
@@ -399,21 +684,71 @@ static Value uhttp_listen(VM* vm, Value* args, int argCount) {
         
         Value resVal = callFunction(vm, targetHandler, handlerArgs, 1);
         
-        // Send Response
-        char respBuffer[4096];
+        // Send Response - Support both string and Map responses
+        char respBuffer[8192];
+        int statusCode = 200;
+        const char* contentType = "text/plain";
         char* content = "";
+        bool freeContent = false;
+        
         if (IS_STRING(resVal)) {
+            // Simple string response
             content = AS_CSTRING(resVal);
+        } else if (IS_MAP(resVal)) {
+            // Map response: {status: 201, contentType: "application/json", body: "..."}
+            Map* resMap = (Map*)AS_OBJ(resVal);
+            
+            // Get status code
+            int bucket;
+            MapEntry* statusEntry = mapFindEntry(resMap, "status", 6, &bucket);
+            if (statusEntry && IS_INT(statusEntry->value)) {
+                statusCode = AS_INT(statusEntry->value);
+            }
+            
+            // Get content type
+            MapEntry* typeEntry = mapFindEntry(resMap, "contentType", 11, &bucket);
+            if (typeEntry && IS_STRING(typeEntry->value)) {
+                contentType = AS_CSTRING(typeEntry->value);
+            }
+            
+            // Get body
+            MapEntry* bodyEntry = mapFindEntry(resMap, "body", 4, &bucket);
+            if (bodyEntry) {
+                if (IS_STRING(bodyEntry->value)) {
+                    content = AS_CSTRING(bodyEntry->value);
+                } else {
+                    // Auto-serialize non-string body to JSON
+                    int cap = 1024, len = 0;
+                    char* buf = malloc(cap);
+                    buf[0] = '\0';
+                    json_serialize_val(bodyEntry->value, &buf, &len, &cap);
+                    content = buf;
+                    freeContent = true;
+                    contentType = "application/json";
+                }
+            }
         }
         
+        // Build HTTP response
+        const char* statusText = "OK";
+        if (statusCode == 201) statusText = "Created";
+        else if (statusCode == 204) statusText = "No Content";
+        else if (statusCode == 400) statusText = "Bad Request";
+        else if (statusCode == 401) statusText = "Unauthorized";
+        else if (statusCode == 403) statusText = "Forbidden";
+        else if (statusCode == 404) statusText = "Not Found";
+        else if (statusCode == 500) statusText = "Internal Server Error";
+        
         snprintf(respBuffer, sizeof(respBuffer), 
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/plain\r\n"
+            "HTTP/1.1 %d %s\r\n"
+            "Content-Type: %s\r\n"
             "Content-Length: %ld\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
-            "%s", strlen(content), content);
+            "%s", statusCode, statusText, contentType, strlen(content), content);
             
         send(new_socket, respBuffer, strlen(respBuffer), 0);
+        if (freeContent) free(content);
         
         close(new_socket);
     }
@@ -440,9 +775,14 @@ void registerUCoreHttp(VM* vm) {
     
     defineNative(vm, mod->env, "get", uhttp_get, 1);
     defineNative(vm, mod->env, "post", uhttp_post, 2);
+    defineNative(vm, mod->env, "put", uhttp_put, 2);
+    defineNative(vm, mod->env, "delete", uhttp_delete, 1);
+    defineNative(vm, mod->env, "patch", uhttp_patch, 2);
     defineNative(vm, mod->env, "listen", uhttp_listen, 2);
     defineNative(vm, mod->env, "json", uhttp_json, 1);
     defineNative(vm, mod->env, "route", uhttp_route, 3);
+    defineNative(vm, mod->env, "use", uhttp_use, 1);
+    defineNative(vm, mod->env, "static", uhttp_static, 2);
     
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreHttp", vMod);

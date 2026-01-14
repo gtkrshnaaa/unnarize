@@ -1,0 +1,105 @@
+// ucoreHttp Express-Style Complete Demo
+// Tests ALL new features: methods, query, params, response builder, static files
+
+// === Handlers ===
+
+// Simple health check (backwards compatible string return)
+function handleHealth(req) {
+    return "OK";
+}
+
+// List users - Auto JSON serialization
+function handleGetUsers(req) {
+    print("GET /api/users");
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 200;
+    response["body"] = ucoreJson.parse('[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]');
+    return response;
+}
+
+// Get user by ID - URL params (:id)
+function handleGetUser(req) {
+    var userId = req["params"]["id"];
+    print("GET /api/users/" + userId);
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 200;
+    response["contentType"] = "application/json";
+    response["body"] = '{"id": ' + userId + ', "name": "User ' + userId + '"}';
+    return response;
+}
+
+// Create user - POST with 201 status
+function handleCreateUser(req) {
+    print("POST /api/users - Body: " + req["body"]);
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 201;
+    response["contentType"] = "application/json";
+    response["body"] = '{"message": "User created", "id": 123}';
+    return response;
+}
+
+// Search - Query params (?q=...)
+function handleSearch(req) {
+    var query = req["query"];
+    print("GET /search - Query params received");
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 200;
+    response["contentType"] = "application/json";
+    response["body"] = '{"message": "Search received"}';
+    return response;
+}
+
+// Update user - PUT
+function handleUpdateUser(req) {
+    var userId = req["params"]["id"];
+    print("PUT /api/users/" + userId + " - Body: " + req["body"]);
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 200;
+    response["body"] = '{"message": "User updated", "id": ' + userId + '}';
+    return response;
+}
+
+// Delete user - DELETE
+function handleDeleteUser(req) {
+    var userId = req["params"]["id"];
+    print("DELETE /api/users/" + userId);
+    
+    var response = ucoreJson.parse('{}');
+    response["status"] = 204;
+    response["body"] = "";
+    return response;
+}
+
+// === Setup Routes ===
+ucoreHttp.route("GET", "/health", "handleHealth");
+ucoreHttp.route("GET", "/api/users", "handleGetUsers");
+ucoreHttp.route("GET", "/api/users/:id", "handleGetUser");
+ucoreHttp.route("POST", "/api/users", "handleCreateUser");
+ucoreHttp.route("PUT", "/api/users/:id", "handleUpdateUser");
+ucoreHttp.route("DELETE", "/api/users/:id", "handleDeleteUser");
+ucoreHttp.route("GET", "/search", "handleSearch");
+
+// === Static Files ===
+// ucoreHttp.static("/public", "./public");
+
+// === Server ===
+print("=== ucoreHttp Express-Style Server ===");
+print("http://localhost:3000");
+print("");
+print("Endpoints:");
+print("  GET    /health              - Health check");
+print("  GET    /api/users           - List users (auto-JSON)");
+print("  GET    /api/users/:id       - Get user (params)");
+print("  POST   /api/users           - Create user (201)");
+print("  PUT    /api/users/:id       - Update user");
+print("  DELETE /api/users/:id       - Delete user (204)");
+print("  GET    /search?q=query      - Search (query params)");
+print("");
+print("Try: curl http://localhost:3000/api/users/42");
+
+ucoreHttp.listen(3000);
