@@ -35,12 +35,12 @@ The Unnarize GC (v2) uses a sophisticated hybrid architecture:
 | Feature | Unnarize (v2) | Node.js (V8) | Go |
 |---------|---------------|--------------|----|
 | **Algorithm** | Generational Mark-Sweep | Mark-Sweep-Compact | Tri-color Mark-Sweep |
-| **Tri-color invariant** | ✅ (Write Barriers) | ✅ | ✅ |
-| **Generational** | ✅ (Nursery/Old) | ✅ | ❌ |
-| **Concurrent Marking** | ✅ (Pthread) | ✅ | ✅ |
-| **Parallel Sweeping** | ✅ (Background) | ✅ | ✅ |
-| **Compaction** | ✅ (Implicit) | ✅ | ❌ |
-| **Thread Safety** | ✅ (Mutex/Atomics) | ✅ | ✅ |
+| **Tri-color invariant** | Yes (Write Barriers) | Yes | Yes |
+| **Generational** | Yes (Nursery/Old) | Yes | No |
+| **Concurrent Marking** | Yes (Pthread) | Yes | Yes |
+| **Parallel Sweeping** | Yes (Background) | Yes | Yes |
+| **Compaction** | Yes (Implicit) | Yes | No |
+| **Thread Safety** | Yes (Mutex/Atomics) | Yes | Yes |
 
 **Status: Unnarize now implements 100% of the planned V8-style features.**
 
@@ -105,13 +105,13 @@ Obj* allocateObject(VM* vm, size_t size, ObjType type) {
 
 | Phase | Feature | Status | Impact |
 |-------|---------|--------|--------|
-| **Phase 1** | Stats + Adaptive | ✅ Done | Visibility |
-| **Phase 2** | Incremental Marking | ✅ Done | Reduced Jitter |
-| **Phase 3** | Write Barriers | ✅ Done | Data Integrity |
-| **Phase 4** | Parallel Sweeping | ✅ Done | Zero-Pause Sweep |
-| **Phase 5** | Concurrent Marking | ✅ Done | Zero-Pause Mark |
-| **Phase 6** | Generational | ✅ Done | Cache Locality |
-| **Phase 7** | Thread Safety | ✅ Done | Stability |
+| **Phase 1** | Stats + Adaptive | Done | Visibility |
+| **Phase 2** | Incremental Marking | Done | Reduced Jitter |
+| **Phase 3** | Write Barriers | Done | Data Integrity |
+| **Phase 4** | Parallel Sweeping | Done | Zero-Pause Sweep |
+| **Phase 5** | Concurrent Marking | Done | Zero-Pause Mark |
+| **Phase 6** | Generational | Done | Cache Locality |
+| **Phase 7** | Thread Safety | Done | Stability |
 
 ---
 

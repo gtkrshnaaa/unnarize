@@ -1,4 +1,4 @@
-# Unnarize ⚡
+# Unnarize
 
 ![C](https://img.shields.io/badge/language-C-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -9,28 +9,28 @@
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 🛡️ "Gapless" Garbage Collector
+### "Gapless" Garbage Collector
 Unnarize implements a production-grade GC architecture comparable to V8 (Node.js) and Go:
 *   **Generational Heap**: Separates new objects (Nursery) from long-lived ones (Old Gen) for cache efficiency.
 *   **Concurrent Marking**: Traces object graphs in a background thread without freezing the app.
 *   **Parallel Sweeping**: Cleans up memory in the background, eliminating "Stop-The-World" pauses.
 *   **Thread Safe**: Fully synchronized with Mutexes and Atomic Write Barriers.
 
-### ⚡ Native Async/Await
+### Native Async/Await
 First-class support for non-blocking concurrency:
 *   **`async` / `await`**: Syntactic sugar for handling `Future` objects.
 *   **Event Loop**: Native implementation for handling I/O and background tasks.
 
-### 🛠️ Optimization
+### Optimization
 *   **Computed Goto Dispatch**: Extremely fast instruction dispatching (GCC/Clang extension).
 *   **Specialized Opcodes**: Optimized paths for integers, floats, and local variable access.
 *   **Zero Dependency**: Pure C implementation (standard libc + pthreads).
 
 ---
 
-## 📊 Performance Benchmarks
+## Performance Benchmarks
 
 Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** (TigerLake-LP) with 8GB RAM.
 
@@ -49,7 +49,7 @@ Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** (TigerLake-LP) with 8GB RA
 
 ---
 
-## 📦 Quick Start
+## Quick Start
 
 ### Build from Source
 ```bash
@@ -72,7 +72,7 @@ A complete modular application simulating a store management system:
 
 ---
 
-## 📖 Language Tour
+## Language Tour
 
 ### 1. Generational GC in Action
 The GC works silently. You create objects, and they are managed automatically.
@@ -120,7 +120,7 @@ print(u.name); // "Alice"
 
 ---
 
-## 📚 Core Libraries
+## Core Libraries
 
 Unnarize comes with a powerful standard library:
 *   **`ucoreSystem`**: File I/O, Environment Variables.
@@ -130,7 +130,7 @@ Unnarize comes with a powerful standard library:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 [Source Code] -> [Lexer] -> [AST] -> [Compiler] -> [Bytecode Chunk]
@@ -141,5 +141,5 @@ Unnarize comes with a powerful standard library:
                                      [Interpreter]    [Heap GC]   [Native Interface]
 ```
 
-## 📄 License
+## License
 MIT License. Created by **gtkrshnaaa**.

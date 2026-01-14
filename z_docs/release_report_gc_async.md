@@ -1,14 +1,14 @@
-# 🚀 Unnarize Major Update Report: GC & Async
+# Unnarize Major Update Report: GC & Async
 
 **Date:** January 15, 2026
 **Branch:** `experiment`
-**Status:** ✅ Stable / Verified
+**Status:** Stable / Verified
 
 This document details the successful implementation of major runtime features: the **"Gapless" Generational Garbage Collector** and the **Native Async/Await** system. It also confirms the successful verification of the entire example suite.
 
 ---
 
-## 1. "Gapless" Garbage Collector (GC) 🛡️
+## 1. "Gapless" Garbage Collector (GC)
 
 We have upgraded the Unnarize VM with a modern, production-grade Garbage Collector comparable to Node.js/Go in design.
 
@@ -30,7 +30,7 @@ We have upgraded the Unnarize VM with a modern, production-grade Garbage Collect
 
 ---
 
-## 2. Native Async/Await ⚡
+## 2. Native Async/Await
 
 Unnarize now supports first-class asynchronous programming.
 
@@ -42,7 +42,7 @@ Unnarize now supports first-class asynchronous programming.
 
 ---
 
-## 3. Comprehensive Verification ✅
+## 3. Comprehensive Verification
 
 We have executed the **entire suite** of example scripts (`examples/`) to ensure zero regressions and full stability.
 
@@ -64,4 +64,4 @@ We have executed the **entire suite** of example scripts (`examples/`) to ensure
 
 The Unnarize VM has reached a new level of maturity. The combination of **Generational GC** and **Async Runtime** provides a powerful foundation for building high-performance, long-running applications (servers, daemons) without fear of memory leaks or blocking pauses.
 
-**Ready for Deployment.** 🚀
+**Ready for Deployment.**

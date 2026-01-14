@@ -9,47 +9,47 @@
 ## Overview
 
 This document outlines improvements to the Unnarize Virtual Machine (Now Completed):
-1. **Loop optimizations** ✅ - Specialized opcodes for i++/i--
-2. **Async/Await** ✅ - Fully implemented with event loop
-3. **GC Improvements** ✅ - "Gapless" Generational GC implemented
+1. **Loop optimizations** [Done] - Specialized opcodes for i++/i--
+2. **Async/Await** [Done] - Fully implemented with event loop
+3. **GC Improvements** [Done] - "Gapless" Generational GC implemented
 
 ---
 
 ## Current State Analysis
 
-### Opcode System ✅ (Well-Optimized)
+### Opcode System (Well-Optimized)
 
 | Optimization | Status |
 |-------------|--------|
-| Computed goto dispatch | ✅ |
-| Specialized int/float ops | ✅ |
-| Fast local access | ✅ |
-| Optimized calls | ✅ |
-| OP_INC_LOCAL / OP_DEC_LOCAL | ✅ NEW |
+| Computed goto dispatch | Done |
+| Specialized int/float ops | Done |
+| Fast local access | Done |
+| Optimized calls | Done |
+| OP_INC_LOCAL / OP_DEC_LOCAL | Done (New) |
 
-### Async System ✅ (Implemented)
+### Async System (Implemented)
 
 | Component | Status |
 |-----------|--------|
-| `Future` struct | ✅ |
-| `OP_ASYNC_CALL` opcode | ✅ NEW |
-| `OP_AWAIT` opcode | ✅ NEW |
-| Future resolution | ✅ |
+| `Future` struct | Done |
+| `OP_ASYNC_CALL` opcode | Done (New) |
+| `OP_AWAIT` opcode | Done (New) |
+| Future resolution | Done |
 
 **Result:** Async/await native runtime fully verified.
 
-### GC System ✅ (Completed)
+### GC System (Completed)
 
 | Feature | Status |
 |---------|--------|
-| Tri-color mark-sweep | ✅ |
-| Stats tracking | ✅ |
-| Adaptive threshold | ✅ |
-| Incremental marking | ✅ |
-| Write barriers | ✅ |
-| Generational Promotion | ✅ |
-| Parallel Sweeping | ✅ |
-| Thread Safety (Mutex) | ✅ |
+| Tri-color mark-sweep | Done |
+| Stats tracking | Done |
+| Adaptive threshold | Done |
+| Incremental marking | Done |
+| Write barriers | Done |
+| Generational Promotion | Done |
+| Parallel Sweeping | Done |
+| Thread Safety (Mutex) | Done |
 
 ---
 
@@ -84,13 +84,13 @@ See detailed documentation: `z_docs/gc_improvement.md`
 
 | Feature | Status |
 |---------|--------|
-| Stats (pause time, freed) | ✅ Done |
-| Adaptive threshold | ✅ Done |
-| Phase tracking | ✅ Done |
-| Incremental marking | ✅ Done |
-| Write barriers | ✅ Done (Verified in interpreter.c) |
-| Parallel Sweeping | ✅ Done (Concurrent thread) |
-| Generational | ✅ Done (Nursery + Old Gen) |
+| Stats (pause time, freed) | Done |
+| Adaptive threshold | Done |
+| Phase tracking | Done |
+| Incremental marking | Done |
+| Write barriers | Done (Verified in interpreter.c) |
+| Parallel Sweeping | Done (Concurrent thread) |
+| Generational | Done (Nursery + Old Gen) |
 
 **Result:** "Gapless" GC verified under heavy stress tests (50k objects, 15k requests).
 
@@ -101,21 +101,21 @@ See detailed documentation: `z_docs/gc_improvement.md`
 ```bash
 # Async test
 unnarize examples/basics/11_async.unna
-# Expected: Got: Data:API, Got: Data:Database ✅
+# Expected: Got: Data:API, Got: Data:Database [PASS]
 
 # GC stress test
 unnarize examples/garbagecollection/stress_test.unna
-# Expected: Created 50,000 total items... PASSED ✅
+# Expected: Created 50,000 total items... PASSED [PASS]
 
 # Full Verification
 unnarize examples/testcase/main.unna
-# Expected: SME Store System shutdown complete ✅
+# Expected: SME Store System shutdown complete [PASS]
 ```
 unnarize examples/garbagecollection/stress_test.unna
-# Expected: ALL TESTS PASSED ✅
+# Expected: ALL TESTS PASSED [PASS]
 
 # Build verification
-sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean!" ✅
+sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean!" [PASS]
 ```
 
 ---
@@ -124,8 +124,7 @@ sudo make install 2>&1 | grep -E "(warning|error)" || echo "Clean!" ✅
 
 | Phase | Status | Improvement |
 |-------|--------|-------------|
-| Loop opcodes | ✅ Done | 36% faster |
-| Async/Await | ✅ Done | 100% working |
-| GC Phase 1 | ✅ Done | Stats + adaptive |
-| GC Phase 2 | 🔄 In Progress | Incremental marking |
-
+| Loop opcodes | Done | 36% faster |
+| Async/Await | Done | 100% working |
+| GC Phase 1 | Done | Stats + adaptive |
+| GC Phase 2 | Done | Incremental marking |
