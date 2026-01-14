@@ -62,10 +62,10 @@ This document details the Garbage Collector improvements implemented to support 
 | **Phase 2** | Incremental Marking | ✅ Done | ~50% |
 | **Phase 3** | Write Barriers | ✅ Done | Required for P2 |
 | **Phase 4** | Parallel Sweeping | Deferred* | ~30% |
-| **Phase 5** | Concurrent Marking | Planned | ~70% |
+| **Phase 5** | Concurrent Marking | ✅ Done | ~70% |
 | **Phase 6** | Generational | Planned | ~80% |
 
-*Phase 4 deferred: Threading adds complexity and risk to stability.
+*Phase 4 (parallel sweeping) deferred: threading complexity. Phase 5 (concurrent marking) implemented instead.
 
 ### Test Examples
 
