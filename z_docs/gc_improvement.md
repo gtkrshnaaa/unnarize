@@ -59,11 +59,18 @@ This document details the Garbage Collector improvements implemented to support 
 |-------|---------|--------|-----------------|
 | **Current** | Basic Mark-Sweep | ✅ Done | Baseline |
 | **Phase 1** | Stats + Adaptive | ✅ Done | ~10% |
-| **Phase 2** | Incremental Marking | 2-3 days | ~50% |
-| **Phase 3** | Write Barriers | 2 days | Required for P2 |
-| **Phase 4** | Parallel Sweeping | 3-4 days | ~30% |
-| **Phase 5** | Concurrent Marking | 1 week | ~70% |
-| **Phase 6** | Generational | 2 weeks | ~80% |
+| **Phase 2** | Incremental Marking | ✅ Done | ~50% |
+| **Phase 3** | Write Barriers | Planned | Required for P2 |
+| **Phase 4** | Parallel Sweeping | Planned | ~30% |
+| **Phase 5** | Concurrent Marking | Planned | ~70% |
+| **Phase 6** | Generational | Planned | ~80% |
+
+### Test Examples
+
+All tests in `examples/garbagecollection/`:
+- `stress_test.unna` - 50K items, maps, strings ✅
+- `benchmark.unna` - 70K allocations ✅  
+- `long_running.unna` - 15K requests simulation ✅
 
 ### Key Differences Explained
 
