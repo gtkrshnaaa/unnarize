@@ -43,6 +43,15 @@ void markObject(VM* vm, Obj* object) {
     if (object == NULL) return;
     if (object->isMarked) return;
     
+    // Thread Safety: Lock if concurrent GC is active
+    if (gcConcurrentActive) pthread_mutex_lock(&gcMutex);
+    
+    // Double check after lock
+    if (object->isMarked) {
+        if (gcConcurrentActive) pthread_mutex_unlock(&gcMutex);
+        return;
+    }
+    
     object->isMarked = true;
     
     if (vm->grayCapacity < vm->grayCount + 1) {
@@ -52,7 +61,32 @@ void markObject(VM* vm, Obj* object) {
     }
     
     vm->grayStack[vm->grayCount++] = object;
+    
+    if (gcConcurrentActive) pthread_mutex_unlock(&gcMutex);
 }
+
+// Re-gray a potentially black object (for Write Barrier)
+void grayObject(VM* vm, Obj* object) {
+    if (object == NULL) return;
+    
+    // Thread Safety
+    if (gcConcurrentActive) pthread_mutex_lock(&gcMutex);
+    
+    // Force push to gray stack even if already marked
+    if (vm->grayCapacity < vm->grayCount + 1) {
+        vm->grayCapacity = GROW_CAPACITY(vm->grayCapacity);
+        vm->grayStack = (Obj**)realloc(vm->grayStack, sizeof(Obj*) * vm->grayCapacity);
+        if (vm->grayStack == NULL) exit(1);
+    }
+    
+    vm->grayStack[vm->grayCount++] = object;
+    
+    if (gcConcurrentActive) pthread_mutex_unlock(&gcMutex);
+}
+
+// ... (markValue, etc same)
+
+
 
 void markValue(VM* vm, Value value) {
     if (IS_OBJ(value)) markObject(vm, AS_OBJ(value));
@@ -498,9 +532,8 @@ static void* concurrentMarkWorker(void* arg) {
     pthread_mutex_lock(&gcMutex);
     gcConcurrentActive = 1;
     
-    // Mark roots (must be done atomically)
-    vm->gcPhase = 1;  // GC_MARKING
-    markRoots(vm);
+    // Roots already marked by main thread (STW) before spawning
+    // vm->gcPhase = 1;  // Already set
     
     // Trace incrementally
     while (vm->grayCount > 0) {
@@ -595,6 +628,11 @@ void collectGarbageConcurrent(VM* vm, int workUnits) {
     }
     
     pthread_mutex_unlock(&gcMutex);
+    
+    // Phase 1: Mark Roots (STW - Main Thread)
+    // Must be done HERE, before spawning thread, to ensure stack safety.
+    vm->gcPhase = 1; // GC_MARKING
+    markRoots(vm);
     
     ConcurrentGCArgs* args = malloc(sizeof(ConcurrentGCArgs));
     args->vm = vm;

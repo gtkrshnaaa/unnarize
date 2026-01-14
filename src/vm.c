@@ -101,7 +101,7 @@ unsigned int hash(const char* key, int length) {
 Obj* allocateObject(VM* vm, size_t size, ObjType type) {
     Obj* object = (Obj*)reallocate(vm, NULL, 0, size);
     object->type = type;
-    object->isMarked = false;
+    object->isMarked = (vm->gcPhase == 1 || isGCActive()); // Allocate Black during Marking to prevent Stack leaks
     object->generation = 0;
     
     // Generational allocation: add to nursery

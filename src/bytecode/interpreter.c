@@ -382,6 +382,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         while (entry) {
             if (entry->key == name->chars) {
                 entry->value = sp[-1]; 
+                WRITE_BARRIER(vm, vm->globalEnv); // Barrier
                 goto global_stored;
             }
             entry = entry->next;
@@ -395,6 +396,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         newEntry->value = sp[-1];
         newEntry->next = vm->globalEnv->buckets[h];
         vm->globalEnv->buckets[h] = newEntry;
+        WRITE_BARRIER(vm, vm->globalEnv); // Barrier
         
         global_stored:
         NEXT();
@@ -411,6 +413,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         while (entry) {
             if (entry->key == name->chars) {
                 entry->value = sp[-1];
+                WRITE_BARRIER(vm, vm->globalEnv); // Barrier
                 goto global_defined;
             }
             entry = entry->next;
@@ -424,6 +427,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         newEntry->value = sp[-1];
         newEntry->next = vm->globalEnv->buckets[h];
         vm->globalEnv->buckets[h] = newEntry;
+        WRITE_BARRIER(vm, vm->globalEnv); // Barrier
         
         global_defined:
         NEXT();
@@ -1160,6 +1164,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                 }
                 if (fieldIdx != -1) {
                     inst->fields[fieldIdx] = val;
+                    WRITE_BARRIER(vm, inst); // Barrier
                 } else {  printf("Runtime Error: Struct '%s' has no field '%s'.\n", inst->def->name, name->chars);
                     exit(1);
                 }
@@ -1234,14 +1239,17 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                     arr->count = idx + 1;
                 }
                 arr->items[idx] = value;
+                WRITE_BARRIER(vm, arr); // Barrier
             }
         } else if (IS_MAP(target)) {
             Map* map = (Map*)AS_OBJ(target);
             if (IS_STRING(index)) {
                 ObjString* key = AS_STRING(index);
                 mapSetStr(map, key->chars, key->length, value);
+                WRITE_BARRIER(vm, map); // Barrier
             } else if (IS_INT(index)) {
                 mapSetInt(map, (int)AS_INT(index), value);
+                WRITE_BARRIER(vm, map); // Barrier
             }
         }
         // Map indexing handled separately
@@ -1308,6 +1316,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
             arrayPush(vm, arr, val);
+            WRITE_BARRIER(vm, arr); // Barrier
         }
         NEXT();
     }
@@ -1322,6 +1331,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
             arrayPush(vm, arr, val);
+            WRITE_BARRIER(vm, arr); // Barrier
         }
         NEXT();
     }

@@ -405,26 +405,26 @@ bool isGCActive(void);
 
 Obj* allocateObject(VM* vm, size_t size, ObjType type);
 void freeObject(VM* vm, Obj* object);
+void grayObject(VM* vm, Obj* object);
 void markObject(VM* vm, Obj* object);
 void markValue(VM* vm, Value value);
 
-// Write barrier: call when modifying object references during GC marking phase
-// This ensures the tri-color invariant is maintained for incremental GC
-#define WRITE_BARRIER(vm, obj) do { \
-    if ((vm)->gcPhase == 1 && (obj) != NULL && !((Obj*)(obj))->isMarked) { \
-        markObject((vm), (Obj*)(obj)); \
-    } \
-} while(0)
-
-// Write barrier for Values containing objects
-#define WRITE_BARRIER_VALUE(vm, val) do { \
-    if ((vm)->gcPhase == 1 && IS_OBJ(val)) { \
-        Obj* _obj = AS_OBJ(val); \
-        if (_obj != NULL && !_obj->isMarked) { \
-            markObject((vm), _obj); \
+// Write Barrier: Maintain Tri-Color Invariant during concurrent marking
+// If 'obj' is Black (marked), we must revert it to Gray (push to stack) 
+// to ensure its new children are scanned.
+#define WRITE_BARRIER(vm, obj) \
+    do { \
+        if (isGCActive() && ((Obj*)(obj))->isMarked) { \
+            grayObject((vm), (Obj*)(obj)); \
         } \
-    } \
-} while(0)
+    } while(0)
+
+#define WRITE_BARRIER_VALUE(vm, val) \
+    do { \
+        if (IS_OBJ(val)) WRITE_BARRIER(vm, AS_OBJ(val)); \
+    } while(0)
+
+
 
 // Register core built-in functions (has, keys, len, etc.)
 // String concatenation helper (exposed for VM)
