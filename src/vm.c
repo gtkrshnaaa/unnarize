@@ -1536,6 +1536,8 @@ void initVM(VM* vm) {
     vm->gcLastPauseUs = 0;
     vm->gcTotalFreed = 0;
     vm->gcPeakMemory = 0;
+    vm->gcLastCollectTime = 0;
+    vm->gcBytesAllocSinceGC = 0;
 
 }
 
