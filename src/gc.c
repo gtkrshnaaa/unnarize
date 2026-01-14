@@ -176,6 +176,18 @@ static void traceReferences(VM* vm) {
     }
 }
 
+// Incremental tracing: process up to 'workUnits' objects per call
+// Returns number of remaining gray objects
+static int traceReferencesIncremental(VM* vm, int workUnits) {
+    int processed = 0;
+    while (vm->grayCount > 0 && processed < workUnits) {
+        Obj* object = vm->grayStack[--vm->grayCount];
+        blackenObject(vm, object);
+        processed++;
+    }
+    return vm->grayCount;
+}
+
 void freeObject(VM* vm, Obj* object) {
     (void)vm;
     switch (object->type) {
@@ -389,4 +401,52 @@ void collectGarbage(VM* vm) {
     if (vm->nextGC < 1024 * 256) {
         vm->nextGC = 1024 * 256;  // Minimum 256KB
     }
+}
+
+// Incremental GC for long-running processes
+// workUnits: number of objects to process per call (default: 100)
+// Returns: true if collection complete, false if more work needed
+bool collectGarbageIncremental(VM* vm, int workUnits) {
+    // Phase 0: Not started - begin marking
+    if (vm->gcPhase == 0) {
+        // Track peak memory
+        if (vm->bytesAllocated > vm->gcPeakMemory) {
+            vm->gcPeakMemory = vm->bytesAllocated;
+        }
+        
+        vm->gcPhase = 1;  // GC_MARKING
+        markRoots(vm);
+        // Don't trace yet, will do incrementally
+        return false;
+    }
+    
+    // Phase 1: Marking in progress
+    if (vm->gcPhase == 1) {
+        int remaining = traceReferencesIncremental(vm, workUnits);
+        if (remaining == 0) {
+            // Marking complete, start sweep
+            vm->gcPhase = 2;
+        }
+        return false;
+    }
+    
+    // Phase 2: Sweeping
+    if (vm->gcPhase == 2) {
+        size_t freedBytes = sweep(vm);
+        vm->gcPhase = 0;  // GC_IDLE
+        
+        // Update statistics
+        vm->gcCollectCount++;
+        vm->gcTotalFreed += freedBytes;
+        
+        // Adaptive threshold
+        vm->nextGC = vm->bytesAllocated * 2;
+        if (vm->nextGC < 1024 * 256) {
+            vm->nextGC = 1024 * 256;
+        }
+        
+        return true;  // Collection complete
+    }
+    
+    return true;
 }
