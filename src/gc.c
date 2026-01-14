@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <pthread.h>
 #include "bytecode/chunk.h"
+
+// Concurrent GC state
+static pthread_mutex_t gcMutex = PTHREAD_MUTEX_INITIALIZER;
+static volatile int gcConcurrentActive = 0;
 
 // GC Helpers
 void markObject(VM* vm, Obj* object);
@@ -449,4 +454,119 @@ bool collectGarbageIncremental(VM* vm, int workUnits) {
     }
     
     return true;
+}
+
+// Concurrent GC thread worker
+typedef struct {
+    VM* vm;
+    int workUnits;
+} ConcurrentGCArgs;
+
+static void* concurrentMarkWorker(void* arg) {
+    ConcurrentGCArgs* args = (ConcurrentGCArgs*)arg;
+    VM* vm = args->vm;
+    int workUnits = args->workUnits;
+    
+    pthread_mutex_lock(&gcMutex);
+    gcConcurrentActive = 1;
+    
+    // Mark roots (must be done atomically)
+    vm->gcPhase = 1;  // GC_MARKING
+    markRoots(vm);
+    
+    // Trace incrementally
+    while (vm->grayCount > 0) {
+        int batch = (vm->grayCount < workUnits) ? vm->grayCount : workUnits;
+        for (int i = 0; i < batch && vm->grayCount > 0; i++) {
+            Obj* object = vm->grayStack[--vm->grayCount];
+            // blackenObject is called inline here
+            switch (object->type) {
+                case OBJ_FUNCTION: {
+                    Function* func = (Function*)object;
+                    if (func->closure) markObject(vm, (Obj*)func->closure);
+                    if (func->bytecodeChunk) {
+                        for (int j = 0; j < func->bytecodeChunk->constantCount; j++) {
+                            markValue(vm, func->bytecodeChunk->constants[j]);
+                        }
+                    }
+                    break;
+                }
+                case OBJ_ARRAY: {
+                    Array* arr = (Array*)object;
+                    for (int j = 0; j < arr->count; j++) {
+                        markValue(vm, arr->items[j]);
+                    }
+                    break;
+                }
+                case OBJ_MAP: {
+                    Map* m = (Map*)object;
+                    for (int j = 0; j < TABLE_SIZE; j++) {
+                        MapEntry* e = m->buckets[j];
+                        while (e) {
+                            markValue(vm, e->value);
+                            e = e->next;
+                        }
+                    }
+                    break;
+                }
+                case OBJ_ENVIRONMENT: {
+                    Environment* env = (Environment*)object;
+                    if (env->enclosing) markObject(vm, (Obj*)env->enclosing);
+                    for (int j = 0; j < TABLE_SIZE; j++) {
+                        VarEntry* ve = env->buckets[j];
+                        while (ve) { markValue(vm, ve->value); ve = ve->next; }
+                    }
+                    break;
+                }
+                default: break;
+            }
+        }
+        // Brief yield to reduce contention
+        pthread_mutex_unlock(&gcMutex);
+        struct timespec ts = {0, 100000}; // 100 microseconds
+        nanosleep(&ts, NULL);
+        pthread_mutex_lock(&gcMutex);
+    }
+    
+    // Sweep (must be exclusive)
+    vm->gcPhase = 2;
+    size_t freedBytes = sweep(vm);
+    vm->gcPhase = 0;
+    
+    vm->gcCollectCount++;
+    vm->gcTotalFreed += freedBytes;
+    vm->gcLastCollectTime = getCurrentTimeUs();
+    
+    // Adaptive threshold
+    vm->nextGC = vm->bytesAllocated * 2;
+    if (vm->nextGC < 1024 * 256) vm->nextGC = 1024 * 256;
+    
+    gcConcurrentActive = 0;
+    pthread_mutex_unlock(&gcMutex);
+    
+    free(args);
+    return NULL;
+}
+
+// Start concurrent GC in background thread
+void collectGarbageConcurrent(VM* vm, int workUnits) {
+    // Don't start if already running
+    if (gcConcurrentActive) return;
+    
+    ConcurrentGCArgs* args = malloc(sizeof(ConcurrentGCArgs));
+    args->vm = vm;
+    args->workUnits = workUnits > 0 ? workUnits : 50;
+    
+    pthread_t thread;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    
+    pthread_create(&thread, &attr, concurrentMarkWorker, args);
+    pthread_attr_destroy(&attr);
+}
+
+// Check if concurrent GC is active
+bool isGCActive(void) {
+    return gcConcurrentActive != 0;
 }
