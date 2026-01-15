@@ -105,6 +105,12 @@ static void enableRawMode(void) {
     raw_mode_active = 1;
 }
 
+// Helper to read single character with explicit return value handling
+static int readChar(char* c) {
+    ssize_t n = read(STDIN_FILENO, c, 1);
+    return (n == 1) ? 1 : 0;
+}
+
 // ============================================================================
 // Helper: Color Name to ANSI Code
 // ============================================================================
@@ -126,7 +132,7 @@ static const char* colorNameToFg(const char* name) {
     if (strcmp(name, "brightMagenta") == 0) return FG_BRIGHT_MAGENTA;
     if (strcmp(name, "brightCyan") == 0) return FG_BRIGHT_CYAN;
     if (strcmp(name, "brightWhite") == 0) return FG_BRIGHT_WHITE;
-    return FG_WHITE; // Default
+    return FG_WHITE;
 }
 
 static const char* colorNameToBg(const char* name) {
@@ -138,7 +144,7 @@ static const char* colorNameToBg(const char* name) {
     if (strcmp(name, "magenta") == 0) return BG_MAGENTA;
     if (strcmp(name, "cyan") == 0) return BG_CYAN;
     if (strcmp(name, "white") == 0) return BG_WHITE;
-    return BG_BLACK; // Default
+    return BG_BLACK;
 }
 
 // ============================================================================
@@ -198,16 +204,11 @@ static Value tui_size(VM* vm, Value* args, int argCount) {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     
     // Create a map with rows and cols
-    Map* m = ALLOCATE_OBJ(vm, Map, OBJ_MAP);
-    memset(m->buckets, 0, sizeof(m->buckets));
+    Map* m = newMap(vm);
     
-    // Add rows
-    ObjString* rowsKey = internString(vm, "rows", 4);
-    mapSet(vm, m, OBJ_VAL(rowsKey), INT_VAL(w.ws_row));
-    
-    // Add cols
-    ObjString* colsKey = internString(vm, "cols", 4);
-    mapSet(vm, m, OBJ_VAL(colsKey), INT_VAL(w.ws_col));
+    // Add rows and cols using available API
+    mapSetStr(m, "rows", 4, INT_VAL(w.ws_row));
+    mapSetStr(m, "cols", 4, INT_VAL(w.ws_col));
     
     return OBJ_VAL(m);
 }
@@ -229,7 +230,7 @@ static Value tui_fg(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", code, text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -246,7 +247,7 @@ static Value tui_bg(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", code, text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -258,7 +259,7 @@ static Value tui_bold(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "1m%s" CSI "0m", text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -270,7 +271,7 @@ static Value tui_dim(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "2m%s" CSI "0m", text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -282,7 +283,7 @@ static Value tui_italic(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "3m%s" CSI "0m", text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -294,12 +295,11 @@ static Value tui_underline(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "4m%s" CSI "0m", text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
 // style(text, styles) - Apply multiple styles
-// styles can be: "bold", "dim", "italic", "underline", "red", "bg:blue", etc.
 static Value tui_style(VM* vm, Value* args, int argCount) {
     if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         return argCount >= 1 ? args[0] : NIL_VAL;
@@ -336,7 +336,7 @@ static Value tui_style(VM* vm, Value* args, int argCount) {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", codes, text);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -351,7 +351,7 @@ static Value tui_keypress(VM* vm, Value* args, int argCount) {
     enableRawMode();
     
     char c;
-    while (read(STDIN_FILENO, &c, 1) != 1) {
+    while (!readChar(&c)) {
         // Wait for input
     }
     
@@ -359,9 +359,8 @@ static Value tui_keypress(VM* vm, Value* args, int argCount) {
     
     if (c == '\033') {
         // Escape sequence
-        char seq[3];
-        if (read(STDIN_FILENO, &seq[0], 1) == 1 && 
-            read(STDIN_FILENO, &seq[1], 1) == 1) {
+        char seq[3] = {0};
+        if (readChar(&seq[0]) && readChar(&seq[1])) {
             if (seq[0] == '[') {
                 switch (seq[1]) {
                     case 'A': strcpy(keyName, "up"); break;
@@ -371,7 +370,7 @@ static Value tui_keypress(VM* vm, Value* args, int argCount) {
                     case 'H': strcpy(keyName, "home"); break;
                     case 'F': strcpy(keyName, "end"); break;
                     case '3':
-                        read(STDIN_FILENO, &seq[2], 1);
+                        (void)readChar(&seq[2]);
                         strcpy(keyName, "delete");
                         break;
                     default: strcpy(keyName, "escape"); break;
@@ -388,16 +387,16 @@ static Value tui_keypress(VM* vm, Value* args, int argCount) {
         strcpy(keyName, "tab");
     } else if (c >= 1 && c <= 26) {
         snprintf(keyName, sizeof(keyName), "ctrl+%c", 'a' + c - 1);
-    } else if (isprint(c)) {
+    } else if (isprint((unsigned char)c)) {
         keyName[0] = c;
         keyName[1] = '\0';
     } else {
-        snprintf(keyName, sizeof(keyName), "unknown:%d", (int)c);
+        snprintf(keyName, sizeof(keyName), "unknown:%d", (int)(unsigned char)c);
     }
     
     disableRawMode();
     
-    ObjString* result = internString(vm, keyName, strlen(keyName));
+    ObjString* result = internString(vm, keyName, (int)strlen(keyName));
     return OBJ_VAL(result);
 }
 
@@ -419,25 +418,24 @@ static Value tui_input(VM* vm, Value* args, int argCount) {
     
     while (1) {
         char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        if (!readChar(&c)) continue;
         
         if (c == '\r' || c == '\n') {
             printf("\r\n");
             break;
         } else if (c == 127 || c == 8) { // Backspace
             if (cursor > 0) {
-                memmove(&buffer[cursor - 1], &buffer[cursor], len - cursor + 1);
+                memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
                 cursor--;
                 len--;
                 
                 // Redraw line
                 printf("\r%s%s \r", prompt, buffer);
-                printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+                printf(CSI "%dG", (int)(strlen(prompt) + (size_t)cursor + 1));
             }
         } else if (c == '\033') { // Escape sequence
-            char seq[3];
-            if (read(STDIN_FILENO, &seq[0], 1) == 1 &&
-                read(STDIN_FILENO, &seq[1], 1) == 1) {
+            char seq[3] = {0};
+            if (readChar(&seq[0]) && readChar(&seq[1])) {
                 if (seq[0] == '[') {
                     if (seq[1] == 'C' && cursor < len) { // Right
                         cursor++;
@@ -450,27 +448,27 @@ static Value tui_input(VM* vm, Value* args, int argCount) {
                         printf("\r" CSI "%dG", (int)(strlen(prompt) + 1));
                     } else if (seq[1] == 'F') { // End
                         cursor = len;
-                        printf("\r" CSI "%dG", (int)(strlen(prompt) + len + 1));
+                        printf("\r" CSI "%dG", (int)(strlen(prompt) + (size_t)len + 1));
                     } else if (seq[1] == '3') { // Delete
-                        read(STDIN_FILENO, &seq[2], 1);
+                        (void)readChar(&seq[2]);
                         if (cursor < len) {
-                            memmove(&buffer[cursor], &buffer[cursor + 1], len - cursor);
+                            memmove(&buffer[cursor], &buffer[cursor + 1], (size_t)(len - cursor));
                             len--;
                             printf("\r%s%s \r", prompt, buffer);
-                            printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+                            printf(CSI "%dG", (int)(strlen(prompt) + (size_t)cursor + 1));
                         }
                     }
                 }
             }
         } else if (c >= 32 && c < 127) { // Printable
             if (len < (int)sizeof(buffer) - 1) {
-                memmove(&buffer[cursor + 1], &buffer[cursor], len - cursor + 1);
+                memmove(&buffer[cursor + 1], &buffer[cursor], (size_t)(len - cursor + 1));
                 buffer[cursor] = c;
                 cursor++;
                 len++;
                 
                 printf("\r%s%s\r", prompt, buffer);
-                printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+                printf(CSI "%dG", (int)(strlen(prompt) + (size_t)cursor + 1));
             }
         } else if (c == 3) { // Ctrl+C
             buffer[0] = '\0';
@@ -504,7 +502,7 @@ static Value tui_inputPassword(VM* vm, Value* args, int argCount) {
     
     while (1) {
         char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        if (!readChar(&c)) continue;
         
         if (c == '\r' || c == '\n') {
             printf("\r\n");
@@ -535,6 +533,7 @@ static Value tui_inputPassword(VM* vm, Value* args, int argCount) {
 
 // confirm(prompt) - Yes/No prompt
 static Value tui_confirm(VM* vm, Value* args, int argCount) {
+    (void)vm;
     const char* prompt = "Confirm?";
     if (argCount >= 1 && IS_STRING(args[0])) {
         prompt = AS_CSTRING(args[0]);
@@ -548,7 +547,7 @@ static Value tui_confirm(VM* vm, Value* args, int argCount) {
     bool result = false;
     while (1) {
         char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        if (!readChar(&c)) continue;
         
         if (c == 'y' || c == 'Y') {
             result = true;
@@ -567,12 +566,13 @@ static Value tui_confirm(VM* vm, Value* args, int argCount) {
 
 // select(prompt, options) - Arrow-key selection menu
 static Value tui_select(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount < 2 || !IS_STRING(args[0]) || !IS_ARRAY(args[1])) {
         return INT_VAL(-1);
     }
     
     const char* prompt = AS_CSTRING(args[0]);
-    Array* options = AS_ARRAY(args[1]);
+    Array* options = (Array*)AS_OBJ(args[1]);
     
     if (options->count == 0) return INT_VAL(-1);
     
@@ -601,12 +601,11 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
         }
         
         char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        if (!readChar(&c)) continue;
         
         if (c == '\033') {
-            char seq[2];
-            if (read(STDIN_FILENO, &seq[0], 1) == 1 &&
-                read(STDIN_FILENO, &seq[1], 1) == 1) {
+            char seq[2] = {0};
+            if (readChar(&seq[0]) && readChar(&seq[1])) {
                 if (seq[0] == '[') {
                     if (seq[1] == 'A' && selected > 0) selected--; // Up
                     if (seq[1] == 'B' && selected < options->count - 1) selected++; // Down
@@ -657,26 +656,27 @@ static Value tui_table(VM* vm, Value* args, int argCount) {
         return NIL_VAL;
     }
     
-    Array* rows = AS_ARRAY(args[0]);
+    Array* rows = (Array*)AS_OBJ(args[0]);
     if (rows->count == 0) return NIL_VAL;
     
     // Determine column count and widths
     int colCount = 0;
     for (int i = 0; i < rows->count; i++) {
         if (IS_ARRAY(rows->items[i])) {
-            Array* row = AS_ARRAY(rows->items[i]);
+            Array* row = (Array*)AS_OBJ(rows->items[i]);
             if (row->count > colCount) colCount = row->count;
         }
     }
     
     if (colCount == 0) return NIL_VAL;
     
-    int* colWidths = calloc(colCount, sizeof(int));
+    int* colWidths = calloc((size_t)colCount, sizeof(int));
+    if (!colWidths) return NIL_VAL;
     
     // Calculate max width per column
     for (int i = 0; i < rows->count; i++) {
         if (!IS_ARRAY(rows->items[i])) continue;
-        Array* row = AS_ARRAY(rows->items[i]);
+        Array* row = (Array*)AS_OBJ(rows->items[i]);
         
         for (int j = 0; j < row->count && j < colCount; j++) {
             char cellBuf[256] = "";
@@ -695,6 +695,10 @@ static Value tui_table(VM* vm, Value* args, int argCount) {
     
     // Build table string
     char* output = malloc(32768);
+    if (!output) {
+        free(colWidths);
+        return NIL_VAL;
+    }
     output[0] = '\0';
     
     // Top border
@@ -708,7 +712,7 @@ static Value tui_table(VM* vm, Value* args, int argCount) {
     // Rows
     for (int i = 0; i < rows->count; i++) {
         if (!IS_ARRAY(rows->items[i])) continue;
-        Array* row = AS_ARRAY(rows->items[i]);
+        Array* row = (Array*)AS_OBJ(rows->items[i]);
         
         strcat(output, BOX_LIGHT_V);
         for (int j = 0; j < colCount; j++) {
@@ -754,7 +758,7 @@ static Value tui_table(VM* vm, Value* args, int argCount) {
     
     free(colWidths);
     
-    ObjString* result = internString(vm, output, strlen(output));
+    ObjString* result = internString(vm, output, (int)strlen(output));
     free(output);
     return OBJ_VAL(result);
 }
@@ -763,15 +767,22 @@ static Value tui_table(VM* vm, Value* args, int argCount) {
 // Tree View
 // ============================================================================
 
+// Helper: lookup string key in map
+static Value mapLookup(Map* m, const char* key, int keyLen) {
+    int bucket;
+    MapEntry* entry = mapFindEntry(m, key, keyLen, &bucket);
+    if (entry) return entry->value;
+    return NIL_VAL;
+}
+
 // Helper: recursive tree builder
 static void buildTree(VM* vm, Value node, char* output, const char* prefix, bool isLast) {
     if (!IS_MAP(node)) return;
     
-    Map* m = AS_MAP(node);
+    Map* m = (Map*)AS_OBJ(node);
     
     // Get name
-    ObjString* nameKey = internString(vm, "name", 4);
-    Value nameVal = mapGet(m, OBJ_VAL(nameKey));
+    Value nameVal = mapLookup(m, "name", 4);
     const char* name = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "?";
     
     // Print current node
@@ -781,11 +792,10 @@ static void buildTree(VM* vm, Value node, char* output, const char* prefix, bool
     strcat(output, "\n");
     
     // Get children
-    ObjString* childKey = internString(vm, "children", 8);
-    Value childVal = mapGet(m, OBJ_VAL(childKey));
+    Value childVal = mapLookup(m, "children", 8);
     
     if (IS_ARRAY(childVal)) {
-        Array* children = AS_ARRAY(childVal);
+        Array* children = (Array*)AS_OBJ(childVal);
         char newPrefix[1024];
         snprintf(newPrefix, sizeof(newPrefix), "%s%s", prefix, isLast ? TREE_SPACE : TREE_PIPE);
         
@@ -801,31 +811,30 @@ static Value tui_tree(VM* vm, Value* args, int argCount) {
         return NIL_VAL;
     }
     
-    Map* root = AS_MAP(args[0]);
+    Map* root = (Map*)AS_OBJ(args[0]);
     
     char* output = malloc(32768);
+    if (!output) return NIL_VAL;
     output[0] = '\0';
     
     // Get root name
-    ObjString* nameKey = internString(vm, "name", 4);
-    Value nameVal = mapGet(root, OBJ_VAL(nameKey));
+    Value nameVal = mapLookup(root, "name", 4);
     const char* rootName = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "root";
     
     strcat(output, rootName);
     strcat(output, "\n");
     
     // Get children
-    ObjString* childKey = internString(vm, "children", 8);
-    Value childVal = mapGet(root, OBJ_VAL(childKey));
+    Value childVal = mapLookup(root, "children", 8);
     
     if (IS_ARRAY(childVal)) {
-        Array* children = AS_ARRAY(childVal);
+        Array* children = (Array*)AS_OBJ(childVal);
         for (int i = 0; i < children->count; i++) {
             buildTree(vm, children->items[i], output, "", i == children->count - 1);
         }
     }
     
-    ObjString* result = internString(vm, output, strlen(output));
+    ObjString* result = internString(vm, output, (int)strlen(output));
     free(output);
     return OBJ_VAL(result);
 }
@@ -860,7 +869,7 @@ static Value tui_progressBar(VM* vm, Value* args, int argCount) {
     
     snprintf(buffer, sizeof(buffer), "[%s] %3d%%", bar, percent);
     
-    ObjString* result = internString(vm, buffer, strlen(buffer));
+    ObjString* result = internString(vm, buffer, (int)strlen(buffer));
     return OBJ_VAL(result);
 }
 
@@ -894,7 +903,7 @@ static Value tui_spinner(VM* vm, Value* args, int argCount) {
     
     Array* arr = newArray(vm);
     for (int i = 0; i < frameCount; i++) {
-        ObjString* s = internString(vm, frames[i], strlen(frames[i]));
+        ObjString* s = internString(vm, frames[i], (int)strlen(frames[i]));
         arrayPush(vm, arr, OBJ_VAL(s));
     }
     
@@ -925,7 +934,7 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
         tl = BOX_LIGHT_TL; tr = BOX_LIGHT_TR;
         bl = BOX_LIGHT_BL; br = BOX_LIGHT_BR;
         h = BOX_LIGHT_H; v = BOX_LIGHT_V;
-    } else { // rounded
+    } else {
         tl = BOX_ROUND_TL; tr = BOX_ROUND_TR;
         bl = BOX_ROUND_BL; br = BOX_ROUND_BR;
         h = BOX_LIGHT_H; v = BOX_LIGHT_V;
@@ -933,7 +942,6 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     
     // Split content by newlines and find max width
     int maxWidth = 0;
-    int lineCount = 1;
     const char* p = content;
     int lineLen = 0;
     
@@ -941,7 +949,6 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
         if (*p == '\n') {
             if (lineLen > maxWidth) maxWidth = lineLen;
             lineLen = 0;
-            lineCount++;
         } else {
             lineLen++;
         }
@@ -950,6 +957,7 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     if (lineLen > maxWidth) maxWidth = lineLen;
     
     char* output = malloc(32768);
+    if (!output) return NIL_VAL;
     output[0] = '\0';
     
     // Top border
@@ -987,7 +995,7 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     strcat(output, br);
     strcat(output, "\n");
     
-    ObjString* result = internString(vm, output, strlen(output));
+    ObjString* result = internString(vm, output, (int)strlen(output));
     free(output);
     return OBJ_VAL(result);
 }
@@ -1002,7 +1010,7 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     const char* content = AS_CSTRING(args[1]);
     
     // Calculate width
-    int titleLen = strlen(title);
+    int titleLen = (int)strlen(title);
     int maxWidth = titleLen + 4;
     
     const char* p = content;
@@ -1019,6 +1027,7 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     if (lineLen > maxWidth) maxWidth = lineLen;
     
     char* output = malloc(32768);
+    if (!output) return NIL_VAL;
     output[0] = '\0';
     
     // Top border with title
@@ -1060,7 +1069,7 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     strcat(output, BOX_ROUND_BR);
     strcat(output, "\n");
     
-    ObjString* result = internString(vm, output, strlen(output));
+    ObjString* result = internString(vm, output, (int)strlen(output));
     free(output);
     return OBJ_VAL(result);
 }
