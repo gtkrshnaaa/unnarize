@@ -29,4 +29,32 @@ print("Upper: " + ucoreString.toUpper(mixed));
 print("Contains 'Na': " + ucoreString.contains(mixed, "Na"));
 print("Contains 'X': " + ucoreString.contains(mixed, "X"));
 
+// 6. Regex Match
+print("");
+print("--- Regex Match ---");
+var email = "test@example.com";
+// POSIX ERE pattern (simpler version)
+if (ucoreString.match(email, "@")) {
+    print("'" + email + "' contains @ symbol");
+}
+
+var text = "Hello World 123";
+if (ucoreString.match(text, "^Hello")) {
+    print("Text starts with 'Hello'");
+}
+if (ucoreString.match(text, "[0-9]+")) {
+    print("Text contains numbers");
+}
+
+// 7. Regex Extract
+print("");
+print("--- Regex Extract ---");
+var logLine = "Error 404 at 10:23:45, Warning 500 at 11:00:00";
+var numbers = ucoreString.extract(logLine, "[0-9]+");
+print("Extracted numbers from log: " + length(numbers) + " matches");
+for (var num : numbers) {
+    print("  - " + num);
+}
+
+print("");
 print("=== Done ===");
