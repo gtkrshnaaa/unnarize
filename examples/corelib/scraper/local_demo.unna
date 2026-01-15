@@ -17,13 +17,13 @@ var safeHtml = "<html><body><div id=p1 class=product><h1>Gaming Mouse</h1><span 
 // We use single quotes for the shell command since safeHtml has no single quotes
 var cmd = "echo '";
 cmd = cmd + safeHtml;
-cmd = cmd + "' > product.html";
+cmd = cmd + "' > examples/corelib/scraper/product.html";
 ucoreSystem.exec(cmd);
 
 print("Created 'product.html'. Parsing...");
 
 // 2. Parse using relative path
-var products = ucoreScraper.parseFile("product.html", ".product");
+var products = ucoreScraper.parseFile("examples/corelib/scraper/product.html", ".product");
 
 if (length(products) > 0) {
     print("Found Product!");
@@ -34,12 +34,12 @@ if (length(products) > 0) {
     // We would need to parseFile again with specific selector if we want children,
     // OR we rely on flattened selector like ".product h1"
     
-    var names = ucoreScraper.parseFile("product.html", ".product h1");
+    var names = ucoreScraper.parseFile("examples/corelib/scraper/product.html", ".product h1");
     if (length(names) > 0) {
         print("Product Name: " + names[0]["text"]);
     }
     
-    var prices = ucoreScraper.parseFile("product.html", ".price");
+    var prices = ucoreScraper.parseFile("examples/corelib/scraper/product.html", ".price");
     if (length(prices) > 0) {
         print("Price: " + prices[0]["text"]);
     }
@@ -48,6 +48,6 @@ if (length(products) > 0) {
 }
 
 // Clean up
-ucoreSystem.exec("rm product.html");
+ucoreSystem.exec("rm examples/corelib/scraper/product.html");
 
 print("=== Done ===");

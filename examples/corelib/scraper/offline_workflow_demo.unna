@@ -1,6 +1,6 @@
 print("=== ucoreScraper Offline Workflow Demo ===");
 var url = "https://en.wikipedia.org/wiki/Data_mining";
-var file = "data_mining.html";
+var file = "examples/corelib/scraper/downloads/data_mining.html";
 
 print("1. Downloading '" + url + "' to '" + file + "'...");
 

@@ -2,21 +2,20 @@ print("=== ucoreScraper Relative Path Demo ===");
 var url = "https://en.wikipedia.org/wiki/Relative_path";
 
 // 1. Simple relative path (current dir)
-print("1. Downloading to current directory './relative.html'...");
-if (ucoreScraper.download(url, "./relative.html")) {
+print("1. Downloading to scraper directory...");
+if (ucoreScraper.download(url, "examples/corelib/scraper/downloads/relative.html")) {
     print("   Success!");
 } else {
     print("   Failed!");
 }
 
 // 2. Subdirectory (should auto-create folders)
-print("2. Downloading to subdirectory './downloads/wiki/relative.html'...");
-// This tests the --create-dirs capability
-if (ucoreScraper.download(url, "downloads/wiki/relative.html")) {
+print("2. Downloading to subdirectory...");
+if (ucoreScraper.download(url, "examples/corelib/scraper/downloads/wiki/relative.html")) {
     print("   Success! Folders were created.");
     
     // Verify file exists by parsing it
-    var check = ucoreScraper.parseFile("downloads/wiki/relative.html", "title");
+    var check = ucoreScraper.parseFile("examples/corelib/scraper/downloads/wiki/relative.html", "title");
     if (length(check) > 0) {
         print("   Verification: Found title '" + check[0]["text"] + "'");
     }

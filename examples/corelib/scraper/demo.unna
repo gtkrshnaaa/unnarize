@@ -36,7 +36,7 @@ if (length(imgs) > 0) {
 print("");
 print("--- parseFile (local file) ---");
 var localHtml = "<html><body><a href='page1.html'>Link 1</a><a href='page2.html'>Link 2</a></body></html>";
-var testHtmlPath = "test_scraper.html";
+var testHtmlPath = "examples/corelib/scraper/test_scraper.html";
 ucoreSystem.writeFile(testHtmlPath, localHtml);
 
 var linksFromFile = ucoreScraper.parseFile(testHtmlPath, "a");
@@ -66,7 +66,7 @@ if (length(fetchedHtml) > 0) {
 // download demo
 print("");
 print("--- download (save to file) ---");
-var downloadPath = "example_downloaded.html";
+var downloadPath = "examples/corelib/scraper/downloads/example_downloaded.html";
 var downloadResult = ucoreScraper.download("https://example.com", downloadPath);
 if (downloadResult) {
     print("Downloaded to " + downloadPath);
