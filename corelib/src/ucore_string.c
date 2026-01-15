@@ -227,6 +227,7 @@ static Value str_toUpper(VM* vm, Value* args, int argCount) {
 
 // ucoreString.contains(str, substr) -> bool
 static Value str_contains(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) return BOOL_VAL(false);
     ObjString* haystack = AS_STRING(args[0]);
     ObjString* needle = AS_STRING(args[1]);
@@ -239,6 +240,7 @@ static Value str_contains(VM* vm, Value* args, int argCount) {
 
 // ucoreString.match(str, pattern) -> bool
 static Value str_match(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         return BOOL_VAL(false);
     }

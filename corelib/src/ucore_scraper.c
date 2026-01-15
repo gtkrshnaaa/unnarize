@@ -527,6 +527,7 @@ static char* fetchUrlContent(const char* url) {
 
 // ucoreScraper.download(url, filepath) -> bool
 static Value scraper_download(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         return BOOL_VAL(false);
     }

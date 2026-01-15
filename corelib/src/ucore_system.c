@@ -139,6 +139,7 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
 
 // exit(code)
 static Value sys_exit(VM* vm, Value* args, int argCount) {
+    (void)vm;
     int code = 0;
     if (argCount > 0) {
         if (IS_INT(args[0])) code = AS_INT(args[0]);
@@ -150,6 +151,7 @@ static Value sys_exit(VM* vm, Value* args, int argCount) {
 
 // exec(command) -> exitCode (int)
 static Value sys_exec(VM* vm, Value* args, int argCount) {
+    (void)vm;
     if (argCount != 1 || !IS_STRING(args[0])) {
         return INT_VAL(-1);
     }
