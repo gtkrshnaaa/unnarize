@@ -8,6 +8,8 @@
 #include "ucore_timer.h"
 #include "ucore_system.h"
 #include "ucore_json.h"
+#include "ucore_string.h"
+#include "ucore_scraper.h"
 
 #include "bytecode/chunk.h"
 #include "bytecode/compiler.h"
@@ -324,6 +326,7 @@ int main(int argc, char** argv) {
     registerUCoreTimer(&vm); // Register Timer
     registerUCoreJson(&vm);  // Register Json
     registerUCoreScraper(&vm); // Register Scraper
+    registerUCoreString(&vm);  // Register String Utils
 
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)

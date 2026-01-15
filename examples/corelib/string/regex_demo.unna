@@ -1,0 +1,36 @@
+print("=== ucoreString Regex Demo ===");
+
+// 1. Simple Match
+var text = "Hello Unnarize World";
+var pattern = "Unnarize";
+var isMatch = ucoreString.match(text, pattern);
+print("Is 'Unnarize' in text? " + isMatch);
+
+if (ucoreString.match(text, "^Hello")) {
+    print("Text starts with 'Hello' (Regex)");
+}
+
+// 2. Extraction (Emails)
+var log = "Contact us at support@example.com or sales@unnarize.org for info.";
+// Unnarize strings are raw (no escape processing), so use single backslash for regex escape
+var emailPattern = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
+
+print("Extracting emails from log...");
+var emails = ucoreString.extract(log, emailPattern);
+
+print("Found " + length(emails) + " emails:");
+for (var i = 0; i < length(emails); i = i + 1) {
+    print("- " + emails[i]);
+}
+
+// 3. Extraction (Dates)
+var data = "Events: 2026-01-15 Launch, 2026-02-28 Party.";
+var datePattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
+
+print("Extracting dates...");
+var dates = ucoreString.extract(data, datePattern);
+for (var i = 0; i < length(dates); i = i + 1) {
+    print("- " + dates[i]);
+}
+
+print("=== Done ===");

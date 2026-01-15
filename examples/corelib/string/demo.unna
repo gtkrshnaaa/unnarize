@@ -1,0 +1,32 @@
+print("=== ucoreString Demo ===");
+
+// 1. Split & Join
+var text = "apple,banana,cherry";
+var parts = ucoreString.split(text, ",");
+print("Split result: " + length(parts) + " items");
+print("Item [0]: " + parts[0]);
+print("Item [1]: " + parts[1]);
+
+var joined = ucoreString.join(parts, " | ");
+print("Joined: " + joined);
+
+// 2. Replace
+var dirty = "hello world world";
+var clean = ucoreString.replace(dirty, "world", "unnarize");
+print("Replace: " + clean);
+
+// 3. Trim
+var messy = "   trim me please   ";
+var trimmed = ucoreString.trim(messy);
+print("Trimmed: '" + trimmed + "' (len: " + length(trimmed) + ")");
+
+// 4. Case
+var mixed = "HeLLo UnNaRiZen";
+print("Lower: " + ucoreString.toLower(mixed));
+print("Upper: " + ucoreString.toUpper(mixed));
+
+// 5. Contains
+print("Contains 'Na': " + ucoreString.contains(mixed, "Na"));
+print("Contains 'X': " + ucoreString.contains(mixed, "X"));
+
+print("=== Done ===");
