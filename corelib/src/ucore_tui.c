@@ -583,15 +583,31 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
     enableRawMode();
     printf(CSI "?25l"); // Hide cursor
     
+    // Print initial empty lines for options
+    for (int i = 0; i < options->count; i++) {
+        printf("\r\n");
+    }
+    // Save position at bottom
+    printf(CSI "s");
+    fflush(stdout);
+    
     while (1) {
-        // Draw options
+        // Move up to start of options
+        printf(CSI "%dA", options->count);
+        
+        // Draw options with proper clearing
         for (int i = 0; i < options->count; i++) {
+            printf("\r" CSI "2K"); // Clear entire line
+            
             if (i == selected) {
                 printf(CSI "7m"); // Inverse
+                printf("  > ");
+            } else {
+                printf("    ");
             }
             
             if (IS_STRING(options->items[i])) {
-                printf("  %s%s  ", i == selected ? "> " : "  ", AS_CSTRING(options->items[i]));
+                printf("%s", AS_CSTRING(options->items[i]));
             }
             
             if (i == selected) {
@@ -599,6 +615,7 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
             }
             printf("\r\n");
         }
+        fflush(stdout);
         
         char c;
         if (!readChar(&c)) continue;
@@ -607,19 +624,20 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
             char seq[2] = {0};
             if (readChar(&seq[0]) && readChar(&seq[1])) {
                 if (seq[0] == '[') {
-                    if (seq[1] == 'A' && selected > 0) selected--; // Up
-                    if (seq[1] == 'B' && selected < options->count - 1) selected++; // Down
+                    if (seq[1] == 'A' && selected > 0) selected--;
+                    if (seq[1] == 'B' && selected < options->count - 1) selected++;
                 }
+            } else {
+                // Pure escape
+                selected = -1;
+                break;
             }
         } else if (c == '\r' || c == '\n') {
             break;
-        } else if (c == 3 || c == 27) { // Ctrl+C or Escape
+        } else if (c == 3) { // Ctrl+C
             selected = -1;
             break;
         }
-        
-        // Move cursor back up
-        printf(CSI "%dA", options->count);
     }
     
     printf(CSI "?25h"); // Show cursor
@@ -665,9 +683,33 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
     int inputWidth = width - 4; // Account for borders and padding
     
     enableRawMode();
+    printf(CSI "?25l"); // Hide cursor during initial draw
+    
+    // Draw initial box frame (only once)
+    printf("\r" CSI "2K");
+    printf(BOX_ROUND_TL BOX_LIGHT_H " ");
+    printf(CSI "1m%s" CSI "0m", title);
+    printf(" ");
+    int remaining = width - titleLen - 4;
+    for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_TR "\r\n");
+    
+    printf(CSI "2K");
+    printf(BOX_LIGHT_V " ");
+    for (int i = 0; i < inputWidth; i++) printf(" ");
+    printf(" " BOX_LIGHT_V "\r\n");
+    
+    printf(CSI "2K");
+    printf(BOX_ROUND_BL);
+    for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_BR);
+    
+    // Save cursor position at end of box
+    printf(CSI "s");
+    fflush(stdout);
     
     while (1) {
-        // Calculate scroll offset to keep cursor visible
+        // Calculate scroll offset
         if (cursor - scrollOffset >= inputWidth) {
             scrollOffset = cursor - inputWidth + 1;
         }
@@ -675,46 +717,29 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
             scrollOffset = cursor;
         }
         
-        // Draw box
-        // Top border with title
-        printf("\r" CSI "2K"); // Clear line
-        printf(BOX_ROUND_TL BOX_LIGHT_H " ");
-        printf(CSI "1m%s" CSI "0m", title); // Bold title
-        printf(" ");
-        int remaining = width - titleLen - 4;
-        for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_TR "\r\n");
+        // Move to input line (2 lines up from saved position, column 3)
+        printf(CSI "2A\r" CSI "2C");
         
-        // Input line
-        printf(CSI "2K"); // Clear line
-        printf(BOX_LIGHT_V " ");
-        
-        // Show visible portion of buffer
+        // Redraw only the input content
         int visibleLen = len - scrollOffset;
         if (visibleLen > inputWidth) visibleLen = inputWidth;
         for (int i = 0; i < visibleLen; i++) {
             printf("%c", buffer[scrollOffset + i]);
         }
-        // Padding
         for (int i = visibleLen; i < inputWidth; i++) printf(" ");
-        printf(" " BOX_LIGHT_V "\r\n");
         
-        // Bottom border
-        printf(CSI "2K"); // Clear line
-        printf(BOX_ROUND_BL);
-        for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_BR);
-        
-        // Position cursor inside box
-        printf(CSI "2A"); // Move up 2 lines
-        printf("\r" CSI "%dC", 2 + (cursor - scrollOffset)); // Position cursor
+        // Position cursor correctly within input
+        printf("\r" CSI "%dC", 2 + (cursor - scrollOffset));
+        printf(CSI "?25h"); // Show cursor
         fflush(stdout);
         
         char c;
         if (!readChar(&c)) continue;
         
+        printf(CSI "?25l"); // Hide cursor during processing
+        
         if (c == '\r' || c == '\n') {
-            printf(CSI "2B\r\n"); // Move down to after box
+            printf(CSI "?25h" CSI "u\r\n"); // Restore and move to after box
             break;
         } else if (c == 127 || c == 8) { // Backspace
             if (cursor > 0) {
@@ -726,11 +751,11 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
             char seq[3] = {0};
             if (readChar(&seq[0]) && readChar(&seq[1])) {
                 if (seq[0] == '[') {
-                    if (seq[1] == 'C' && cursor < len) cursor++; // Right
-                    else if (seq[1] == 'D' && cursor > 0) cursor--; // Left
-                    else if (seq[1] == 'H') cursor = 0; // Home
-                    else if (seq[1] == 'F') cursor = len; // End
-                    else if (seq[1] == '3') { // Delete
+                    if (seq[1] == 'C' && cursor < len) cursor++;
+                    else if (seq[1] == 'D' && cursor > 0) cursor--;
+                    else if (seq[1] == 'H') cursor = 0;
+                    else if (seq[1] == 'F') cursor = len;
+                    else if (seq[1] == '3') {
                         (void)readChar(&seq[2]);
                         if (cursor < len) {
                             memmove(&buffer[cursor], &buffer[cursor + 1], (size_t)(len - cursor));
@@ -738,19 +763,21 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
                         }
                     }
                 }
+            } else {
+                // Pure escape - cancel
+                buffer[0] = '\0';
+                len = 0;
+                printf(CSI "?25h" CSI "u\r\n");
+                break;
             }
-        } else if (c == 1) { // Ctrl+A - Home
-            cursor = 0;
-        } else if (c == 5) { // Ctrl+E - End
-            cursor = len;
-        } else if (c == 11) { // Ctrl+K - Kill to end
-            buffer[cursor] = '\0';
-            len = cursor;
-        } else if (c == 21) { // Ctrl+U - Kill to start
+        } else if (c == 1) { cursor = 0; }
+        else if (c == 5) { cursor = len; }
+        else if (c == 11) { buffer[cursor] = '\0'; len = cursor; }
+        else if (c == 21) {
             memmove(buffer, &buffer[cursor], (size_t)(len - cursor + 1));
             len = len - cursor;
             cursor = 0;
-        } else if (c == 23) { // Ctrl+W - Delete word backward
+        } else if (c == 23) {
             while (cursor > 0 && buffer[cursor - 1] == ' ') {
                 memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
                 cursor--; len--;
@@ -759,12 +786,12 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
                 memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
                 cursor--; len--;
             }
-        } else if (c == 3 || c == 27) { // Ctrl+C or Escape - cancel
+        } else if (c == 3) { // Ctrl+C - cancel
             buffer[0] = '\0';
             len = 0;
-            printf(CSI "2B\r\n"); // Move down
+            printf(CSI "?25h" CSI "u\r\n");
             break;
-        } else if (c >= 32 && c < 127) { // Printable
+        } else if (c >= 32 && c < 127) {
             if (len < (int)sizeof(buffer) - 1) {
                 memmove(&buffer[cursor + 1], &buffer[cursor], (size_t)(len - cursor + 1));
                 buffer[cursor] = c;
@@ -772,9 +799,6 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
                 len++;
             }
         }
-        
-        // Clear and redraw (move up to redraw box)
-        printf("\r" CSI "2A");
     }
     
     disableRawMode();

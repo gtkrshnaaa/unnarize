@@ -1,0 +1,50 @@
+// Test Interactive Input Features
+// Run: ../../../bin/unnarize test_input.unna
+
+print("=== TEST INPUT FEATURES ===");
+print("");
+
+// Test 1: Basic input with arrow keys
+print("Test 1: Basic input (try arrow keys, Home, End)");
+var name = ucoreTui.input("Enter your name: ");
+print("You entered: " + name);
+print("");
+
+// Test 2: Input box
+print("Test 2: Input box with styled border");
+var email = ucoreTui.inputBox("Email Address", 50, "example@email.com");
+print("You entered: " + email);
+print("");
+
+// Test 3: Password input
+print("Test 3: Password input (hidden)");
+var pass = ucoreTui.inputPassword("Enter password: ");
+print("Password entered successfully");
+print("");
+
+// Test 4: Confirm
+print("Test 4: Confirmation prompt");
+var confirmed = ucoreTui.confirm("Do you want to continue?");
+print("Confirmed: " + confirmed);
+print("");
+
+// Test 5: Select menu
+print("Test 5: Arrow-key selection");
+var options = ["Option A", "Option B", "Option C", "Cancel"];
+var choice = ucoreTui.select("Choose an option:", options);
+if (choice >= 0) {
+    print("You selected: " + options[choice]);
+} else {
+    print("Selection cancelled");
+}
+print("");
+
+// Test 6: Multiline editor
+print("Test 6: Multiline editor");
+print("(Arrow keys, Enter for newline, Ctrl+D to save, Esc to cancel)");
+var notes = ucoreTui.inputMulti("Notes Editor", 5, "");
+print("You entered:");
+print(ucoreTui.box(notes, "simple"));
+
+print("");
+print(ucoreTui.fg("green", "All tests complete!"));
