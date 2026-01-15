@@ -34,6 +34,7 @@ static Value str_split(VM* vm, Value* args, int argCount) {
     
     // Create result array
     Array* array = newArray(vm);
+    vm->stack[vm->stackTop++] = OBJ_VAL(array); // Root the array
     
     if (delimLen == 0) {
         // Split by character
@@ -42,6 +43,7 @@ static Value str_split(VM* vm, Value* args, int argCount) {
             Value val = OBJ_VAL(internString(vm, temp, 1));
             arrayPush(vm, array, val);
         }
+        vm->stackTop--; // Pop array
         return OBJ_VAL(array);
     }
     
@@ -61,6 +63,7 @@ static Value str_split(VM* vm, Value* args, int argCount) {
     Value val = OBJ_VAL(copyString(vm, start, strlen(start)));
     arrayPush(vm, array, val);
     
+    vm->stackTop--; // Pop array
     return OBJ_VAL(array);
 }
 
@@ -274,6 +277,7 @@ static Value str_extract(VM* vm, Value* args, int argCount) {
     if (ret) return NIL_VAL;
     
     Array* results = newArray(vm);
+    vm->stack[vm->stackTop++] = OBJ_VAL(results); // Root it
     
     const char* cursor = strObj->chars;
     regmatch_t pmatch[1];
@@ -295,6 +299,7 @@ static Value str_extract(VM* vm, Value* args, int argCount) {
     }
     
     regfree(&regex);
+    vm->stackTop--; // Pop
     return OBJ_VAL(results);
 }
 
@@ -310,6 +315,7 @@ void registerUCoreString(VM* vm) {
     mod->name = strdup(modNameObj->chars);
     mod->source = NULL;
     mod->obj.isMarked = true;
+    mod->obj.isPermanent = true; // Prevent GC from collecting the module
     
     Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
     memset(modEnv->buckets, 0, sizeof(modEnv->buckets));

@@ -1,0 +1,64 @@
+print("=== ucoreString Stress Test (Real-World Text) ===");
+
+// 1. Download a large Wikipedia page
+var url = "https://en.wikipedia.org/wiki/History_of_the_Internet";
+var localFile = "stress_test_internet.html";
+
+print("Downloading: " + url);
+var ok = ucoreScraper.download(url, localFile);
+
+if (!ok) {
+    print("ERROR: Download failed.");
+} else {
+    print("Download complete.");
+    
+    // 2. Select all paragraph text
+    print("\nExtracting paragraph text...");
+    var paragraphs = ucoreScraper.parseFile(localFile, "p");
+    print("Found " + length(paragraphs) + " paragraphs.");
+    
+    // Collect all text
+    var allText = "";
+    var i = 0;
+    while (i < length(paragraphs)) {
+        var pText = paragraphs[i]["text"];
+        // Avoid nil check due to parser limitations
+        // Just concatenate - nil will be printed as "nil" if present
+        if (length(pText) > 0) {
+            allText = allText + pText + " ";
+        }
+        i = i + 1;
+    }
+    print("Total text length: " + length(allText) + " characters");
+    
+    // 3. Test string operations on real text
+    print("\n--- Testing replace() ---");
+    var start = ucoreTimer.now();
+    var replaced = ucoreString.replace(allText, "Internet", "[NET]");
+    var repTime = ucoreTimer.now() - start;
+    print("Replace finished in: " + repTime + "ms");
+    
+    print("\n--- Testing split() ---");
+    start = ucoreTimer.now();
+    var words = ucoreString.split(allText, " ");
+    var splitTime = ucoreTimer.now() - start;
+    print("Split finished in: " + splitTime + "ms");
+    print("Word count: " + length(words));
+    
+    print("\n--- Testing regex extract() ---");
+    // Find years (4-digit numbers)
+    start = ucoreTimer.now();
+    var years = ucoreString.extract(allText, "[0-9]{4}");
+    var regTime = ucoreTimer.now() - start;
+    print("Regex finished in: " + regTime + "ms");
+    print("Years found: " + length(years));
+    
+    // Show first few unique years
+    if (length(years) > 5) {
+        print("Sample years: " + years[0] + ", " + years[1] + ", " + years[2] + ", " + years[3] + ", " + years[4]);
+    }
+    
+    print("\n=== Stress Test Complete ===");
+}
+
+print("=== Done ===");

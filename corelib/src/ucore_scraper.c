@@ -690,15 +690,15 @@ static Value scraper_select(VM* vm, Value* args, int argCount) {
     
     // 4. Convert to Unnarize List
     Array* list = newArray(vm);
-    // Push list to stack to prevent GC during allocations? 
-    // Ideally yes, but here we just allocated it.
-    // VM GC is not concurrent yet in a way that hurts this single thread linear alloc, 
-    // unless newMap triggers GC. Use push/pop if paranoid.
+    // Push list to stack to prevent GC during allocations
+    vm->stack[vm->stackTop++] = OBJ_VAL(list);
     
     for (int i=0; i<count; i++) {
         Value val = nodeToValue(vm, results[i]);
         arrayPush(vm, list, val);
     }
+    
+    vm->stackTop--; // Pop list from stack
     
     // 5. Cleanup
     free(results);
@@ -771,11 +771,14 @@ static Value scraper_parseFile(VM* vm, Value* args, int argCount) {
     
     // 4. Convert to Unnarize List
     Array* list = newArray(vm);
+    vm->stack[vm->stackTop++] = OBJ_VAL(list); // Root it
     
     for (int i=0; i<count; i++) {
         Value val = nodeToValue(vm, results[i]);
         arrayPush(vm, list, val);
     }
+    
+    vm->stackTop--; // Pop
     
     // 5. Cleanup
     free(results);

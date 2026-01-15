@@ -1,0 +1,52 @@
+print("=== ucoreScraper Stress Test (Real-World HTML) ===");
+
+// 1. Download a large real-world HTML page (Wikipedia article with many elements)
+var url = "https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)";
+var localFile = "stress_test_countries.html";
+
+print("Downloading: " + url);
+var start = ucoreTimer.now();
+var ok = ucoreScraper.download(url, localFile);
+var dlTime = ucoreTimer.now() - start;
+
+if (!ok) {
+    print("ERROR: Download failed.");
+} else {
+    print("Download finished in " + dlTime + "ms");
+    
+    // 2. Parse and select from the downloaded file
+    print("\nParsing and selecting table rows...");
+    var parseStart = ucoreTimer.now();
+    
+    // Select all table rows (tr) - Wikipedia tables have many
+    var rows = ucoreScraper.parseFile(localFile, "tr");
+    var parseTime = ucoreTimer.now() - parseStart;
+    
+    print("Found " + length(rows) + " table rows.");
+    print("Parse + Select time: " + parseTime + "ms");
+    
+    // 3. Test selecting links
+    print("\nSelecting anchor tags (links)...");
+    var linkStart = ucoreTimer.now();
+    var links = ucoreScraper.parseFile(localFile, "a");
+    var linkTime = ucoreTimer.now() - linkStart;
+    
+    print("Found " + length(links) + " links.");
+    print("Parse + Select time: " + linkTime + "ms");
+    
+    // 4. Test selecting paragraphs
+    print("\nSelecting paragraphs...");
+    var pStart = ucoreTimer.now();
+    var paragraphs = ucoreScraper.parseFile(localFile, "p");
+    var pTime = ucoreTimer.now() - pStart;
+    
+    print("Found " + length(paragraphs) + " paragraphs.");
+    print("Parse + Select time: " + pTime + "ms");
+    
+    // Summary
+    print("\n=== Summary ===");
+    print("Total elements processed: " + (length(rows) + length(links) + length(paragraphs)));
+    print("All operations completed successfully!");
+}
+
+print("=== Done ===");
