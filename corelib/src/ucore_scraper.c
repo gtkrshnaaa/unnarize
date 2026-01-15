@@ -464,6 +464,62 @@ static void getTextRecursive(ScraperNode* node, char** buffer, int* len, int* ca
      }
 }
 
+// Internal helper to fetch URL content using curl (via popen)
+// This avoids strict OpenSSL dependency for the corelib, relying on system tools.
+static char* fetchUrlContent(const char* url) {
+    // Basic validation to prevent simple injection (very rough)
+    // In production, use libcurl properly.
+    if (strchr(url, ';') || strchr(url, '|') || strchr(url, '`') || strchr(url, '$')) {
+        return NULL; // unsafe char
+    }
+
+    char command[1024];
+    // -s: silent, -L: follow redirects
+    snprintf(command, sizeof(command), "curl -s -L \"%s\"", url);
+    
+    FILE* pipe = popen(command, "r");
+    if (!pipe) return NULL;
+    
+    // Read response
+    size_t capacity = 4096;
+    size_t length = 0;
+    char* content = malloc(capacity);
+    if (!content) { pclose(pipe); return NULL; }
+    
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        size_t chunkLen = strlen(buffer);
+        if (length + chunkLen + 1 >= capacity) {
+            capacity *= 2;
+            content = realloc(content, capacity);
+        }
+        memcpy(content + length, buffer, chunkLen);
+        length += chunkLen;
+    }
+    content[length] = '\0';
+    
+    pclose(pipe);
+    return content;
+}
+
+// ucoreScraper.fetch(url) -> htmlString
+static Value scraper_fetch(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        return NIL_VAL;
+    }
+    
+    ObjString* url = AS_STRING(args[0]);
+    char* content = fetchUrlContent(url->chars);
+    
+    if (content) {
+        ObjString* htmlObj = internString(vm, content, strlen(content));
+        free(content);
+        return OBJ_VAL(htmlObj);
+    }
+    
+    return NIL_VAL;
+}
+
 // Check if node matches one specific selector part (no chain)
 static bool nodeMatchesSimple(ScraperNode* root, ScraperSelector* sel) {
     if (root->type != NODE_ELEMENT) return false;
@@ -746,6 +802,7 @@ void registerUCoreScraper(VM* vm) {
     defineNative(vm, mod->env, "parse", scraper_parse, 1); // parse(html, [debug])
     defineNative(vm, mod->env, "select", scraper_select, 2); // select(html, selector)
     defineNative(vm, mod->env, "parseFile", scraper_parseFile, 2); // parseFile(path, selector)
+    defineNative(vm, mod->env, "fetch", scraper_fetch, 1); // fetch(url) -> string
     
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreScraper", vMod);
