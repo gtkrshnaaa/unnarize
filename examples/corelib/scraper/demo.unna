@@ -32,5 +32,55 @@ if (length(imgs) > 0) {
     print("Image Src: " + imgs[0]["attributes"]["src"]);
 }
 
+// parseFile demo (using local HTML file)
+print("");
+print("--- parseFile (local file) ---");
+var localHtml = "<html><body><a href='page1.html'>Link 1</a><a href='page2.html'>Link 2</a></body></html>";
+var testHtmlPath = "test_scraper.html";
+ucoreSystem.writeFile(testHtmlPath, localHtml);
+
+var linksFromFile = ucoreScraper.parseFile(testHtmlPath, "a");
+print("Links from file: " + length(linksFromFile) + " found");
+for (var link : linksFromFile) {
+    print("  - " + link["text"] + " -> " + link["attributes"]["href"]);
+}
+
+// Clean up
+ucoreJson.remove(testHtmlPath);
+
+// fetch demo (network request)
+print("");
+print("--- fetch (network request) ---");
+print("Fetching https://example.com ...");
+var fetchedHtml = ucoreScraper.fetch("https://example.com");
+if (length(fetchedHtml) > 0) {
+    print("Fetched " + length(fetchedHtml) + " bytes");
+    var titles = ucoreScraper.select(fetchedHtml, "h1");
+    if (length(titles) > 0) {
+        print("Page title: " + titles[0]["textContent"]);
+    }
+} else {
+    print("Fetch failed (network issue or no internet)");
+}
+
+// download demo
+print("");
+print("--- download (save to file) ---");
+var downloadPath = "example_downloaded.html";
+var downloadResult = ucoreScraper.download("https://example.com", downloadPath);
+if (downloadResult) {
+    print("Downloaded to " + downloadPath);
+    // Verify content
+    if (ucoreSystem.fileExists(downloadPath)) {
+        var content = ucoreSystem.readFile(downloadPath);
+        print("Downloaded file size: " + length(content) + " bytes");
+    }
+    // Clean up
+    ucoreJson.remove(downloadPath);
+    print("Cleaned up downloaded file.");
+} else {
+    print("Download failed (network issue or no internet)");
+}
+
 print("---------------------------------------------------");
 print("Done.");
