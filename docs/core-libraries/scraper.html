@@ -60,95 +60,188 @@
         
         <main class="main">
             <h1>ucoreScraper</h1>
-            <p class="lead">HTML parsing, CSS selectors, and web scraping.</p>
+            <p class="lead">HTML parsing, CSS selectors, and web scraping toolkit.</p>
             
-            <h2>Functions</h2>
+            <h2>API Reference</h2>
             <table>
                 <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><code>fetch(url)</code></td>
-                        <td>string</td>
-                        <td>Fetch HTML from URL</td>
-                    </tr>
-                    <tr>
-                        <td><code>download(url, filepath)</code></td>
-                        <td>bool</td>
-                        <td>Download HTML to file</td>
-                    </tr>
-                    <tr>
-                        <td><code>select(html, selector)</code></td>
-                        <td>Array</td>
-                        <td>Select elements from HTML string</td>
-                    </tr>
-                    <tr>
-                        <td><code>parseFile(path, selector)</code></td>
-                        <td>Array</td>
-                        <td>Parse file and select elements</td>
-                    </tr>
-                    <tr>
-                        <td><code>parse(html, [debug])</code></td>
-                        <td>nil</td>
-                        <td>Parse HTML (debug mode prints tree)</td>
-                    </tr>
+                    <tr><td><code>fetch(url)</code></td><td>string</td><td>Download HTML content from URL</td></tr>
+                    <tr><td><code>download(url, filepath)</code></td><td>bool</td><td>Save HTML to local file</td></tr>
+                    <tr><td><code>select(html, selector)</code></td><td>Array</td><td>Select elements from HTML string</td></tr>
+                    <tr><td><code>parseFile(path, selector)</code></td><td>Array</td><td>Read file and select elements</td></tr>
+                    <tr><td><code>parse(html, [debug])</code></td><td>nil</td><td>Parse HTML (debug prints DOM tree)</td></tr>
                 </tbody>
             </table>
             
-            <h2>Supported CSS Selectors</h2>
-            <ul>
-                <li><code>tagname</code> - Element selector (div, p, a)</li>
-                <li><code>.classname</code> - Class selector</li>
-                <li><code>#id</code> - ID selector</li>
-                <li><code>parent child</code> - Descendant combinator</li>
-            </ul>
+            <!-- ==================== CSS SELECTORS ==================== -->
+            <h2>CSS Selector Reference</h2>
+            <table>
+                <thead><tr><th>Selector</th><th>Example</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>Element</td><td><code>div</code>, <code>p</code>, <code>a</code></td><td>Match by tag name</td></tr>
+                    <tr><td>Class</td><td><code>.classname</code></td><td>Match by class attribute</td></tr>
+                    <tr><td>ID</td><td><code>#myid</code></td><td>Match by id attribute</td></tr>
+                    <tr><td>Descendant</td><td><code>div p</code></td><td>Match p inside div (any level)</td></tr>
+                    <tr><td>Combined</td><td><code>div.container</code></td><td>Match div with class "container"</td></tr>
+                </tbody>
+            </table>
+
+<pre><code><span class="token-comment">// Examples of CSS selectors</span>
+<span class="token-keyword">var</span> html = ucoreScraper.<span class="token-function">fetch</span>(<span class="token-string">"https://example.com"</span>);
+
+<span class="token-comment">// Select all paragraphs</span>
+<span class="token-keyword">var</span> paragraphs = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"p"</span>);
+
+<span class="token-comment">// Select by class</span>
+<span class="token-keyword">var</span> articles = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">".article"</span>);
+
+<span class="token-comment">// Select by ID</span>
+<span class="token-keyword">var</span> header = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"#main-header"</span>);
+
+<span class="token-comment">// Descendant selector: links inside nav</span>
+<span class="token-keyword">var</span> navLinks = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"nav a"</span>);</code></pre>
             
-            <h2>Basic Usage</h2>
-            
-            <h3>Fetch and Select</h3>
-<pre><code><span class="token-keyword">var</span> html = ucoreScraper.<span class="token-function">fetch</span>(<span class="token-string">"https://example.com"</span>);
-<span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"a"</span>);
-
-<span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < <span class="token-function">length</span>(links); i = i + <span class="token-number">1</span>) {
-    <span class="token-function">print</span>(links[i][<span class="token-string">"text"</span>]);
-}</code></pre>
-
-            <h3>Download for Offline Processing</h3>
-<pre><code><span class="token-keyword">var</span> url = <span class="token-string">"https://en.wikipedia.org/wiki/Main_Page"</span>;
-ucoreScraper.<span class="token-function">download</span>(url, <span class="token-string">"wikipedia.html"</span>);
-
-<span class="token-comment">// Later, process locally</span>
-<span class="token-keyword">var</span> headlines = ucoreScraper.<span class="token-function">parseFile</span>(<span class="token-string">"wikipedia.html"</span>, <span class="token-string">".mw-headline"</span>);
-<span class="token-function">print</span>(<span class="token-string">"Found "</span> + <span class="token-function">length</span>(headlines) + <span class="token-string">" headlines"</span>);</code></pre>
-
+            <!-- ==================== ELEMENT STRUCTURE ==================== -->
             <h2>Element Structure</h2>
-            <p>Selected elements are returned as Maps with:</p>
+            <p>Selected elements are returned as an Array of Maps. Each element Map contains:</p>
             <table>
                 <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>tag</code></td><td>string</td><td>Tag name (div, p, a)</td></tr>
-                    <tr><td><code>text</code></td><td>string</td><td>Inner text content</td></tr>
-                    <tr><td><code>attributes</code></td><td>Map</td><td>Element attributes</td></tr>
+                    <tr><td><code>tag</code></td><td>string</td><td>Tag name (div, p, a, span, etc.)</td></tr>
+                    <tr><td><code>text</code></td><td>string</td><td>All inner text content (recursive)</td></tr>
+                    <tr><td><code>attributes</code></td><td>Map</td><td>Element attributes (href, class, id, src, etc.)</td></tr>
                 </tbody>
             </table>
             
 <pre><code><span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"a"</span>);
+
+<span class="token-comment">// Access first link</span>
 <span class="token-keyword">var</span> link = links[<span class="token-number">0</span>];
+<span class="token-function">print</span>(link[<span class="token-string">"tag"</span>]);                      <span class="token-comment">// "a"</span>
+<span class="token-function">print</span>(link[<span class="token-string">"text"</span>]);                     <span class="token-comment">// "Click here"</span>
+<span class="token-function">print</span>(link[<span class="token-string">"attributes"</span>][<span class="token-string">"href"</span>]);       <span class="token-comment">// "https://example.com"</span>
+<span class="token-function">print</span>(link[<span class="token-string">"attributes"</span>][<span class="token-string">"class"</span>]);      <span class="token-comment">// "btn primary"</span></code></pre>
+            
+            <!-- ==================== FUNCTION DETAILS ==================== -->
+            <h2>Detailed Function Reference</h2>
+            
+            <h3>fetch(url)</h3>
+            <p>Downloads HTML content from a URL and returns it as a string. Uses <code>curl</code> internally with redirect following (<code>-L</code>).</p>
+<pre><code><span class="token-keyword">var</span> html = ucoreScraper.<span class="token-function">fetch</span>(<span class="token-string">"https://en.wikipedia.org/wiki/Main_Page"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Downloaded "</span> + <span class="token-function">length</span>(html) + <span class="token-string">" bytes"</span>);
 
-<span class="token-function">print</span>(link[<span class="token-string">"tag"</span>]);        <span class="token-comment">// "a"</span>
-<span class="token-function">print</span>(link[<span class="token-string">"text"</span>]);       <span class="token-comment">// "Click here"</span>
-<span class="token-function">print</span>(link[<span class="token-string">"attributes"</span>][<span class="token-string">"href"</span>]); <span class="token-comment">// "/page"</span></code></pre>
+<span class="token-comment">// Check for success (empty string = failure)</span>
+<span class="token-keyword">if</span> (<span class="token-function">length</span>(html) == <span class="token-number">0</span>) {
+    <span class="token-function">print</span>(<span class="token-string">"Download failed!"</span>);
+}</code></pre>
 
+            <h3>download(url, filepath)</h3>
+            <p>Saves HTML content directly to a local file. Returns <code>true</code> on success. Automatically creates directories if needed (<code>--create-dirs</code>).</p>
+<pre><code><span class="token-comment">// Download to current directory</span>
+ucoreScraper.<span class="token-function">download</span>(<span class="token-string">"https://example.com"</span>, <span class="token-string">"page.html"</span>);
+
+<span class="token-comment">// Download to nested directory (auto-created)</span>
+ucoreScraper.<span class="token-function">download</span>(<span class="token-string">"https://example.com"</span>, <span class="token-string">"data/pages/example.html"</span>);
+
+<span class="token-comment">// Check success</span>
+<span class="token-keyword">if</span> (ucoreScraper.<span class="token-function">download</span>(url, <span class="token-string">"output.html"</span>)) {
+    <span class="token-function">print</span>(<span class="token-string">"Saved successfully"</span>);
+} <span class="token-keyword">else</span> {
+    <span class="token-function">print</span>(<span class="token-string">"Download failed"</span>);
+}</code></pre>
+
+            <h3>select(html, selector)</h3>
+            <p>Parses an HTML string and returns all matching elements. Best for in-memory processing.</p>
+<pre><code><span class="token-keyword">var</span> html = ucoreScraper.<span class="token-function">fetch</span>(<span class="token-string">"https://news.ycombinator.com"</span>);
+
+<span class="token-comment">// Get all story titles</span>
+<span class="token-keyword">var</span> titles = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">".titleline"</span>);
+
+<span class="token-keyword">var</span> i = <span class="token-number">0</span>;
+<span class="token-keyword">while</span> (i < <span class="token-function">length</span>(titles)) {
+    <span class="token-function">print</span>((i + <span class="token-number">1</span>) + <span class="token-string">". "</span> + titles[i][<span class="token-string">"text"</span>]);
+    i = i + <span class="token-number">1</span>;
+}</code></pre>
+
+            <h3>parseFile(path, selector)</h3>
+            <p>Reads an HTML file from disk, parses it, and returns matching elements. Efficient for large files or repeated processing.</p>
+<pre><code><span class="token-comment">// Download once, process multiple times</span>
+ucoreScraper.<span class="token-function">download</span>(<span class="token-string">"https://en.wikipedia.org/wiki/Countries"</span>, <span class="token-string">"countries.html"</span>);
+
+<span class="token-comment">// Extract different elements</span>
+<span class="token-keyword">var</span> tables = ucoreScraper.<span class="token-function">parseFile</span>(<span class="token-string">"countries.html"</span>, <span class="token-string">"table"</span>);
+<span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">parseFile</span>(<span class="token-string">"countries.html"</span>, <span class="token-string">"a"</span>);
+<span class="token-keyword">var</span> headlines = ucoreScraper.<span class="token-function">parseFile</span>(<span class="token-string">"countries.html"</span>, <span class="token-string">".mw-headline"</span>);
+
+<span class="token-function">print</span>(<span class="token-string">"Tables: "</span> + <span class="token-function">length</span>(tables));
+<span class="token-function">print</span>(<span class="token-string">"Links: "</span> + <span class="token-function">length</span>(links));
+<span class="token-function">print</span>(<span class="token-string">"Headlines: "</span> + <span class="token-function">length</span>(headlines));</code></pre>
+
+            <h3>parse(html, [debug])</h3>
+            <p>Parses HTML and optionally prints the DOM tree structure. Useful for debugging selector issues.</p>
+<pre><code><span class="token-keyword">var</span> html = <span class="token-string">"&lt;div&gt;&lt;p&gt;Hello&lt;/p&gt;&lt;/div&gt;"</span>;
+
+<span class="token-comment">// Normal parse (returns nil)</span>
+ucoreScraper.<span class="token-function">parse</span>(html);
+
+<span class="token-comment">// Debug mode: prints DOM tree</span>
+ucoreScraper.<span class="token-function">parse</span>(html, <span class="token-keyword">true</span>);
+<span class="token-comment">// Output:
+// DOCUMENT
+//   ELEMENT: div
+//     ELEMENT: p
+//       TEXT: Hello</span></code></pre>
+            
+            <!-- ==================== COMPLETE EXAMPLES ==================== -->
+            <h2>Complete Web Scraping Example</h2>
+<pre><code><span class="token-function">print</span>(<span class="token-string">"=== Wikipedia Scraper ==="</span>);
+
+<span class="token-comment">// 1. Download the page</span>
+<span class="token-keyword">var</span> url = <span class="token-string">"https://en.wikipedia.org/wiki/List_of_programming_languages"</span>;
+<span class="token-keyword">var</span> file = <span class="token-string">"programming_langs.html"</span>;
+
+<span class="token-function">print</span>(<span class="token-string">"Downloading..."</span>);
+ucoreScraper.<span class="token-function">download</span>(url, file);
+
+<span class="token-comment">// 2. Extract all language links</span>
+<span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">parseFile</span>(file, <span class="token-string">"#mw-content-text a"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Found "</span> + <span class="token-function">length</span>(links) + <span class="token-string">" links"</span>);
+
+<span class="token-comment">// 3. Print first 10 language names</span>
+<span class="token-keyword">var</span> i = <span class="token-number">0</span>;
+<span class="token-keyword">var</span> max = <span class="token-number">10</span>;
+<span class="token-keyword">if</span> (<span class="token-function">length</span>(links) < max) { max = <span class="token-function">length</span>(links); }
+
+<span class="token-keyword">while</span> (i < max) {
+    <span class="token-keyword">var</span> link = links[i];
+    <span class="token-keyword">var</span> href = link[<span class="token-string">"attributes"</span>][<span class="token-string">"href"</span>];
+    <span class="token-keyword">var</span> text = link[<span class="token-string">"text"</span>];
+    
+    <span class="token-function">print</span>((i+<span class="token-number">1</span>) + <span class="token-string">". "</span> + text + <span class="token-string">" -&gt; "</span> + href);
+    i = i + <span class="token-number">1</span>;
+}
+
+<span class="token-function">print</span>(<span class="token-string">"=== Done ==="</span>);</code></pre>
+            
+            <!-- ==================== PERFORMANCE ==================== -->
             <h2>Performance</h2>
-            <p>Benchmarked on 370KB Wikipedia HTML:</p>
+            <p>Benchmarked on 370KB Wikipedia HTML (Intel i5-1135G7):</p>
             <table>
-                <thead><tr><th>Operation</th><th>Ops/sec</th></tr></thead>
+                <thead><tr><th>Operation</th><th>Speed</th><th>Note</th></tr></thead>
                 <tbody>
-                    <tr><td>parseFile (class selector)</td><td>339</td></tr>
-                    <tr><td>parseFile (table rows)</td><td>212</td></tr>
-                    <tr><td>select (in-memory)</td><td>128</td></tr>
-                    <tr><td>parseFile (links)</td><td>83</td></tr>
+                    <tr><td>parseFile (class selector)</td><td><strong>339 ops/sec</strong></td><td>~3ms per parse</td></tr>
+                    <tr><td>parseFile (table rows)</td><td>212 ops/sec</td><td>~5ms per parse</td></tr>
+                    <tr><td>select (in-memory)</td><td>128 ops/sec</td><td>~8ms per parse</td></tr>
+                    <tr><td>parseFile (1000+ links)</td><td>83 ops/sec</td><td>~12ms per parse</td></tr>
                 </tbody>
             </table>
+
+            <h2>Run Examples</h2>
+<pre><code><span class="token-comment"># Run from examples/corelib/scraper/</span>
+cd examples/corelib/scraper
+../../../bin/unnarize stress_test.unna
+../../../bin/unnarize benchmark.unna</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>
