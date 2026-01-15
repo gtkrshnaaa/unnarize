@@ -517,9 +517,9 @@ static Value scraper_download(VM* vm, Value* args, int argCount) {
     }
 
     char command[2048];
-    // curl -s -L "url" -o "path"
-    // Using quotes around paths to handle spaces
-    snprintf(command, sizeof(command), "curl -s -L \"%s\" -o \"%s\"", url->chars, path->chars);
+    // curl -s -L "url" -o "path" --create-dirs
+    // --create-dirs ensures that if "path/to/file.html" is requested and "path/to" doesn't exist, it is created.
+    snprintf(command, sizeof(command), "curl -s -L --create-dirs \"%s\" -o \"%s\"", url->chars, path->chars);
     
     int result = system(command);
     return BOOL_VAL(result == 0);
