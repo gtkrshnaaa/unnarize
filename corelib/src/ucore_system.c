@@ -70,34 +70,34 @@ static Value sys_getenv(VM* vm, Value* args, int argCount) {
 // fileExists(path) -> bool
 static Value sys_fileExists(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_STRING(args[0])) return BOOL_VAL(false);
-    (void)vm;
     
+    char* path = resolvePath(vm, AS_CSTRING(args[0]));
     struct stat st;
-    if (stat(AS_CSTRING(args[0]), &st) == 0) {
-        return BOOL_VAL(true);
-    }
-    return BOOL_VAL(false);
+    bool exists = (stat(path, &st) == 0);
+    free(path);
+    return BOOL_VAL(exists);
 }
 
 // writeFile(path, content) -> bool
 static Value sys_writeFile(VM* vm, Value* args, int argCount) {
-    (void)vm;
     if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         printf("Error: ucoreSystem.writeFile(path, content) expects 2 string arguments.\n");
         return BOOL_VAL(false);
     }
     
-    char* path = AS_CSTRING(args[0]);
+    char* path = resolvePath(vm, AS_CSTRING(args[0]));
     char* content = AS_CSTRING(args[1]);
     
     FILE* f = fopen(path, "w");
     if (!f) {
         printf("Error: Could not open file for writing: %s\n", path);
+        free(path);
         return BOOL_VAL(false);
     }
     
     fprintf(f, "%s", content);
     fclose(f);
+    free(path);
     
     return BOOL_VAL(true);
 }
@@ -109,9 +109,10 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
         return OBJ_VAL(empty);
     }
     
-    char* path = AS_CSTRING(args[0]);
+    char* path = resolvePath(vm, AS_CSTRING(args[0]));
     FILE* f = fopen(path, "r");
     if (!f) {
+        free(path);
         ObjString* empty = internString(vm, "", 0);
         return OBJ_VAL(empty);
     }
@@ -123,6 +124,7 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
     char* buf = malloc(size + 1);
     if (!buf) {
         fclose(f);
+        free(path);
         ObjString* empty = internString(vm, "", 0);
         return OBJ_VAL(empty);
     }
@@ -130,6 +132,7 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
     size_t bytesRead = fread(buf, 1, size, f);
     buf[bytesRead] = '\0';
     fclose(f);
+    free(path);
     
     ObjString* s = internString(vm, buf, (int)size);
     free(buf);

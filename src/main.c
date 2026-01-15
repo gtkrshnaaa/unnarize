@@ -312,6 +312,9 @@ int main(int argc, char** argv) {
     vm.argc = argc;
     vm.argv = argv;
 
+    // Set script directory for relative paths
+    setScriptDir(&vm, filename);
+
     char* projectRoot = getenv("UNNARIZE_ROOT");
     if (projectRoot) {
         strncpy(vm.projectRoot, projectRoot, 1023);

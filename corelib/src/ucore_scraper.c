@@ -540,10 +540,14 @@ static Value scraper_download(VM* vm, Value* args, int argCount) {
          return BOOL_VAL(false);
     }
 
+    char* resolvedPath = resolvePath(vm, path->chars);
+
     char command[2048];
     // curl -s -L "url" -o "path" --create-dirs
     // --create-dirs ensures that if "path/to/file.html" is requested and "path/to" doesn't exist, it is created.
-    snprintf(command, sizeof(command), "curl -s -L --create-dirs \"%s\" -o \"%s\"", url->chars, path->chars);
+    snprintf(command, sizeof(command), "curl -s -L --create-dirs \"%s\" -o \"%s\"", url->chars, resolvedPath);
+    
+    free(resolvedPath);
     
     int result = system(command);
     return BOOL_VAL(result == 0);
@@ -745,9 +749,13 @@ static Value scraper_select(VM* vm, Value* args, int argCount) {
 // Let's provide `parseFile(path, selector)` which reads, parses, and selects in one go.
 // Simple and powerful.
 
-static char* readFileContent(const char* path) {
-    FILE* file = fopen(path, "rb");
-    if (!file) return NULL;
+static char* readFileResolved(VM* vm, const char* path) {
+    char* resolvedPath = resolvePath(vm, path);
+    FILE* file = fopen(resolvedPath, "rb");
+    if (!file) {
+        free(resolvedPath);
+        return NULL;
+    }
     
     fseek(file, 0, SEEK_END);
     long length = ftell(file);
@@ -755,10 +763,11 @@ static char* readFileContent(const char* path) {
     
     char* buffer = malloc(length + 1);
     size_t read = fread(buffer, 1, length, file);
-    (void)read; // We trust file length from ftell, but should check
+    (void)read; 
     buffer[length] = '\0';
     
     fclose(file);
+    free(resolvedPath);
     return buffer;
 }
 
@@ -769,7 +778,7 @@ static Value scraper_parseFile(VM* vm, Value* args, int argCount) {
     }
     
     ObjString* path = AS_STRING(args[0]);
-    char* htmlContent = readFileContent(path->chars);
+    char* htmlContent = readFileResolved(vm, path->chars);
     
     if (!htmlContent) {
         // Error handling? Return NIL or empty list?

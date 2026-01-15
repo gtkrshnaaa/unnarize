@@ -158,11 +158,16 @@ static char g_lastPath[1024] = {0};
 
 static Value uon_load_impl(VM* vm, Value* args, int argCount) {
     if (argCount < 1 || !IS_STRING(args[0])) return BOOL_VAL(false);
-    char* path = AS_CSTRING(args[0]);
+    
+    char* rawPath = AS_CSTRING(args[0]);
+    char* path = resolvePath(vm, rawPath);
+    
     strncpy(g_lastPath, path, 1023);
     
     // Schema parse limited logic
     FILE* f = fopen(path, "r");
+    free(path); // Path copied to g_lastPath, can free now
+    
     if(!f) return BOOL_VAL(false);
     
     size_t cap = 1024 * 64; // Limit schema read to 64KB

@@ -88,6 +88,56 @@ unsigned int hash(const char* key, int length) {
     return hash % TABLE_SIZE;
 }
 
+// Set script directory from script path
+void setScriptDir(VM* vm, const char* scriptPath) {
+    if (!scriptPath) {
+        vm->scriptDir[0] = '\0';
+        return;
+    }
+    
+    // Find last slash
+    const char* lastSlash = strrchr(scriptPath, '/');
+    if (lastSlash) {
+        size_t dirLen = lastSlash - scriptPath;
+        if (dirLen >= sizeof(vm->scriptDir)) {
+            dirLen = sizeof(vm->scriptDir) - 1;
+        }
+        strncpy(vm->scriptDir, scriptPath, dirLen);
+        vm->scriptDir[dirLen] = '\0';
+    } else {
+        // No slash, script is in current directory
+        strcpy(vm->scriptDir, ".");
+    }
+}
+
+// Resolve path relative to script directory
+// Returns newly allocated string - caller must free()
+char* resolvePath(VM* vm, const char* path) {
+    if (!path) return NULL;
+    
+    // If path is absolute, return a copy
+    if (path[0] == '/') {
+        return strdup(path);
+    }
+    
+    // If scriptDir is empty or ".", return path as-is
+    if (vm->scriptDir[0] == '\0' || 
+        (vm->scriptDir[0] == '.' && vm->scriptDir[1] == '\0')) {
+        return strdup(path);
+    }
+    
+    // Build scriptDir + "/" + path
+    size_t dirLen = strlen(vm->scriptDir);
+    size_t pathLen = strlen(path);
+    size_t totalLen = dirLen + 1 + pathLen + 1; // +1 for slash, +1 for null
+    
+    char* result = malloc(totalLen);
+    if (!result) return strdup(path);
+    
+    snprintf(result, totalLen, "%s/%s", vm->scriptDir, path);
+    return result;
+}
+
 // ==========================
 // GC & Memory Management
 // ==========================

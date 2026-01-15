@@ -319,6 +319,7 @@ struct VM {
     CallFrame callStack[CALL_STACK_MAX]; // Call stack
     int callStackTop;               // Call stack pointer
     char projectRoot[1024];         // Project root directory for module search
+    char scriptDir[1024];            // Directory containing the running script (for relative paths)
     ModuleEntry* moduleBuckets[TABLE_SIZE]; // Module cache by name
     void* externHandles[TABLE_SIZE]; // Handles for dlopen() libraries
     int externHandleCount;          // Count of loaded extern libraries
@@ -396,6 +397,10 @@ Function* findFunctionByName(VM* vm, const char* name);
 void defineGlobal(VM* vm, const char* name, Value value);
 void defineNative(VM* vm, Environment* env, const char* name, NativeFn fn, int arity);
 ObjString* internString(VM* vm, const char* str, int length);
+
+// Path Resolution
+void setScriptDir(VM* vm, const char* scriptPath);
+char* resolvePath(VM* vm, const char* path);  // Caller must free() the result
 
 // Memory Management
 void* reallocate(VM* vm, void* pointer, size_t oldSize, size_t newSize);

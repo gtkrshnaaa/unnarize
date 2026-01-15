@@ -547,7 +547,8 @@ static Value jsonWrite(VM* vm, Value* args, int argCount) {
     if (argCount != 2 || !IS_STRING(args[0])) {
         return BOOL_VAL(false);
     }
-    char* path = AS_CSTRING(args[0]);
+    
+    char* path = resolvePath(vm, AS_CSTRING(args[0]));
     Value data = args[1];
     
     // Stringify
@@ -563,6 +564,7 @@ static Value jsonWrite(VM* vm, Value* args, int argCount) {
     FILE* file = fopen(path, "w");
     if (!file) {
         free(header.buffer);
+        free(path);
         return BOOL_VAL(false);
     }
     
@@ -570,21 +572,22 @@ static Value jsonWrite(VM* vm, Value* args, int argCount) {
     fwrite(header.buffer, 1, header.length, file);
     fclose(file);
     free(header.buffer);
+    free(path);
     
     return BOOL_VAL(true);
 }
 
 static Value jsonRemove(VM* vm, Value* args, int argCount) {
-    (void)vm; // Unused
+    (void)vm; // Used now
     (void)argCount;
     if (!IS_STRING(args[0])) {
         return BOOL_VAL(false);
     }
-    char* path = AS_CSTRING(args[0]);
-    if (unlink(path) == 0) {
-        return BOOL_VAL(true);
-    }
-    return BOOL_VAL(false);
+    
+    char* path = resolvePath(vm, AS_CSTRING(args[0]));
+    bool result = (unlink(path) == 0);
+    free(path);
+    return BOOL_VAL(result);
 }
 
 // ============================================================================
