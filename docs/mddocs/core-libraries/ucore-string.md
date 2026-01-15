@@ -8,21 +8,13 @@
 
 | Function | Returns | Description |
 |----------|---------|-------------|
-| `length(str)` | int | String length |
-| `upper(str)` | string | Convert to uppercase |
-| `lower(str)` | string | Convert to lowercase |
-| `trim(str)` | string | Remove leading/trailing whitespace |
-| `split(str, delimiter)` | array | Split into array |
+| `split(str, delimiter)` | array | Split string into array |
 | `join(array, delimiter)` | string | Join array into string |
-| `contains(str, substr)` | bool | Check if contains substring |
-| `indexOf(str, substr)` | int | Find position of substring (-1 if not found) |
 | `replace(str, old, new)` | string | Replace occurrences |
-| `substring(str, start, length)` | string | Extract substring |
-| `startsWith(str, prefix)` | bool | Check if starts with |
-| `endsWith(str, suffix)` | bool | Check if ends with |
-| `repeat(str, count)` | string | Repeat string n times |
-| `reverse(str)` | string | Reverse string |
-| `charAt(str, index)` | string | Get character at index |
+| `trim(str)` | string | Remove leading/trailing whitespace |
+| `toLower(str)` | string | Convert to lowercase |
+| `toUpper(str)` | string | Convert to uppercase |
+| `contains(str, substr)` | bool | Check if contains substring |
 | `match(str, pattern)` | bool | Regex match |
 | `extract(str, pattern)` | array | Regex extract matches |
 
@@ -30,21 +22,13 @@
 
 ## Basic Operations
 
-### Length
-
-```javascript
-var text = "Hello World";
-print(ucoreString.length(text));  // 11
-print(length("Hello"));           // 5 (built-in also works)
-```
-
 ### Case Conversion
 
 ```javascript
 var text = "Hello World";
 
-print(ucoreString.upper(text));  // "HELLO WORLD"
-print(ucoreString.lower(text));  // "hello world"
+print(ucoreString.toUpper(text));  // "HELLO WORLD"
+print(ucoreString.toLower(text));  // "hello world"
 ```
 
 ### Trim
@@ -65,25 +49,6 @@ var text = "The quick brown fox";
 
 print(ucoreString.contains(text, "quick"));  // true
 print(ucoreString.contains(text, "slow"));   // false
-```
-
-### IndexOf
-
-```javascript
-var text = "Hello World";
-
-print(ucoreString.indexOf(text, "World"));  // 6
-print(ucoreString.indexOf(text, "xyz"));    // -1
-```
-
-### StartsWith / EndsWith
-
-```javascript
-var filename = "document.pdf";
-
-print(ucoreString.startsWith(filename, "doc"));   // true
-print(ucoreString.endsWith(filename, ".pdf"));    // true
-print(ucoreString.endsWith(filename, ".txt"));    // false
 ```
 
 ---
@@ -132,38 +97,6 @@ print(ucoreString.replace(text, "World", "Unnarize"));
 var repeated = "a-b-c-d";
 print(ucoreString.replace(repeated, "-", "_"));
 // "a_b_c_d"
-```
-
-### Substring
-
-```javascript
-var text = "Hello World";
-
-print(ucoreString.substring(text, 0, 5));   // "Hello"
-print(ucoreString.substring(text, 6, 5));   // "World"
-print(ucoreString.substring(text, 6, 100)); // "World" (safe)
-```
-
-### Repeat
-
-```javascript
-print(ucoreString.repeat("ab", 3));   // "ababab"
-print(ucoreString.repeat("-", 10));   // "----------"
-```
-
-### Reverse
-
-```javascript
-print(ucoreString.reverse("hello"));  // "olleh"
-print(ucoreString.reverse("12345"));  // "54321"
-```
-
-### CharAt
-
-```javascript
-var text = "Hello";
-print(ucoreString.charAt(text, 0));  // "H"
-print(ucoreString.charAt(text, 4));  // "o"
 ```
 
 ---
