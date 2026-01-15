@@ -2,11 +2,12 @@
 
 print("=== ucoreScraper Demo ===");
 
-var html = "<body><h1>Hello</h1></body>";
-print("Parsing HTML: " + html);
+var html = "<body><div id='main' class='container'><h1>Hello Scraper</h1><p>Welcome to <b>Unnarize</b></p><br/><img src='logo.png'/></div></body>";
+print("Parsing HTML...");
+print("---------------------------------------------------");
 
-// Should not crash and return nil (for now)
-var doc = ucoreScraper.parse(html); 
+// Parse and Debug Print
+ucoreScraper.parse(html, true);
 
-print("Parsed successfully (no crash)");
+print("---------------------------------------------------");
 print("Done.");
