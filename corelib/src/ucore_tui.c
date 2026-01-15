@@ -796,224 +796,129 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
 // inputMulti(title, rows, initialValue) - Multi-line text editor
 // Returns: string (with newlines)
 static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
-    const char* title = "Editor";
-    int displayRows = 5;
+    (void)vm;
+    
+    const char* title = "Input";
     const char* initial = "";
     
     if (argCount >= 1 && IS_STRING(args[0])) {
         title = AS_CSTRING(args[0]);
     }
-    if (argCount >= 2 && IS_INT(args[1])) {
-        displayRows = AS_INT(args[1]);
-        if (displayRows < 2) displayRows = 2;
-        if (displayRows > 20) displayRows = 20;
-    }
-    if (argCount >= 3 && IS_STRING(args[2])) {
-        initial = AS_CSTRING(args[2]);
+    if (argCount >= 2 && IS_STRING(args[1])) {
+        initial = AS_CSTRING(args[1]);
     }
     
-    // Multi-line buffer using array of lines
     #define MAX_LINES 100
     #define MAX_LINE_LEN 256
     char lines[MAX_LINES][MAX_LINE_LEN];
-    int lineCount = 1;
-    int cursorRow = 0;
-    int cursorCol = 0;
-    int scrollRow = 0;
+    int lineCount = 0;
     
-    // Initialize with empty line or initial value
     memset(lines, 0, sizeof(lines));
+    
+    // Parse initial value into lines
     if (initial[0] != '\0') {
         const char* p = initial;
-        int row = 0;
-        int col = 0;
+        int row = 0, col = 0;
         while (*p && row < MAX_LINES) {
             if (*p == '\n') {
                 lines[row][col] = '\0';
-                row++;
-                col = 0;
-                lineCount = row + 1;
+                row++; col = 0;
             } else if (col < MAX_LINE_LEN - 1) {
                 lines[row][col++] = *p;
             }
             p++;
         }
         lines[row][col] = '\0';
-        if (row + 1 > lineCount) lineCount = row + 1;
-        cursorRow = row;
-        cursorCol = col;
+        lineCount = row + 1;
     }
     
-    // Get terminal width
-    struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    int boxWidth = w.ws_col > 80 ? 78 : w.ws_col - 4;
-    if (boxWidth < 40) boxWidth = 40;
+    // Print header
+    printf(CSI "1m%s" CSI "0m " CSI "2m(Enter lines, Ctrl+D to save, Ctrl+C to cancel)" CSI "0m\n", title);
     
-    int titleLen = (int)strlen(title);
-    int contentWidth = boxWidth - 8;
-    
-    // Draw static box once
-    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " CSI "2m(Ctrl+D save, Esc cancel)" CSI "0m ", title);
-    int remaining = boxWidth - titleLen - 30;
-    for (int i = 0; i < remaining && i < boxWidth; i++) printf(BOX_LIGHT_H);
-    printf(BOX_ROUND_TR "\r\n");
-    
-    for (int i = 0; i < displayRows; i++) {
-        printf(BOX_LIGHT_V " " CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", i + 1);
-        for (int j = 0; j < contentWidth; j++) printf(" ");
-        printf(" " BOX_LIGHT_V "\r\n");
+    // Print existing lines if any
+    for (int i = 0; i < lineCount; i++) {
+        printf(CSI "2m%2d:" CSI "0m %s\n", i + 1, lines[i]);
     }
-    
-    printf(BOX_ROUND_BL);
-    for (int i = 0; i < boxWidth - 2; i++) printf(BOX_LIGHT_H);
-    printf(BOX_ROUND_BR "\r\n");
-    
-    // Move back to first content line (from bottom of box)
-    printf(CSI "%dA", displayRows + 1);
-    fflush(stdout);
     
     enableRawMode();
     
+    int currentLine = lineCount;
+    int cursorPos = 0;
+    if (currentLine == 0) {
+        currentLine = 1;
+        lineCount = 1;
+    }
+    
+    // Show current line prompt
+    printf(CSI "2m%2d:" CSI "0m ", currentLine);
+    fflush(stdout);
+    
     while (1) {
-        // Adjust scroll
-        if (cursorRow < scrollRow) scrollRow = cursorRow;
-        if (cursorRow >= scrollRow + displayRows) scrollRow = cursorRow - displayRows + 1;
-        
-        // Go to start of first content line from current position
-        printf("\r");
-        
-        // Redraw all visible lines
-        for (int i = 0; i < displayRows; i++) {
-            int lineIdx = scrollRow + i;
-            // Draw line number and borders fresh
-            printf(BOX_LIGHT_V " " CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", scrollRow + i + 1);
-            
-            if (lineIdx < lineCount) {
-                int lineLen = (int)strlen(lines[lineIdx]);
-                int showLen = lineLen > contentWidth ? contentWidth : lineLen;
-                for (int j = 0; j < showLen; j++) printf("%c", lines[lineIdx][j]);
-                for (int j = showLen; j < contentWidth; j++) printf(" ");
-            } else {
-                for (int j = 0; j < contentWidth; j++) printf(" ");
-            }
-            printf(" " BOX_LIGHT_V);
-            if (i < displayRows - 1) printf("\r\n");
-        }
-        
-        // Position cursor back to correct row and column
-        int cursorDisplayRow = cursorRow - scrollRow;
-        // Move up from last line to cursor line
-        if (cursorDisplayRow < displayRows - 1) {
-            printf(CSI "%dA", displayRows - 1 - cursorDisplayRow);
-        }
-        printf("\r" CSI "%dC", 7 + cursorCol);
-        fflush(stdout);
-        
         char c;
         if (!readChar(&c)) continue;
         
-        int currentLineLen = (int)strlen(lines[cursorRow]);
+        int lineLen = (int)strlen(lines[currentLine - 1]);
         
-        if (c == 4) { // Ctrl+D - Save
-            // Move to bottom of box + 1
-            int movesDown = (displayRows - 1 - cursorDisplayRow) + 2;
-            printf(CSI "%dB\r\n", movesDown);
+        if (c == 4) { // Ctrl+D - save and exit
+            printf("\n");
             break;
-        } else if (c == 27) { // Escape
-            char seq[2] = {0};
-            if (readChar(&seq[0])) {
-                if (seq[0] == '[' && readChar(&seq[1])) {
-                    if (seq[1] == 'A' && cursorRow > 0) {
-                        cursorRow--;
-                        int newLen = (int)strlen(lines[cursorRow]);
-                        if (cursorCol > newLen) cursorCol = newLen;
-                    } else if (seq[1] == 'B' && cursorRow < lineCount - 1) {
-                        cursorRow++;
-                        int newLen = (int)strlen(lines[cursorRow]);
-                        if (cursorCol > newLen) cursorCol = newLen;
-                    } else if (seq[1] == 'C' && cursorCol < currentLineLen) { cursorCol++; }
-                    else if (seq[1] == 'D' && cursorCol > 0) { cursorCol--; }
-                    else if (seq[1] == 'H') { cursorCol = 0; }
-                    else if (seq[1] == 'F') { cursorCol = currentLineLen; }
-                    else if (seq[1] == '3') {
-                        (void)readChar(&seq[0]);
-                        if (cursorCol < currentLineLen) {
-                            memmove(&lines[cursorRow][cursorCol], &lines[cursorRow][cursorCol + 1],
-                                    (size_t)(currentLineLen - cursorCol));
-                        } else if (cursorRow < lineCount - 1) {
-                            int nextLen = (int)strlen(lines[cursorRow + 1]);
-                            if (currentLineLen + nextLen < MAX_LINE_LEN - 1) {
-                                char temp[MAX_LINE_LEN];
-                                memcpy(temp, lines[cursorRow + 1], (size_t)(nextLen + 1));
-                                memcpy(&lines[cursorRow][currentLineLen], temp, (size_t)(nextLen + 1));
-                                for (int i = cursorRow + 1; i < lineCount - 1; i++) {
-                                    memcpy(lines[i], lines[i + 1], MAX_LINE_LEN);
-                                }
-                                lineCount--;
-                            }
-                        }
-                    }
-                    continue;
-                }
-            }
-            // Pure escape - cancel
+        } else if (c == 3) { // Ctrl+C - cancel
+            lineCount = 0;
             lines[0][0] = '\0';
-            lineCount = 1;
-            int movesDown = (displayRows - 1 - cursorDisplayRow) + 2;
-            printf(CSI "%dB\r\n", movesDown);
+            printf("\n");
             break;
         } else if (c == '\r' || c == '\n') {
+            // Move to next line
+            printf("\n");
+            currentLine++;
+            if (currentLine > lineCount) lineCount = currentLine;
+            cursorPos = 0;
             if (lineCount < MAX_LINES) {
-                for (int i = lineCount; i > cursorRow + 1; i--) {
-                    memcpy(lines[i], lines[i - 1], MAX_LINE_LEN);
-                }
-                char temp[MAX_LINE_LEN];
-                int restLen = (int)strlen(&lines[cursorRow][cursorCol]);
-                memcpy(temp, &lines[cursorRow][cursorCol], (size_t)(restLen + 1));
-                memcpy(lines[cursorRow + 1], temp, (size_t)(restLen + 1));
-                lines[cursorRow][cursorCol] = '\0';
-                lineCount++;
-                cursorRow++;
-                cursorCol = 0;
+                printf(CSI "2m%2d:" CSI "0m ", currentLine);
+                fflush(stdout);
             }
-        } else if (c == 127 || c == 8) {
-            if (cursorCol > 0) {
-                memmove(&lines[cursorRow][cursorCol - 1], &lines[cursorRow][cursorCol],
-                        (size_t)(currentLineLen - cursorCol + 1));
-                cursorCol--;
-            } else if (cursorRow > 0) {
-                int prevLen = (int)strlen(lines[cursorRow - 1]);
-                if (prevLen + currentLineLen < MAX_LINE_LEN - 1) {
-                    cursorCol = prevLen;
-                    char temp[MAX_LINE_LEN];
-                    memcpy(temp, lines[cursorRow], (size_t)(currentLineLen + 1));
-                    memcpy(&lines[cursorRow - 1][prevLen], temp, (size_t)(currentLineLen + 1));
-                    for (int i = cursorRow; i < lineCount - 1; i++) {
-                        memcpy(lines[i], lines[i + 1], MAX_LINE_LEN);
+        } else if (c == 127 || c == 8) { // Backspace
+            if (cursorPos > 0) {
+                memmove(&lines[currentLine - 1][cursorPos - 1], 
+                        &lines[currentLine - 1][cursorPos],
+                        (size_t)(lineLen - cursorPos + 1));
+                cursorPos--;
+                // Redraw current line content
+                printf("\r" CSI "2m%2d:" CSI "0m %s ", currentLine, lines[currentLine - 1]);
+                printf("\r" CSI "%dC", 5 + cursorPos);
+                fflush(stdout);
+            }
+        } else if (c == '\033') { // Escape sequence
+            char seq[2] = {0};
+            if (readChar(&seq[0]) && readChar(&seq[1])) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'C' && cursorPos < lineLen) { // Right
+                        cursorPos++;
+                        printf(CSI "C");
+                    } else if (seq[1] == 'D' && cursorPos > 0) { // Left
+                        cursorPos--;
+                        printf(CSI "D");
+                    } else if (seq[1] == 'H') { // Home
+                        printf("\r" CSI "%dC", 5);
+                        cursorPos = 0;
+                    } else if (seq[1] == 'F') { // End
+                        printf("\r" CSI "%dC", 5 + lineLen);
+                        cursorPos = lineLen;
                     }
-                    lineCount--;
-                    cursorRow--;
+                    fflush(stdout);
                 }
             }
-        } else if (c == 1) { cursorCol = 0; }
-        else if (c == 5) { cursorCol = currentLineLen; }
-        else if (c == 11) { lines[cursorRow][cursorCol] = '\0'; }
-        else if (c >= 32 && c < 127) {
-            if (currentLineLen < MAX_LINE_LEN - 1) {
-                memmove(&lines[cursorRow][cursorCol + 1], &lines[cursorRow][cursorCol],
-                        (size_t)(currentLineLen - cursorCol + 1));
-                lines[cursorRow][cursorCol] = c;
-                cursorCol++;
-            }
-        } else if (c == '\t') {
-            int spaces = 4 - (cursorCol % 4);
-            for (int i = 0; i < spaces && currentLineLen < MAX_LINE_LEN - 1; i++) {
-                int lineLen = (int)strlen(lines[cursorRow]);
-                memmove(&lines[cursorRow][cursorCol + 1], &lines[cursorRow][cursorCol],
-                        (size_t)(lineLen - cursorCol + 1));
-                lines[cursorRow][cursorCol] = ' ';
-                cursorCol++;
+        } else if (c >= 32 && c < 127) { // Printable
+            if (lineLen < MAX_LINE_LEN - 1) {
+                memmove(&lines[currentLine - 1][cursorPos + 1],
+                        &lines[currentLine - 1][cursorPos],
+                        (size_t)(lineLen - cursorPos + 1));
+                lines[currentLine - 1][cursorPos] = c;
+                cursorPos++;
+                // Redraw from cursor
+                printf("%s", &lines[currentLine - 1][cursorPos - 1]);
+                printf("\r" CSI "%dC", 5 + cursorPos);
+                fflush(stdout);
             }
         }
     }
