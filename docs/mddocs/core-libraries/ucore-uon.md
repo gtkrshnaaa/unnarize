@@ -38,67 +38,58 @@ Bob Wilson, 45, true
 
 | Function | Returns | Description |
 |----------|---------|-------------|
-| `open(path)` | cursor | Open UON file for reading |
-| `all(cursor)` | array | Read all records |
-| `next(cursor)` | map | Read next record |
-| `close(cursor)` | nil | Close cursor |
-| `write(path, records)` | bool | Write records to file |
-| `schema(cursor)` | map | Get schema information |
+| `parse(content)` | map | Parse UON string to data |
+| `load(path)` | cursor | Load UON file for streaming |
+| `get(path)` | array | Load and get all records |
+| `next(cursor)` | map | Read next record from cursor |
+| `generate(schema, data)` | string | Generate UON content |
+| `save(data)` | bool | Save data (placeholder) |
+| `insert(key, value)` | nil | Insert data (placeholder) |
 
 ---
 
 ## Reading UON Files
 
-### Open and Read All
+### Load and Read All
 
 ```javascript
-var cursor = ucoreUon.open("data.uon");
-var records = ucoreUon.all(cursor);
+var records = ucoreUon.get("data.uon");
 
 for (var record : records) {
     print(record["name"] + ": " + record["age"]);
 }
-
-ucoreUon.close(cursor);
 ```
 
 ### Streaming with next()
 
 ```javascript
-var cursor = ucoreUon.open("large_data.uon");
+var cursor = ucoreUon.load("large_data.uon");
 
 var record = ucoreUon.next(cursor);
 while (record != nil) {
     processRecord(record);
     record = ucoreUon.next(cursor);
 }
-
-ucoreUon.close(cursor);
 ```
 
-### Get Schema
+### Parsing UON String
 
 ```javascript
-var cursor = ucoreUon.open("data.uon");
-var schema = ucoreUon.schema(cursor);
-
-print("Fields:");
-for (var field : schema["fields"]) {
-    print("  " + field["name"] + ": " + field["type"]);
-}
-
-ucoreUon.close(cursor);
+var content = "@schema name:string, age:int\nAlice, 30\nBob, 25";
+var data = ucoreUon.parse(content);
+print(data);
 ```
 
 ---
 
-## Writing UON Files
+## Generating UON Content
 
-### write(path, records)
+### generate(schema, data)
 
 ```javascript
-var users = [];
+var schema = "name:string, age:int, active:bool";
 
+var users = [];
 var user1 = map();
 user1["name"] = "Alice";
 user1["age"] = 30;
@@ -111,14 +102,11 @@ user2["age"] = 25;
 user2["active"] = false;
 push(users, user2);
 
-ucoreUon.write("users.uon", users);
-```
-
-Output file:
-```
-@schema name:string, age:int, active:bool
-Alice, 30, true
-Bob, 25, false
+var content = ucoreUon.generate(schema, users);
+print(content);
+// @schema name:string, age:int, active:bool
+// Alice, 30, true
+// Bob, 25, false
 ```
 
 ---
