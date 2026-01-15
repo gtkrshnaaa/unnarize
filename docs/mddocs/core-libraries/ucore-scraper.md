@@ -8,12 +8,9 @@
 
 | Function | Returns | Description |
 |----------|---------|-------------|
-| `parse(html)` | doc | Parse HTML string |
-| `parseFile(path)` | doc | Parse HTML file |
-| `select(doc, selector)` | array | Query with CSS selector |
-| `text(element)` | string | Get element text content |
-| `attr(element, name)` | string | Get attribute value |
-| `html(element)` | string | Get inner HTML |
+| `parse(html)` | doc | Parse HTML string to DOM tree |
+| `select(doc, selector)` | array | Query with CSS selector, returns Maps with tagName/textContent/attrs |
+| `parseFile(path, selector)` | array | Parse file and select in one call |
 | `fetch(url)` | string | Download URL content |
 | `download(url, path)` | bool | Download file to path |
 
@@ -30,12 +27,15 @@ var html = "<html><body><h1>Title</h1><p>Content</p></body></html>";
 var doc = ucoreScraper.parse(html);
 ```
 
-### parseFile(path)
+### parseFile(path, selector)
 
-Parse an HTML file:
+Parse an HTML file and select elements:
 
 ```javascript
-var doc = ucoreScraper.parseFile("page.html");
+var elements = ucoreScraper.parseFile("page.html", "h1");
+for (var el : elements) {
+    print(el["textContent"]);
+}
 ```
 
 ---
@@ -84,42 +84,32 @@ var externalLinks = ucoreScraper.select(doc, "a[target='_blank']");
 
 ## Extracting Data
 
-### text(element)
+The `select()` and `parseFile()` functions return arrays of Maps. Each Map contains:
 
-Get text content:
+| Property | Description |
+|----------|-------------|
+| `tagName` | Element tag name |
+| `textContent` | Text inside element |
+| `href`, `src`, etc. | Attribute values (if present) |
+
+### Example: Extracting Text
 
 ```javascript
-var doc = ucoreScraper.parseFile("page.html");
+var doc = ucoreScraper.parse(html);
 var headings = ucoreScraper.select(doc, "h1");
 
 for (var h : headings) {
-    print(ucoreScraper.text(h));
+    print(h["textContent"]);
 }
 ```
 
-### attr(element, name)
-
-Get attribute value:
+### Example: Extracting Links
 
 ```javascript
 var links = ucoreScraper.select(doc, "a");
 
 for (var link : links) {
-    var href = ucoreScraper.attr(link, "href");
-    var text = ucoreScraper.text(link);
-    print(text + " -> " + href);
-}
-```
-
-### html(element)
-
-Get inner HTML:
-
-```javascript
-var divs = ucoreScraper.select(doc, "div.content");
-
-for (var div : divs) {
-    print(ucoreScraper.html(div));
+    print(link["textContent"] + " -> " + link["href"]);
 }
 ```
 
