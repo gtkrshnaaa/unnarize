@@ -12,40 +12,53 @@
 ## Key Features
 
 ### "Gapless" Garbage Collector
-Unnarize implements a production-grade GC architecture comparable to V8 (Node.js) and Go:
-*   **Generational Heap**: Separates new objects (Nursery) from long-lived ones (Old Gen) for cache efficiency.
-*   **Concurrent Marking**: Traces object graphs in a background thread without freezing the app.
-*   **Parallel Sweeping**: Cleans up memory in the background, eliminating "Stop-The-World" pauses.
-*   **Thread Safe**: Fully synchronized with Mutexes and Atomic Write Barriers.
+*   **Generational Heap**: Separates new objects (Nursery) from long-lived ones (Old Gen).
+*   **Concurrent Marking**: Traces object graphs in a background thread.
+*   **Parallel Sweeping**: Cleans up memory without "Stop-The-World" pauses.
 
 ### Native Async/Await
-First-class support for non-blocking concurrency:
 *   **`async` / `await`**: Syntactic sugar for handling `Future` objects.
-*   **Event Loop**: Native implementation for handling I/O and background tasks.
+*   **Event Loop**: Native implementation for I/O and background tasks.
 
 ### Optimization
-*   **Computed Goto Dispatch**: Extremely fast instruction dispatching (GCC/Clang extension).
-*   **Specialized Opcodes**: Optimized paths for integers, floats, and local variable access.
-*   **Zero Dependency**: Pure C implementation (standard libc + pthreads).
+*   **Computed Goto Dispatch**: Extremely fast instruction dispatching.
+*   **Specialized Opcodes**: Optimized paths for integers, floats, locals.
+*   **Zero Dependency**: Pure C (standard libc + pthreads).
 
 ---
 
 ## Performance Benchmarks
 
-Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** (TigerLake-LP) with 8GB RAM.
+Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** with 8GB RAM.
 
-### Compute Throughput
-| Benchmark | Result | Ops/Sec | Note |
-|-----------|--------|---------|------|
-| **Heavy Loop** | 10M iterations | **~275 M** | `while` loop increment |
-| **Fibonacci** | fib(30) | **~70 ms** | Recursive function calls |
+### VM Compute Throughput
+| Benchmark | Result | Note |
+|-----------|--------|------|
+| **Heavy Loop** | **~275 M ops/sec** | `while` loop increment |
+| **Fibonacci(30)** | **~70 ms** | Recursive function calls |
 
 ### GC Stress Test
 | Scenario | Load | Result |
 |----------|------|--------|
-| **Massive Allocation** | 50,000 Arrays/Objects | **Stable** (No leaks) |
+| **Massive Allocation** | 50,000 Arrays | **Stable** |
 | **Long Running** | 15,000 Requests | **<10ms Pause** |
-| **Throughput** | 70,000 Allocations | **100% Success** |
+
+### ucoreString (Text Processing)
+| Operation | Data Size | Ops/sec |
+|-----------|-----------|---------|
+| `contains` | 14 KB | **24.5 Million** |
+| `toLower` | 14 KB | 42,500 |
+| `replace` | 14 KB | 38,800 |
+| `split` | 14 KB | 12,300 |
+| `regex extract` | 14 KB | 2,600 |
+
+### ucoreScraper (Web Scraping)
+| Operation | Data Size | Ops/sec |
+|-----------|-----------|---------|
+| `parseFile` (class selector) | 370 KB | 339 |
+| `parseFile` (table rows) | 370 KB | 212 |
+| `select` (in-memory) | 370 KB | 128 |
+| `parseFile` (links) | 370 KB | 83 |
 
 ---
 
@@ -56,64 +69,53 @@ Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** (TigerLake-LP) with 8GB RA
 git clone https://github.com/gtkrshnaaa/unnarize.git
 cd unnarize
 make
-# sudo make install  (Optional)
 ```
 
-### Run 'SME Store' Demo
-A complete modular application simulating a store management system:
+### Run Demo
 ```bash
 ./bin/unnarize examples/testcase/main.unna
 ```
 
 ### Run Benchmarks
 ```bash
+# VM Benchmark
 ./bin/unnarize examples/benchmark/benchmark.unna
+
+# String Library Benchmark (run from directory)
+cd examples/corelib/string && ../../../bin/unnarize benchmark.unna
+
+# Scraper Library Benchmark (run from directory)
+cd examples/corelib/scraper && ../../../bin/unnarize benchmark.unna
 ```
 
 ---
 
 ## Language Tour
 
-### 1. Generational GC in Action
-The GC works silently. You create objects, and they are managed automatically.
-
+### Generational GC
 ```javascript
-// This typically creates extensive pressure on the nursery
 for (var i = 0; i < 10000; i = i + 1) {
-    var temp = ["data", i]; // Allocated in Nursery
-    // Immediately discarded -> Swept instantly
+    var temp = ["data", i]; // Allocated in Nursery, swept instantly
 }
 print("Done without leaks!");
 ```
 
-### 2. Async/Await
-Native concurrency allows non-blocking I/O.
-
+### Async/Await
 ```javascript
 async function fetchData(url) {
-    print("Fetching " + url + "...");
-    // Simulate network delay
     return "Response from " + url;
 }
 
 async function main() {
-    print("Start");
-    var task = fetchData("api.google.com");
-    var result = await task; // Pauses here non-blocking
+    var result = await fetchData("api.example.com");
     print(result);
 }
-
 main();
 ```
 
-### 3. Structs & Objects
+### Structs
 ```javascript
-struct User {
-    id;
-    name;
-    email;
-}
-
+struct User { id; name; email; }
 var u = User(1, "Alice", "alice@example.com");
 print(u.name); // "Alice"
 ```
@@ -122,24 +124,43 @@ print(u.name); // "Alice"
 
 ## Core Libraries
 
-Unnarize comes with a powerful standard library:
-*   **`ucoreSystem`**: File I/O, Environment Variables.
-*   **`ucoreTimer`**: High-precision timing.
-*   **`ucoreHttp`**: Built-in HTTP Server/Client (`listen`, `get`, `post`).
-*   **`ucoreUon`**: Parser for UON (Unnarize Object Notation) data format.
+| Library | Description |
+|---------|-------------|
+| `ucoreString` | Text manipulation: `split`, `join`, `replace`, `regex` |
+| `ucoreScraper` | HTML parsing & CSS selectors, web scraping |
+| `ucoreJson` | JSON parsing and serialization |
+| `ucoreHttp` | HTTP Server/Client (`listen`, `get`, `post`) |
+| `ucoreSystem` | Shell execution, environment variables |
+| `ucoreTimer` | High-precision timing |
+| `ucoreUon` | Parser for UON data format |
 
 ---
 
 ## Architecture
 
-```
-[Source Code] -> [Lexer] -> [AST] -> [Compiler] -> [Bytecode Chunk]
-                                                         |
-                                                         v
-                                                 [Virtual Machine]
-                                                /        |        \
-                                     [Interpreter]    [Heap GC]   [Native Interface]
+```mermaid
+flowchart LR
+    subgraph Frontend
+        A[Source Code] --> B[Lexer]
+        B --> C[AST Parser]
+    end
+    
+    subgraph Backend
+        C --> D[Bytecode Compiler]
+        D --> E[Bytecode Chunk]
+    end
+    
+    subgraph Runtime
+        E --> F[Virtual Machine]
+        F --> G[Interpreter]
+        F --> H[Heap GC]
+        F --> I[Native Interface]
+        I --> J[Core Libraries]
+    end
 ```
 
+---
+
 ## License
+
 MIT License. Created by **gtkrshnaaa**.
