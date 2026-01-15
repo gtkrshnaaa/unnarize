@@ -45,6 +45,40 @@ for (var file : testFiles) {
     }
 }
 
+// File I/O operations
+print("");
+print("--- File I/O (writeFile / readFile) ---");
+
+var testPath = "test_output.txt";
+var testContent = "Hello from ucoreSystem.writeFile()!\nLine 2 here.";
+
+print("Writing to " + testPath + "...");
+var writeResult = ucoreSystem.writeFile(testPath, testContent);
+if (writeResult) {
+    print("Write successful!");
+} else {
+    print("Write failed!");
+}
+
+print("Reading from " + testPath + "...");
+var readContent = ucoreSystem.readFile(testPath);
+print("Content: " + readContent);
+
+// Clean up test file
+ucoreJson.remove(testPath);
+print("Cleaned up test file.");
+
+// Shell execution
+print("");
+print("--- Shell Execution (exec) ---");
+
+var dateOutput = ucoreSystem.exec("date");
+print("Current date: " + dateOutput);
+
+var lsOutput = ucoreSystem.exec("ls -la | head -5");
+print("Directory listing (first 5 lines):");
+print(lsOutput);
+
 // Interactive input (uncomment to test)
 // print("");
 // print("--- User Input ---");
