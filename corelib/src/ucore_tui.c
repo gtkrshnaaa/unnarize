@@ -869,8 +869,8 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
     for (int i = 0; i < boxWidth - 2; i++) printf(BOX_LIGHT_H);
     printf(BOX_ROUND_BR "\r\n");
     
-    // Move back to first content line
-    printf(CSI "%dA\r" CSI "7C", displayRows + 1);
+    // Move back to first content line (from bottom of box)
+    printf(CSI "%dA", displayRows + 1);
     fflush(stdout);
     
     enableRawMode();
@@ -880,12 +880,14 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
         if (cursorRow < scrollRow) scrollRow = cursorRow;
         if (cursorRow >= scrollRow + displayRows) scrollRow = cursorRow - displayRows + 1;
         
-        // Redraw all visible lines in place
+        // Go to start of first content line from current position
+        printf("\r");
+        
+        // Redraw all visible lines
         for (int i = 0; i < displayRows; i++) {
             int lineIdx = scrollRow + i;
-            // Move to line content area (skip borders and line number)
-            printf(CSI "%dA\r", displayRows - i);
-            printf(CSI "7C"); // After "│ NN │ "
+            // Draw line number and borders fresh
+            printf(BOX_LIGHT_V " " CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", scrollRow + i + 1);
             
             if (lineIdx < lineCount) {
                 int lineLen = (int)strlen(lines[lineIdx]);
@@ -895,13 +897,17 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
             } else {
                 for (int j = 0; j < contentWidth; j++) printf(" ");
             }
-            printf(CSI "%dB", displayRows - i); // Move back down
+            printf(" " BOX_LIGHT_V);
+            if (i < displayRows - 1) printf("\r\n");
         }
         
-        // Position cursor in correct row
+        // Position cursor back to correct row and column
         int cursorDisplayRow = cursorRow - scrollRow;
-        printf(CSI "%dA\r", displayRows - cursorDisplayRow);
-        printf(CSI "%dC", 7 + cursorCol);
+        // Move up from last line to cursor line
+        if (cursorDisplayRow < displayRows - 1) {
+            printf(CSI "%dA", displayRows - 1 - cursorDisplayRow);
+        }
+        printf("\r" CSI "%dC", 7 + cursorCol);
         fflush(stdout);
         
         char c;
@@ -910,7 +916,9 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
         int currentLineLen = (int)strlen(lines[cursorRow]);
         
         if (c == 4) { // Ctrl+D - Save
-            printf(CSI "%dB\r\n", displayRows - cursorDisplayRow);
+            // Move to bottom of box + 1
+            int movesDown = (displayRows - 1 - cursorDisplayRow) + 2;
+            printf(CSI "%dB\r\n", movesDown);
             break;
         } else if (c == 27) { // Escape
             char seq[2] = {0};
@@ -952,7 +960,8 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
             // Pure escape - cancel
             lines[0][0] = '\0';
             lineCount = 1;
-            printf(CSI "%dB\r\n", displayRows - cursorDisplayRow);
+            int movesDown = (displayRows - 1 - cursorDisplayRow) + 2;
+            printf(CSI "%dB\r\n", movesDown);
             break;
         } else if (c == '\r' || c == '\n') {
             if (lineCount < MAX_LINES) {
