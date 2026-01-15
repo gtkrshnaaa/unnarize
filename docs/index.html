@@ -66,56 +66,106 @@
         <main class="main">
             <div class="hero">
                 <h1>Unnarize</h1>
-                <p class="lead">A high-performance bytecode interpreter for a dynamic, C-style scripting language.</p>
+                <p class="lead">A high-performance bytecode interpreter for a dynamic, C-style scripting language with "Gapless" Generational Garbage Collection and native Async/Await support.</p>
                 <a href="getting-started.html" class="btn btn-primary">Get Started</a>
                 <a href="https://github.com/gtkrshnaaa/unnarize" class="btn btn-secondary">GitHub</a>
             </div>
             
-            <h2>Features</h2>
+            <h2>What is Unnarize?</h2>
+            <p>Unnarize is a modern scripting language designed for <strong>speed</strong>, <strong>reliability</strong>, and <strong>ease of use</strong>. It compiles source code to bytecode and executes it on a high-performance virtual machine featuring:</p>
+            <ul>
+                <li><strong>Computed Goto Dispatch</strong> – Extremely fast instruction dispatching (GCC/Clang extension)</li>
+                <li><strong>Generational GC</strong> – Separates short-lived objects (Nursery) from long-lived ones (Old Gen) for minimal pause times</li>
+                <li><strong>Concurrent Marking & Parallel Sweeping</strong> – Background garbage collection without "Stop-The-World" freezes</li>
+                <li><strong>Zero External Dependencies</strong> – Pure C implementation using only standard libc and pthreads</li>
+            </ul>
+            
+            <h2>Key Features</h2>
             <div class="features">
                 <div class="feature">
-                    <div class="feature-title">Clean Syntax</div>
-                    <div class="feature-desc">Familiar C-style syntax with modern touches for intuitive programming.</div>
+                    <div class="feature-title">🚀 High Performance</div>
+                    <div class="feature-desc">Achieves ~275 million ops/sec on loop benchmarks. Optimized bytecode VM with specialized opcodes for common operations.</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">High Performance</div>
-                    <div class="feature-desc">Bytecode VM with computed goto dispatch for maximum speed.</div>
+                    <div class="feature-title">♻️ Gapless GC</div>
+                    <div class="feature-desc">Production-grade generational garbage collector with concurrent marking and parallel sweeping. No more STW pauses.</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">Module System</div>
-                    <div class="feature-desc">Hierarchical imports with relative path resolution.</div>
+                    <div class="feature-title">⚡ Async/Await</div>
+                    <div class="feature-desc">First-class support for non-blocking concurrency with async functions, await expressions, and native event loop.</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">Async/Await</div>
-                    <div class="feature-desc">First-class asynchronous programming support.</div>
+                    <div class="feature-title">📦 Module System</div>
+                    <div class="feature-desc">Hierarchical imports with relative path resolution. Organize code into reusable modules.</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">Structs</div>
-                    <div class="feature-desc">Custom data types with field access.</div>
+                    <div class="feature-title">🔧 Rich Standard Library</div>
+                    <div class="feature-desc">7 built-in core libraries: HTTP server, JSON, web scraper, string manipulation, file I/O, timers, and UON database.</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-title">Zero Dependencies</div>
-                    <div class="feature-desc">Pure C implementation with no external libraries.</div>
+                    <div class="feature-title">📝 Clean Syntax</div>
+                    <div class="feature-desc">Familiar C-style syntax with modern touches. Easy to learn if you know JavaScript, C, or Java.</div>
                 </div>
             </div>
             
             <h2>Quick Example</h2>
-            <pre><code><span class="token-comment">// Hello World</span>
+<pre><code><span class="token-comment">// Hello World</span>
 <span class="token-keyword">var</span> name = <span class="token-string">"Unnarize"</span>;
 <span class="token-function">print</span>(<span class="token-string">"Hello, "</span> + name + <span class="token-string">"!"</span>);
 
 <span class="token-comment">// Function</span>
-<span class="token-keyword">function</span> <span class="token-function">greet</span>(who) {
-    <span class="token-keyword">return</span> <span class="token-string">"Welcome, "</span> + who;
+<span class="token-keyword">function</span> <span class="token-function">factorial</span>(n) {
+    <span class="token-keyword">if</span> (n <= <span class="token-number">1</span>) <span class="token-keyword">return</span> <span class="token-number">1</span>;
+    <span class="token-keyword">return</span> n * <span class="token-function">factorial</span>(n - <span class="token-number">1</span>);
 }
+<span class="token-function">print</span>(<span class="token-function">factorial</span>(<span class="token-number">10</span>)); <span class="token-comment">// 3628800</span>
 
-<span class="token-function">print</span>(<span class="token-function">greet</span>(<span class="token-string">"Developer"</span>));</code></pre>
+<span class="token-comment">// HTTP Server</span>
+<span class="token-keyword">function</span> <span class="token-function">handleApi</span>(req) {
+    <span class="token-keyword">return</span> <span class="token-string">"{\"status\":\"ok\"}"</span>;
+}
+ucoreHttp.<span class="token-function">route</span>(<span class="token-string">"GET"</span>, <span class="token-string">"/api"</span>, <span class="token-string">"handleApi"</span>);
+ucoreHttp.<span class="token-function">listen</span>(<span class="token-number">8080</span>);</code></pre>
             
             <h2>Installation</h2>
-            <pre><code>git clone https://github.com/gtkrshnaaa/unnarize.git
+<pre><code>git clone https://github.com/gtkrshnaaa/unnarize.git
 cd unnarize
 make
-./bin/unnarize examples/basics/01_variables.unna</code></pre>
+sudo make install
+unnarize -v  <span class="token-comment"># unnarize 0.1.4-beta</span></code></pre>
+            
+            <h2>Performance Benchmarks</h2>
+            <p>Tested on Intel Core i5-1135G7 @ 4.20GHz with 8GB RAM:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Benchmark</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Heavy Loop (10M iterations)</td>
+                        <td><strong>~275 M ops/sec</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Fibonacci(30) Recursive</td>
+                        <td>~70 ms</td>
+                    </tr>
+                    <tr>
+                        <td>GC Stress (50K allocations)</td>
+                        <td>Stable, &lt;10ms pause</td>
+                    </tr>
+                    <tr>
+                        <td>String contains (14KB)</td>
+                        <td>24.5 M ops/sec</td>
+                    </tr>
+                    <tr>
+                        <td>HTML parseFile (370KB)</td>
+                        <td>~340 ops/sec</td>
+                    </tr>
+                </tbody>
+            </table>
             
             <h2>Core Libraries</h2>
             <table>
@@ -128,34 +178,41 @@ make
                 <tbody>
                     <tr>
                         <td><code>ucoreString</code></td>
-                        <td>Text manipulation, split, join, replace, regex</td>
+                        <td>Text manipulation: split, join, replace, trim, regex match/extract</td>
                     </tr>
                     <tr>
                         <td><code>ucoreScraper</code></td>
-                        <td>HTML parsing, CSS selectors, web scraping</td>
+                        <td>HTML parsing with CSS selectors, fetch/download, web scraping toolkit</td>
                     </tr>
                     <tr>
                         <td><code>ucoreJson</code></td>
-                        <td>JSON parsing and serialization</td>
+                        <td>JSON parse/stringify, read/write files, full type support</td>
                     </tr>
                     <tr>
                         <td><code>ucoreHttp</code></td>
-                        <td>HTTP client and server, REST APIs</td>
+                        <td>HTTP client (GET/POST/PUT/DELETE) and server with routing, middleware, static files</td>
                     </tr>
                     <tr>
                         <td><code>ucoreTimer</code></td>
-                        <td>High-precision timing and sleep</td>
+                        <td>High-precision monotonic timing (now) and sleep</td>
                     </tr>
                     <tr>
                         <td><code>ucoreSystem</code></td>
-                        <td>File I/O, shell exec, environment</td>
+                        <td>File I/O, shell exec, environment variables, args, exit</td>
                     </tr>
                     <tr>
                         <td><code>ucoreUon</code></td>
-                        <td>UON format database with streaming cursor</td>
+                        <td>UON format database with schema, streaming cursor, and generate</td>
                     </tr>
                 </tbody>
             </table>
+            
+            <h2>About the Author</h2>
+            <p>Unnarize is created by <strong>gtkrshnaaa</strong>, a 22-year-old programmer from Indonesia known as <em>"The Polymath Artisan Prince"</em>. With a passion for language design, systems programming, and pushing the boundaries of what scripting languages can achieve, this project represents the culmination of deep expertise in compiler construction, virtual machine design, and garbage collection algorithms.</p>
+            
+            <div class="author-links" style="margin-top: 1rem;">
+                <a href="https://github.com/gtkrshnaaa" class="btn btn-secondary">GitHub Profile</a>
+            </div>
         </main>
     </div>
     <script src="js/main.js"></script>
