@@ -1,3 +1,6 @@
+// NOTE: All file paths in Unnarize are strictly relative to the script directory.
+//       Absolute paths will be sandboxed to <scriptDir>/path.
+
 print("=== ucoreScraper Stress Test (Real-World HTML) ===");
 // NOTE: Run this script from examples/corelib/scraper/ directory
 // so downloaded files stay within this folder.

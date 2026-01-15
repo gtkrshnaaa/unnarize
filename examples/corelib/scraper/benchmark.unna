@@ -1,3 +1,6 @@
+// NOTE: All file paths in Unnarize are strictly relative to the script directory.
+//       Absolute paths will be sandboxed to <scriptDir>/path.
+
 print("=== ucoreScraper Benchmark ===");
 
 // Use a pre-downloaded file for consistent benchmarking

@@ -1,3 +1,6 @@
+// NOTE: All file paths in Unnarize are strictly relative to the script directory.
+//       Absolute paths will be sandboxed to <scriptDir>/path.
+
 // Demo for ucoreJson
 
 var jsonData = '{"name": "Unnarize", "version": 1, "features": ["GC", "Async", "JSON"]}';
