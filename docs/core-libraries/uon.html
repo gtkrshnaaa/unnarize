@@ -123,6 +123,16 @@
     <span class="token-function">print</span>(<span class="token-string">"Failed to load UON file"</span>);
 }</code></pre>
             
+            <h2>parse(source)</h2>
+            <p>Parses UON content from a string (instead of file). Useful for embedded data or testing.</p>
+            <pre><code><span class="token-keyword">var</span> uonContent = <span class="token-string">"@schema { users: [id, name] } @flow { users: [{ id: 1, name: \"Test\" }] }"</span>;
+ucoreUon.<span class="token-function">parse</span>(uonContent);
+
+<span class="token-comment">// Now query it like normal</span>
+<span class="token-keyword">var</span> cursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"users"</span>);
+<span class="token-keyword">var</span> user = ucoreUon.<span class="token-function">next</span>(cursor);
+<span class="token-function">print</span>(user[<span class="token-string">"name"</span>]); <span class="token-comment">// "Test"</span></code></pre>
+            
             <h2>get(table)</h2>
             <p>Returns a streaming cursor for the specified table. Uses lazy loading for memory efficiency.</p>
             <pre><code><span class="token-keyword">var</span> cursor = ucoreUon.<span class="token-function">get</span>(<span class="token-string">"users"</span>);</code></pre>

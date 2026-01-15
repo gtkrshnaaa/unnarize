@@ -135,6 +135,18 @@ ucoreJson.<span class="token-function">writeFile</span>(<span class="token-strin
 <span class="token-keyword">if</span> (<span class="token-function">length</span>(result) == <span class="token-number">0</span>) {
     <span class="token-function">print</span>(<span class="token-string">"Parse error!"</span>);
 }</code></pre>
+
+            <h3>remove(path)</h3>
+            <p>Deletes a JSON file from disk. Returns <code>true</code> on success.</p>
+<pre><code><span class="token-comment">// Create a temporary file</span>
+<span class="token-keyword">var</span> data = <span class="token-function">map</span>();
+data[<span class="token-string">"temp"</span>] = <span class="token-keyword">true</span>;
+ucoreJson.<span class="token-function">write</span>(<span class="token-string">"temp.json"</span>, data);
+
+<span class="token-comment">// Later, remove it</span>
+<span class="token-keyword">if</span> (ucoreJson.<span class="token-function">remove</span>(<span class="token-string">"temp.json"</span>)) {
+    <span class="token-function">print</span>(<span class="token-string">"Temp file deleted"</span>);
+}</code></pre>
         </main>
     </div>
     <script src="../js/main.js"></script>

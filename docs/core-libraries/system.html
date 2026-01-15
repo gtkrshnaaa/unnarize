@@ -160,6 +160,31 @@
     <span class="token-function">print</span>(<span class="token-string">"File content: "</span> + content);
 }</code></pre>
             
+            <h2>exec(command)</h2>
+            <p>Executes a shell command and returns the output as a string.</p>
+            <pre><code><span class="token-comment">// Get current directory listing</span>
+<span class="token-keyword">var</span> files = ucoreSystem.<span class="token-function">exec</span>(<span class="token-string">"ls -la"</span>);
+<span class="token-function">print</span>(files);
+
+<span class="token-comment">// Get current date</span>
+<span class="token-keyword">var</span> date = ucoreSystem.<span class="token-function">exec</span>(<span class="token-string">"date"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Today: "</span> + date);
+
+<span class="token-comment">// Run Python script</span>
+<span class="token-keyword">var</span> result = ucoreSystem.<span class="token-function">exec</span>(<span class="token-string">"python3 script.py"</span>);
+<span class="token-function">print</span>(result);</code></pre>
+
+            <h2>exit(code)</h2>
+            <p>Terminates the program immediately with the specified exit code.</p>
+            <pre><code><span class="token-keyword">if</span> (!ucoreSystem.<span class="token-function">fileExists</span>(<span class="token-string">"required.txt"</span>)) {
+    <span class="token-function">print</span>(<span class="token-string">"Error: required.txt not found!"</span>);
+    ucoreSystem.<span class="token-function">exit</span>(<span class="token-number">1</span>); <span class="token-comment">// Exit with error code</span>
+}
+
+<span class="token-comment">// Continue if file exists...</span>
+<span class="token-function">print</span>(<span class="token-string">"All good!"</span>);
+ucoreSystem.<span class="token-function">exit</span>(<span class="token-number">0</span>); <span class="token-comment">// Exit with success</span></code></pre>
+            
             <h2>Example</h2>
             <pre><code>./bin/unnarize examples/corelib/system/demo.unna arg1 arg2</code></pre>
         </main>
