@@ -1,9 +1,9 @@
 # Makefile for achieving docs and examples
 # Run: make - Generate zip files in this directory
 
-.PHONY: all docs examples clean
+.PHONY: zip docs examples clean
 
-all: docs examples
+zip: docs examples
 
 docs:
 	@echo "Zipping docs/mddocs..."
