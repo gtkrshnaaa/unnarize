@@ -77,12 +77,12 @@
                         <td>Serialize value to JSON string</td>
                     </tr>
                     <tr>
-                        <td><code>readFile(path)</code></td>
+                        <td><code>read(path)</code></td>
                         <td>Map/Array</td>
                         <td>Read and parse JSON file</td>
                     </tr>
                     <tr>
-                        <td><code>writeFile(path, value)</code></td>
+                        <td><code>write(path, value)</code></td>
                         <td>bool</td>
                         <td>Write value to JSON file</td>
                     </tr>
@@ -110,14 +110,14 @@ data[<span class="token-string">"age"</span>] = <span class="token-number">31</s
 
             <h3>File Operations</h3>
 <pre><code><span class="token-comment">// Read JSON file</span>
-<span class="token-keyword">var</span> config = ucoreJson.<span class="token-function">readFile</span>(<span class="token-string">"config.json"</span>);
+<span class="token-keyword">var</span> config = ucoreJson.<span class="token-function">read</span>(<span class="token-string">"config.json"</span>);
 <span class="token-function">print</span>(config[<span class="token-string">"version"</span>]);
 
 <span class="token-comment">// Write JSON file</span>
 <span class="token-keyword">var</span> settings = <span class="token-function">map</span>();
 settings[<span class="token-string">"theme"</span>] = <span class="token-string">"dark"</span>;
 settings[<span class="token-string">"language"</span>] = <span class="token-string">"en"</span>;
-ucoreJson.<span class="token-function">writeFile</span>(<span class="token-string">"settings.json"</span>, settings);</code></pre>
+ucoreJson.<span class="token-function">write</span>(<span class="token-string">"settings.json"</span>, settings);</code></pre>
 
             <h2>Supported Types</h2>
             <ul>
