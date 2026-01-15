@@ -10,11 +10,11 @@
 |----------|---------|-------------|
 | `readFile(path)` | string | Read file contents |
 | `writeFile(path, content)` | bool | Write content to file |
-| `appendFile(path, content)` | bool | Append to file |
-| `exists(path)` | bool | Check if file/dir exists |
+| `fileExists(path)` | bool | Check if file exists |
 | `exec(command)` | string | Execute shell command |
-| `env(name)` | string | Get environment variable |
+| `getenv(name)` | string | Get environment variable |
 | `args()` | array | Get command line arguments |
+| `input(prompt)` | string | Read user input from stdin |
 | `exit(code)` | nil | Exit program |
 
 ---
@@ -38,24 +38,25 @@ Write string to file (overwrites):
 ucoreSystem.writeFile("output.txt", "Hello, World!");
 ```
 
-### appendFile(path, content)
+### fileExists(path)
 
-Append to existing file:
-
-```javascript
-ucoreSystem.appendFile("log.txt", "New log entry\n");
-```
-
-### exists(path)
-
-Check if path exists:
+Check if a file exists:
 
 ```javascript
-if (ucoreSystem.exists("config.json")) {
-    var config = ucoreJson.readFile("config.json");
+if (ucoreSystem.fileExists("config.json")) {
+    var config = ucoreJson.read("config.json");
 } else {
     print("Config not found, using defaults");
 }
+```
+
+### input(prompt)
+
+Read user input from stdin:
+
+```javascript
+var name = ucoreSystem.input("Enter your name: ");
+print("Hello, " + name);
 ```
 
 ---
@@ -89,18 +90,18 @@ print(result);
 
 ## Environment
 
-### env(name)
+### getenv(name)
 
 Get environment variable:
 
 ```javascript
-var home = ucoreSystem.env("HOME");
+var home = ucoreSystem.getenv("HOME");
 print("Home directory: " + home);
 
-var user = ucoreSystem.env("USER");
+var user = ucoreSystem.getenv("USER");
 print("Current user: " + user);
 
-var path = ucoreSystem.env("PATH");
+var path = ucoreSystem.getenv("PATH");
 print("PATH: " + path);
 ```
 
