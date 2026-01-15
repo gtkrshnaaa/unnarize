@@ -1,5 +1,5 @@
-// NOTE: All file paths in Unnarize are strictly relative to the script directory.
-//       Absolute paths will be sandboxed to <scriptDir>/path.
+// NOTE: File paths are relative to this script file, NOT from where `unnarize` is executed.
+//       This ensures consistent behavior regardless of your working directory.
 
 print("=== ucoreString Stress Test (Real-World Text) ===");
 // NOTE: Run this script from examples/corelib/string/ directory
