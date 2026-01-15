@@ -1,0 +1,98 @@
+// ucoreTui Demo - Comprehensive Terminal UI Library Demo
+// Run from: examples/corelib/tui/
+
+// ========================
+// 1. COLORS & STYLING
+// ========================
+print("=== COLORS & STYLING ===");
+print("");
+
+print(ucoreTui.bold("Bold text"));
+print(ucoreTui.italic("Italic text"));
+print(ucoreTui.underline("Underlined text"));
+print(ucoreTui.dim("Dimmed text"));
+print("");
+
+print(ucoreTui.fg("red", "Red text"));
+print(ucoreTui.fg("green", "Green text"));
+print(ucoreTui.fg("blue", "Blue text"));
+print(ucoreTui.fg("cyan", "Cyan text"));
+print(ucoreTui.fg("magenta", "Magenta text"));
+print(ucoreTui.fg("yellow", "Yellow text"));
+print("");
+
+print(ucoreTui.style("Combined styles!", "bold red underline"));
+print(ucoreTui.style("Bright colors", "brightCyan bold"));
+print("");
+
+// ========================
+// 2. TABLES
+// ========================
+print("=== RICH TABLES ===");
+print("");
+
+var tableData = [
+    ["Name", "Age", "City"],
+    ["Alice", 28, "Jakarta"],
+    ["Bob", 35, "Surabaya"],
+    ["Charlie", 42, "Bandung"]
+];
+print(ucoreTui.table(tableData));
+
+// ========================
+// 3. PROGRESS BAR
+// ========================
+print("=== PROGRESS BARS ===");
+print("");
+
+print("25%:  " + ucoreTui.progressBar(25, 100, 30));
+print("50%:  " + ucoreTui.progressBar(50, 100, 30));
+print("75%:  " + ucoreTui.progressBar(75, 100, 30));
+print("100%: " + ucoreTui.progressBar(100, 100, 30));
+print("");
+
+// ========================
+// 4. SPINNER FRAMES
+// ========================
+print("=== SPINNER STYLES ===");
+print("");
+
+var dotsSpinner = ucoreTui.spinner("dots");
+var lineSpinner = ucoreTui.spinner("line");
+var arcSpinner = ucoreTui.spinner("arc");
+
+print("Dots:   " + dotsSpinner[0] + " " + dotsSpinner[1] + " " + dotsSpinner[2] + " " + dotsSpinner[3]);
+print("Line:   " + lineSpinner[0] + " " + lineSpinner[1] + " " + lineSpinner[2] + " " + lineSpinner[3]);
+print("Arc:    " + arcSpinner[0] + " " + arcSpinner[1] + " " + arcSpinner[2] + " " + arcSpinner[3]);
+print("");
+
+// ========================
+// 5. BOXES & PANELS
+// ========================
+print("=== BOXES & PANELS ===");
+print("");
+
+print(ucoreTui.box("Simple rounded box", "rounded"));
+print(ucoreTui.box("Double border box", "double"));
+
+print(ucoreTui.panel("INFO", "This is a panel with a title header."));
+
+// Note: Terminal size() returns a map, access via map["key"] syntax
+// var size = ucoreTui.size();
+// print("Terminal size: " + size["cols"] + " cols x " + size["rows"] + " rows");
+
+// ========================
+// 6. DEMO COMPLETE
+// ========================
+print("");
+print(ucoreTui.fg("green", "Demo Complete!"));
+print("");
+print("Interactive features available:");
+print("  - ucoreTui.input(prompt)         Line input with arrow navigation");
+print("  - ucoreTui.inputPassword(prompt) Hidden password input");
+print("  - ucoreTui.confirm(prompt)       Yes/No confirmation");
+print("  - ucoreTui.select(prompt, arr)   Arrow-key selection menu");
+print("  - ucoreTui.keypress()            Read single keypress");
+print("  - ucoreTui.tree(map)             Tree view from nested map");
+print("  - ucoreTui.size()                Get terminal dimensions");
+print("");
