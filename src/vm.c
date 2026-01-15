@@ -115,10 +115,8 @@ void setScriptDir(VM* vm, const char* scriptPath) {
 char* resolvePath(VM* vm, const char* path) {
     if (!path) return NULL;
     
-    // If path is absolute, return a copy
-    if (path[0] == '/') {
-        return strdup(path);
-    }
+    // Strict Mode: ALL paths are relative to scriptDir.
+    // e.g. "/etc/passwd" -> "<scriptDir>/etc/passwd"
     
     // If scriptDir is empty or ".", return path as-is
     if (vm->scriptDir[0] == '\0' || 
@@ -127,14 +125,18 @@ char* resolvePath(VM* vm, const char* path) {
     }
     
     // Build scriptDir + "/" + path
+    // Remove leading slash from path if present to avoid path confusion
+    const char* p = path;
+    if (p[0] == '/') p++;
+    
     size_t dirLen = strlen(vm->scriptDir);
-    size_t pathLen = strlen(path);
+    size_t pathLen = strlen(p);
     size_t totalLen = dirLen + 1 + pathLen + 1; // +1 for slash, +1 for null
     
     char* result = malloc(totalLen);
     if (!result) return strdup(path);
     
-    snprintf(result, totalLen, "%s/%s", vm->scriptDir, path);
+    snprintf(result, totalLen, "%s/%s", vm->scriptDir, p);
     return result;
 }
 
