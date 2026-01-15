@@ -428,11 +428,14 @@ void markValue(VM* vm, Value value);
     } while(0)
 
 
-
-// Register core built-in functions (has, keys, len, etc.)
 // String concatenation helper (exposed for VM)
 Value vm_concatenate(VM* vm, Value a, Value b);
 
+void registerUCoreTimer(VM* vm);
+void registerUCoreUON(VM* vm);
+void registerUCoreScraper(VM* vm);
+
+// Register core built-in functions (has, keys, len, etc.)
 void registerBuiltins(VM* vm);
 
 #endif // VM_H

@@ -1,0 +1,12 @@
+// Minimal demo for ucoreScraper Phase 1
+
+print("=== ucoreScraper Demo ===");
+
+var html = "<body><h1>Hello</h1></body>";
+print("Parsing HTML: " + html);
+
+// Should not crash and return nil (for now)
+var doc = ucoreScraper.parse(html); 
+
+print("Parsed successfully (no crash)");
+print("Done.");

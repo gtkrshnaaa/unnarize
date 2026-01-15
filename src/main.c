@@ -323,6 +323,7 @@ int main(int argc, char** argv) {
     registerUCoreHttp(&vm);
     registerUCoreTimer(&vm); // Register Timer
     registerUCoreJson(&vm);  // Register Json
+    registerUCoreScraper(&vm); // Register Scraper
 
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)
