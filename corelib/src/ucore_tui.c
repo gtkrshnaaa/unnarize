@@ -682,19 +682,30 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
     int scrollOffset = 0;
     int inputWidth = width - 4;
     
-    // Get terminal size
-    struct winsize ws;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-    int startRow = ws.ws_row / 2 - 1;
-    int startCol = (ws.ws_col - width) / 2;
-    if (startCol < 0) startCol = 0;
+    // Draw box once (static)
+    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m ", title);
+    int remaining = width - titleLen - 4;
+    for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_TR "\r\n");
+    
+    printf(BOX_LIGHT_V " ");
+    int initialShow = len > inputWidth ? inputWidth : len;
+    for (int i = 0; i < initialShow; i++) printf("%c", buffer[i]);
+    for (int i = initialShow; i < inputWidth; i++) printf(" ");
+    printf(" " BOX_LIGHT_V "\r\n");
+    
+    printf(BOX_ROUND_BL);
+    for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_BR "\r\n");
+    
+    // Move back to input line
+    printf(CSI "2A\r" CSI "2C");
+    fflush(stdout);
     
     enableRawMode();
-    printf(CSI "?1049h"); // Enter alternate screen
-    printf(CSI "?25l"); // Hide cursor
     
     while (1) {
-        // Calculate scroll offset
+        // Calculate scroll
         if (cursor - scrollOffset >= inputWidth) {
             scrollOffset = cursor - inputWidth + 1;
         }
@@ -702,46 +713,22 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
             scrollOffset = cursor;
         }
         
-        // Clear screen and draw centered box
-        printf(CSI "2J" CSI "H"); // Clear screen, go home
-        
-        // Move to center position
-        printf(CSI "%d;%dH", startRow, startCol + 1);
-        
-        // Draw top border
-        printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m ", title);
-        int remaining = width - titleLen - 4;
-        for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_TR);
-        
-        // Draw input line
-        printf(CSI "%d;%dH", startRow + 1, startCol + 1);
-        printf(BOX_LIGHT_V " ");
+        // Redraw input content only (stay on same line)
+        printf("\r" CSI "2C"); // Go to column 3 (after "│ ")
         int visibleLen = len - scrollOffset;
         if (visibleLen > inputWidth) visibleLen = inputWidth;
         for (int i = 0; i < visibleLen; i++) {
             printf("%c", buffer[scrollOffset + i]);
         }
         for (int i = visibleLen; i < inputWidth; i++) printf(" ");
-        printf(" " BOX_LIGHT_V);
-        
-        // Draw bottom border
-        printf(CSI "%d;%dH", startRow + 2, startCol + 1);
-        printf(BOX_ROUND_BL);
-        for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_BR);
-        
-        // Position cursor
-        printf(CSI "%d;%dH", startRow + 1, startCol + 3 + (cursor - scrollOffset));
-        printf(CSI "?25h"); // Show cursor
+        printf("\r" CSI "%dC", 2 + (cursor - scrollOffset)); // Position cursor
         fflush(stdout);
         
         char c;
         if (!readChar(&c)) continue;
         
-        printf(CSI "?25l"); // Hide cursor
-        
         if (c == '\r' || c == '\n') {
+            printf("\r\n" CSI "1B"); // Move past bottom border
             break;
         } else if (c == 127 || c == 8) {
             if (cursor > 0) {
@@ -767,8 +754,8 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
                 }
             } else {
                 // Pure escape - cancel
-                buffer[0] = '\0';
-                len = 0;
+                buffer[0] = '\0'; len = 0;
+                printf("\r\n" CSI "1B");
                 break;
             }
         } else if (c == 1) { cursor = 0; }
@@ -776,8 +763,7 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
         else if (c == 11) { buffer[cursor] = '\0'; len = cursor; }
         else if (c == 21) {
             memmove(buffer, &buffer[cursor], (size_t)(len - cursor + 1));
-            len = len - cursor;
-            cursor = 0;
+            len = len - cursor; cursor = 0;
         } else if (c == 23) {
             while (cursor > 0 && buffer[cursor - 1] == ' ') {
                 memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
@@ -788,8 +774,8 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
                 cursor--; len--;
             }
         } else if (c == 3) {
-            buffer[0] = '\0';
-            len = 0;
+            buffer[0] = '\0'; len = 0;
+            printf("\r\n" CSI "1B");
             break;
         } else if (c >= 32 && c < 127) {
             if (len < (int)sizeof(buffer) - 1) {
@@ -801,8 +787,6 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
         }
     }
     
-    printf(CSI "?25h"); // Show cursor
-    printf(CSI "?1049l"); // Exit alternate screen
     disableRawMode();
     
     ObjString* result = internString(vm, buffer, len);
@@ -868,72 +852,65 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
     
     int titleLen = (int)strlen(title);
     int contentWidth = boxWidth - 8;
-    int startRow = (w.ws_row - displayRows - 2) / 2;
-    int startCol = (w.ws_col - boxWidth) / 2;
-    if (startRow < 1) startRow = 1;
-    if (startCol < 0) startCol = 0;
+    
+    // Draw static box once
+    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " CSI "2m(Ctrl+D save, Esc cancel)" CSI "0m ", title);
+    int remaining = boxWidth - titleLen - 30;
+    for (int i = 0; i < remaining && i < boxWidth; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_TR "\r\n");
+    
+    for (int i = 0; i < displayRows; i++) {
+        printf(BOX_LIGHT_V " " CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", i + 1);
+        for (int j = 0; j < contentWidth; j++) printf(" ");
+        printf(" " BOX_LIGHT_V "\r\n");
+    }
+    
+    printf(BOX_ROUND_BL);
+    for (int i = 0; i < boxWidth - 2; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_BR "\r\n");
+    
+    // Move back to first content line
+    printf(CSI "%dA\r" CSI "7C", displayRows + 1);
+    fflush(stdout);
     
     enableRawMode();
-    printf(CSI "?1049h"); // Enter alternate screen
-    printf(CSI "?25l"); // Hide cursor
     
     while (1) {
         // Adjust scroll
         if (cursorRow < scrollRow) scrollRow = cursorRow;
         if (cursorRow >= scrollRow + displayRows) scrollRow = cursorRow - displayRows + 1;
         
-        // Clear and draw centered box
-        printf(CSI "2J" CSI "H");
-        
-        // Draw header
-        printf(CSI "%d;%dH", startRow, startCol + 1);
-        printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " CSI "2m(Ctrl+D save, Esc cancel)" CSI "0m ", title);
-        int remaining = boxWidth - titleLen - 30;
-        for (int i = 0; i < remaining && i < boxWidth; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_TR);
-        
-        // Draw content rows
+        // Redraw all visible lines in place
         for (int i = 0; i < displayRows; i++) {
             int lineIdx = scrollRow + i;
-            printf(CSI "%d;%dH", startRow + 1 + i, startCol + 1);
-            printf(BOX_LIGHT_V " " CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", lineIdx + 1);
+            // Move to line content area (skip borders and line number)
+            printf(CSI "%dA\r", displayRows - i);
+            printf(CSI "7C"); // After "│ NN │ "
             
             if (lineIdx < lineCount) {
                 int lineLen = (int)strlen(lines[lineIdx]);
                 int showLen = lineLen > contentWidth ? contentWidth : lineLen;
-                for (int j = 0; j < showLen; j++) {
-                    printf("%c", lines[lineIdx][j]);
-                }
+                for (int j = 0; j < showLen; j++) printf("%c", lines[lineIdx][j]);
                 for (int j = showLen; j < contentWidth; j++) printf(" ");
             } else {
                 for (int j = 0; j < contentWidth; j++) printf(" ");
             }
-            printf(" " BOX_LIGHT_V);
+            printf(CSI "%dB", displayRows - i); // Move back down
         }
         
-        // Draw footer
-        printf(CSI "%d;%dH", startRow + 1 + displayRows, startCol + 1);
-        printf(BOX_ROUND_BL);
-        for (int i = 0; i < boxWidth - 2; i++) printf(BOX_LIGHT_H);
-        printf(BOX_ROUND_BR);
-        
-        // Position cursor
+        // Position cursor in correct row
         int cursorDisplayRow = cursorRow - scrollRow;
-        int cursorX = 8 + cursorCol;
-        if (cursorX > boxWidth - 1) cursorX = boxWidth - 1;
-        printf(CSI "%d;%dH", startRow + 1 + cursorDisplayRow, startCol + cursorX);
-        
-        printf(CSI "?25h"); // Show cursor
+        printf(CSI "%dA\r", displayRows - cursorDisplayRow);
+        printf(CSI "%dC", 7 + cursorCol);
         fflush(stdout);
         
         char c;
         if (!readChar(&c)) continue;
         
-        printf(CSI "?25l"); // Hide cursor
-        
         int currentLineLen = (int)strlen(lines[cursorRow]);
         
         if (c == 4) { // Ctrl+D - Save
+            printf(CSI "%dB\r\n", displayRows - cursorDisplayRow);
             break;
         } else if (c == 27) { // Escape
             char seq[2] = {0};
@@ -975,6 +952,7 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
             // Pure escape - cancel
             lines[0][0] = '\0';
             lineCount = 1;
+            printf(CSI "%dB\r\n", displayRows - cursorDisplayRow);
             break;
         } else if (c == '\r' || c == '\n') {
             if (lineCount < MAX_LINES) {
@@ -1031,8 +1009,6 @@ static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
         }
     }
     
-    printf(CSI "?25h"); // Show cursor
-    printf(CSI "?1049l"); // Exit alternate screen
     disableRawMode();
     
     // Build result string
