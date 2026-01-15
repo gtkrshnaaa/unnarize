@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ucoreScraper - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <button class="menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="sidebar-overlay"></div>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="string.html">ucoreString</a></li>
+                    <li><a href="scraper.html" class="active">ucoreScraper</a></li>
+                    <li><a href="json.html">ucoreJson</a></li>
+                    <li><a href="http.html">ucoreHttp</a></li>
+                    <li><a href="timer.html">ucoreTimer</a></li>
+                    <li><a href="system.html">ucoreSystem</a></li>
+                    <li><a href="uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>ucoreScraper</h1>
+            <p class="lead">HTML parsing, CSS selectors, and web scraping.</p>
+            
+            <h2>Functions</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>fetch(url)</code></td>
+                        <td>string</td>
+                        <td>Fetch HTML from URL</td>
+                    </tr>
+                    <tr>
+                        <td><code>download(url, filepath)</code></td>
+                        <td>bool</td>
+                        <td>Download HTML to file</td>
+                    </tr>
+                    <tr>
+                        <td><code>select(html, selector)</code></td>
+                        <td>Array</td>
+                        <td>Select elements from HTML string</td>
+                    </tr>
+                    <tr>
+                        <td><code>parseFile(path, selector)</code></td>
+                        <td>Array</td>
+                        <td>Parse file and select elements</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Supported CSS Selectors</h2>
+            <ul>
+                <li><code>tagname</code> - Element selector (div, p, a)</li>
+                <li><code>.classname</code> - Class selector</li>
+                <li><code>#id</code> - ID selector</li>
+                <li><code>parent child</code> - Descendant combinator</li>
+            </ul>
+            
+            <h2>Basic Usage</h2>
+            
+            <h3>Fetch and Select</h3>
+<pre><code><span class="token-keyword">var</span> html = ucoreScraper.<span class="token-function">fetch</span>(<span class="token-string">"https://example.com"</span>);
+<span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"a"</span>);
+
+<span class="token-keyword">for</span> (<span class="token-keyword">var</span> i = <span class="token-number">0</span>; i < <span class="token-function">length</span>(links); i = i + <span class="token-number">1</span>) {
+    <span class="token-function">print</span>(links[i][<span class="token-string">"text"</span>]);
+}</code></pre>
+
+            <h3>Download for Offline Processing</h3>
+<pre><code><span class="token-keyword">var</span> url = <span class="token-string">"https://en.wikipedia.org/wiki/Main_Page"</span>;
+ucoreScraper.<span class="token-function">download</span>(url, <span class="token-string">"wikipedia.html"</span>);
+
+<span class="token-comment">// Later, process locally</span>
+<span class="token-keyword">var</span> headlines = ucoreScraper.<span class="token-function">parseFile</span>(<span class="token-string">"wikipedia.html"</span>, <span class="token-string">".mw-headline"</span>);
+<span class="token-function">print</span>(<span class="token-string">"Found "</span> + <span class="token-function">length</span>(headlines) + <span class="token-string">" headlines"</span>);</code></pre>
+
+            <h2>Element Structure</h2>
+            <p>Selected elements are returned as Maps with:</p>
+            <table>
+                <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>tag</code></td><td>string</td><td>Tag name (div, p, a)</td></tr>
+                    <tr><td><code>text</code></td><td>string</td><td>Inner text content</td></tr>
+                    <tr><td><code>attributes</code></td><td>Map</td><td>Element attributes</td></tr>
+                </tbody>
+            </table>
+            
+<pre><code><span class="token-keyword">var</span> links = ucoreScraper.<span class="token-function">select</span>(html, <span class="token-string">"a"</span>);
+<span class="token-keyword">var</span> link = links[<span class="token-number">0</span>];
+
+<span class="token-function">print</span>(link[<span class="token-string">"tag"</span>]);        <span class="token-comment">// "a"</span>
+<span class="token-function">print</span>(link[<span class="token-string">"text"</span>]);       <span class="token-comment">// "Click here"</span>
+<span class="token-function">print</span>(link[<span class="token-string">"attributes"</span>][<span class="token-string">"href"</span>]); <span class="token-comment">// "/page"</span></code></pre>
+
+            <h2>Performance</h2>
+            <p>Benchmarked on 370KB Wikipedia HTML:</p>
+            <table>
+                <thead><tr><th>Operation</th><th>Ops/sec</th></tr></thead>
+                <tbody>
+                    <tr><td>parseFile (class selector)</td><td>339</td></tr>
+                    <tr><td>parseFile (table rows)</td><td>212</td></tr>
+                    <tr><td>select (in-memory)</td><td>128</td></tr>
+                    <tr><td>parseFile (links)</td><td>83</td></tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+    <script src="../js/main.js"></script>
+</body>
+</html>

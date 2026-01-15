@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ucoreString - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <button class="menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="sidebar-overlay"></div>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="string.html" class="active">ucoreString</a></li>
+                    <li><a href="scraper.html">ucoreScraper</a></li>
+                    <li><a href="json.html">ucoreJson</a></li>
+                    <li><a href="http.html">ucoreHttp</a></li>
+                    <li><a href="timer.html">ucoreTimer</a></li>
+                    <li><a href="system.html">ucoreSystem</a></li>
+                    <li><a href="uon.html">ucoreUon</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>ucoreString</h1>
+            <p class="lead">Text manipulation and regular expression support.</p>
+            
+            <h2>Functions</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>split(str, delimiter)</code></td>
+                        <td>Array</td>
+                        <td>Split string into array</td>
+                    </tr>
+                    <tr>
+                        <td><code>join(array, delimiter)</code></td>
+                        <td>string</td>
+                        <td>Join array into string</td>
+                    </tr>
+                    <tr>
+                        <td><code>replace(str, search, replace)</code></td>
+                        <td>string</td>
+                        <td>Replace all occurrences</td>
+                    </tr>
+                    <tr>
+                        <td><code>trim(str)</code></td>
+                        <td>string</td>
+                        <td>Remove whitespace</td>
+                    </tr>
+                    <tr>
+                        <td><code>toLower(str)</code></td>
+                        <td>string</td>
+                        <td>Convert to lowercase</td>
+                    </tr>
+                    <tr>
+                        <td><code>toUpper(str)</code></td>
+                        <td>string</td>
+                        <td>Convert to uppercase</td>
+                    </tr>
+                    <tr>
+                        <td><code>contains(str, substr)</code></td>
+                        <td>bool</td>
+                        <td>Check if contains substring</td>
+                    </tr>
+                    <tr>
+                        <td><code>match(str, pattern)</code></td>
+                        <td>bool</td>
+                        <td>Regex pattern match</td>
+                    </tr>
+                    <tr>
+                        <td><code>extract(str, pattern)</code></td>
+                        <td>Array</td>
+                        <td>Extract all regex matches</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Basic Usage</h2>
+            
+            <h3>split / join</h3>
+<pre><code><span class="token-keyword">var</span> text = <span class="token-string">"apple,banana,cherry"</span>;
+<span class="token-keyword">var</span> parts = ucoreString.<span class="token-function">split</span>(text, <span class="token-string">","</span>);
+<span class="token-function">print</span>(parts[<span class="token-number">0</span>]); <span class="token-comment">// "apple"</span>
+
+<span class="token-keyword">var</span> joined = ucoreString.<span class="token-function">join</span>(parts, <span class="token-string">" | "</span>);
+<span class="token-function">print</span>(joined); <span class="token-comment">// "apple | banana | cherry"</span></code></pre>
+
+            <h3>replace / trim</h3>
+<pre><code><span class="token-keyword">var</span> dirty = <span class="token-string">"  Hello World World  "</span>;
+<span class="token-keyword">var</span> trimmed = ucoreString.<span class="token-function">trim</span>(dirty);
+<span class="token-keyword">var</span> clean = ucoreString.<span class="token-function">replace</span>(trimmed, <span class="token-string">"World"</span>, <span class="token-string">"Unnarize"</span>);
+<span class="token-function">print</span>(clean); <span class="token-comment">// "Hello Unnarize Unnarize"</span></code></pre>
+
+            <h2>Regular Expressions</h2>
+            <p>Uses POSIX Extended Regular Expressions (ERE).</p>
+            
+            <h3>match(str, pattern)</h3>
+            <p>Returns <code>true</code> if pattern matches anywhere in string.</p>
+<pre><code><span class="token-keyword">if</span> (ucoreString.<span class="token-function">match</span>(text, <span class="token-string">"^Hello"</span>)) {
+    <span class="token-function">print</span>(<span class="token-string">"Starts with Hello"</span>);
+}</code></pre>
+
+            <h3>extract(str, pattern)</h3>
+            <p>Returns array of all non-overlapping matches.</p>
+<pre><code><span class="token-keyword">var</span> log = <span class="token-string">"Contact support@example.com or admin@site.org"</span>;
+<span class="token-keyword">var</span> emails = ucoreString.<span class="token-function">extract</span>(log, <span class="token-string">"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"</span>);
+
+<span class="token-function">print</span>(emails[<span class="token-number">0</span>]); <span class="token-comment">// "support@example.com"</span>
+<span class="token-function">print</span>(emails[<span class="token-number">1</span>]); <span class="token-comment">// "admin@site.org"</span></code></pre>
+
+            <h2>Performance</h2>
+            <p>Benchmarked on 14KB text (100 iterations):</p>
+            <table>
+                <thead><tr><th>Operation</th><th>Ops/sec</th></tr></thead>
+                <tbody>
+                    <tr><td>contains</td><td><strong>24.5 Million</strong></td></tr>
+                    <tr><td>toLower</td><td>42,500</td></tr>
+                    <tr><td>replace</td><td>38,800</td></tr>
+                    <tr><td>split</td><td>12,300</td></tr>
+                    <tr><td>regex extract</td><td>2,600</td></tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+    <script src="../js/main.js"></script>
+</body>
+</html>
