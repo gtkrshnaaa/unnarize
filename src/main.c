@@ -10,6 +10,7 @@
 #include "ucore_json.h"
 #include "ucore_string.h"
 #include "ucore_scraper.h"
+#include "ucore_tui.h"
 
 #include "bytecode/chunk.h"
 #include "bytecode/compiler.h"
@@ -330,6 +331,7 @@ int main(int argc, char** argv) {
     registerUCoreJson(&vm);  // Register Json
     registerUCoreScraper(&vm); // Register Scraper
     registerUCoreString(&vm);  // Register String Utils
+    registerUCoreTui(&vm);      // Register TUI
 
     registerUCoreSystem(&vm); // Register System
     registerBuiltins(&vm);    // Register built-in natives (has, keys)
