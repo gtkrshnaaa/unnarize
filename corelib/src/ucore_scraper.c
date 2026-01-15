@@ -502,6 +502,29 @@ static char* fetchUrlContent(const char* url) {
     return content;
 }
 
+// ucoreScraper.download(url, filepath) -> bool
+static Value scraper_download(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return BOOL_VAL(false);
+    }
+    
+    ObjString* url = AS_STRING(args[0]);
+    ObjString* path = AS_STRING(args[1]);
+    
+    // Basic safety check for command injection
+    if (strchr(url->chars, ';') || strchr(path->chars, ';')) {
+         return BOOL_VAL(false);
+    }
+
+    char command[2048];
+    // curl -s -L "url" -o "path"
+    // Using quotes around paths to handle spaces
+    snprintf(command, sizeof(command), "curl -s -L \"%s\" -o \"%s\"", url->chars, path->chars);
+    
+    int result = system(command);
+    return BOOL_VAL(result == 0);
+}
+
 // ucoreScraper.fetch(url) -> htmlString
 static Value scraper_fetch(VM* vm, Value* args, int argCount) {
     if (argCount != 1 || !IS_STRING(args[0])) {
@@ -803,6 +826,7 @@ void registerUCoreScraper(VM* vm) {
     defineNative(vm, mod->env, "select", scraper_select, 2); // select(html, selector)
     defineNative(vm, mod->env, "parseFile", scraper_parseFile, 2); // parseFile(path, selector)
     defineNative(vm, mod->env, "fetch", scraper_fetch, 1); // fetch(url) -> string
+    defineNative(vm, mod->env, "download", scraper_download, 2); // download(url, path) -> bool
     
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreScraper", vMod);

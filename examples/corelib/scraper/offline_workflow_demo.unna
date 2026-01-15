@@ -1,0 +1,30 @@
+print("=== ucoreScraper Offline Workflow Demo ===");
+var url = "https://en.wikipedia.org/wiki/Data_mining";
+var file = "data_mining.html";
+
+print("1. Downloading '" + url + "' to '" + file + "'...");
+
+// New feature: download(url, filepath)
+var success = ucoreScraper.download(url, file);
+
+if (success) {
+    print("   Download successful!");
+    
+    print("2. Processing local file offline...");
+    // Use parseFile on the downloaded file
+    var title = ucoreScraper.parseFile(file, "title");
+    if (length(title) > 0) {
+        print("   Page Title: " + title[0]["text"]);
+    }
+    
+    var h1s = ucoreScraper.parseFile(file, "h1");
+    if (length(h1s) > 0) {
+        print("   Main Subject: " + h1s[0]["text"]);
+    }
+    
+    // Cleanup (optional, demonstrating control)
+    print("3. Done. File is kept at '" + file + "' for future use.");
+} else {
+    print("   Download failed.");
+}
+print("=== Done ===");
