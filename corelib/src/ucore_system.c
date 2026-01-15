@@ -137,6 +137,28 @@ static Value sys_readFile(VM* vm, Value* args, int argCount) {
 }
 
 
+// exit(code)
+static Value sys_exit(VM* vm, Value* args, int argCount) {
+    int code = 0;
+    if (argCount > 0) {
+        if (IS_INT(args[0])) code = AS_INT(args[0]);
+        else if (IS_FLOAT(args[0])) code = (int)AS_FLOAT(args[0]);
+    }
+    exit(code);
+    return NIL_VAL; 
+}
+
+// exec(command) -> exitCode (int)
+static Value sys_exec(VM* vm, Value* args, int argCount) {
+    if (argCount != 1 || !IS_STRING(args[0])) {
+        return INT_VAL(-1);
+    }
+    
+    ObjString* cmd = AS_STRING(args[0]);
+    int result = system(cmd->chars);
+    return INT_VAL(result); // Usually 0 is success
+}
+
 void registerUCoreSystem(VM* vm) {
     ObjString* modNameObj = internString(vm, "ucoreSystem", 11);
     char* modName = modNameObj->chars;
@@ -158,6 +180,8 @@ void registerUCoreSystem(VM* vm) {
     defineNative(vm, mod->env, "args", sys_args, 0);
     defineNative(vm, mod->env, "input", sys_input, 1);
     defineNative(vm, mod->env, "getenv", sys_getenv, 1);
+    defineNative(vm, mod->env, "exec", sys_exec, 1);
+    defineNative(vm, mod->env, "exit", sys_exit, 1);
     defineNative(vm, mod->env, "fileExists", sys_fileExists, 1);
     defineNative(vm, mod->env, "writeFile", sys_writeFile, 2);
     defineNative(vm, mod->env, "readFile", sys_readFile, 1);

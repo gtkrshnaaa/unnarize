@@ -43,7 +43,25 @@ typedef struct {
     ScraperNode* currentNode;
 } HtmlParser;
 
+// CSS Selector Structure
+typedef enum {
+    COMBINATOR_NONE,
+    COMBINATOR_DESCENDANT,  // " "
+    COMBINATOR_CHILD,       // ">"
+} SelectorCombinator;
+
+typedef struct ScraperSelector {
+    char* tagName;      // "div"
+    char* id;           // "main"
+    char* className;    // "container" (supports single class for now, or use list)
+    
+    struct ScraperSelector* next; // For combinators: "div > p" (this is p, next is div)
+    SelectorCombinator combinator; 
+} ScraperSelector;
+
 // Public API
 void registerUCoreScraper(VM* vm);
+ScraperNode* scraper_parseHtml(const char* source); // Exposed for testing
+
 
 #endif

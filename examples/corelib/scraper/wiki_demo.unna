@@ -1,0 +1,45 @@
+print("=== ucoreScraper Wikipedia Demo ===");
+print("Fetching Wikipedia page for 'Web scraping'...");
+
+// 1. Fetch HTML using curl (via ucoreSystem)
+// Using -s (silent) and -L (follow redirects)
+// NOTE: ucoreSystem.exec returns the output as string if successful?
+// Let's verify ucoreSystem.exec API.
+// Based on previous usage, it returns exit code? Or structured output?
+// Let's assume for this demo we output to a file then read it, OR if exec captures output.
+// Actually, ucoreSystem.exec usually just runs it.
+// To capture output in Unnarize currently, we might need to redirect to file.
+// "curl -s ... > wiki.html"
+
+var cmd = "curl -s -L https://en.wikipedia.org/wiki/Web_scraping > wiki.html";
+var exitCode = ucoreSystem.exec(cmd);
+
+if (exitCode != 0) {
+    print("Error: Failed to fetch Wikipedia page via curl.");
+    // Exit somehow?
+} else {
+    print("Download successful. Parsing 'wiki.html'...");
+
+    // 2. Parse and Select using parseFile
+    // Find the title
+    var titles = ucoreScraper.parseFile("wiki.html", "title");
+    if (length(titles) > 0) {
+        print("Page Title: " + titles[0]["text"]);
+    }
+
+    // Find the first heading (h1 is often the main title)
+    var h1s = ucoreScraper.parseFile("wiki.html", "h1");
+    if (length(h1s) > 0) {
+        print("Main Heading: " + h1s[0]["text"]);
+    }
+
+    // Find the Table of Contents title? (#toc-heading or similar, depends on wiki)
+    // Let's find spans with class 'mw-page-title-main' or just h2
+    var h2s = ucoreScraper.parseFile("wiki.html", "h2");
+    print("Found " + length(h2s) + " subsections.");
+    
+    // Clean up
+    ucoreSystem.exec("rm wiki.html");
+}
+
+print("=== Done ===");

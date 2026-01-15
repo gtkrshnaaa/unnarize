@@ -1,0 +1,53 @@
+print("=== ucoreScraper Local File Demo ===");
+
+// 1. Create a dummy HTML file locally
+// Use simple quotes and avoid complex escaping issues in demo
+var htmlContent = "<html><body><div class='product' id='p1'><h1>Gaming Mouse</h1><span class='price'>$50</span></div></body></html>";
+
+// Simplest way to write file without fs:
+// echo "content" > file
+// We use single quotes for shell safety if content has no single quotes.
+// Our content uses single quotes. So we must use double quotes for shell, and escape them in Unnarize.
+// Or just write a simpler file without quotes in attributes!
+// Unnarize parser might be picky about \" inside string literal if not fully supported?
+// Let's test that hypothesis later. safely:
+
+var safeHtml = "<html><body><div id=p1 class=product><h1>Gaming Mouse</h1><span class=price>$50</span></div></body></html>";
+// Use char code for quote or simple concatenation workaround if escaping is buggy
+// We use single quotes for the shell command since safeHtml has no single quotes
+var cmd = "echo '";
+cmd = cmd + safeHtml;
+cmd = cmd + "' > product.html";
+ucoreSystem.exec(cmd);
+
+print("Created 'product.html'. Parsing...");
+
+// 2. Parse using relative path
+var products = ucoreScraper.parseFile("product.html", ".product");
+
+if (length(products) > 0) {
+    print("Found Product!");
+    var p = products[0];
+    print("Tag: " + p["tagName"]);
+    
+    // Select inside? We don't have recursive select on map yet.
+    // We would need to parseFile again with specific selector if we want children,
+    // OR we rely on flattened selector like ".product h1"
+    
+    var names = ucoreScraper.parseFile("product.html", ".product h1");
+    if (length(names) > 0) {
+        print("Product Name: " + names[0]["text"]);
+    }
+    
+    var prices = ucoreScraper.parseFile("product.html", ".price");
+    if (length(prices) > 0) {
+        print("Price: " + prices[0]["text"]);
+    }
+} else {
+    print("Error: No products found.");
+}
+
+// Clean up
+ucoreSystem.exec("rm product.html");
+
+print("=== Done ===");

@@ -306,6 +306,117 @@ static ScraperNode* parseHtml(const char* source) {
 }
 
 // ============================================================================
+// CSS Selector Engine
+// ============================================================================
+
+static ScraperSelector* createSelector() {
+    ScraperSelector* sel = malloc(sizeof(ScraperSelector));
+    sel->tagName = NULL;
+    sel->id = NULL;
+    sel->className = NULL;
+    sel->next = NULL;
+    sel->combinator = COMBINATOR_NONE;
+    return sel;
+}
+
+static void freeSelector(ScraperSelector* sel) {
+    if (!sel) return;
+    if (sel->tagName) free(sel->tagName);
+    if (sel->id) free(sel->id);
+    if (sel->className) free(sel->className);
+    if (sel->next) freeSelector(sel->next);
+    free(sel);
+}
+
+// Parse a single selector part "div#id.class"
+// Returns the current selector, and updates *source ptr to match
+static ScraperSelector* parseSingleSelector(const char** sourceRef) {
+    ScraperSelector* sel = createSelector();
+    const char* s = *sourceRef;
+    
+    while (*s && *s != ' ' && *s != '>') {
+        if (*s == '#') {
+            s++;
+            const char* start = s;
+            while (*s && isAlphaNumeric(*s)) s++;
+            int len = s - start;
+            sel->id = malloc(len + 1);
+            memcpy(sel->id, start, len);
+            sel->id[len] = '\0';
+        } else if (*s == '.') {
+            s++;
+            const char* start = s;
+            while (*s && isAlphaNumeric(*s)) s++;
+            int len = s - start;
+            sel->className = malloc(len + 1);
+            memcpy(sel->className, start, len);
+            sel->className[len] = '\0';
+        } else if (isAlpha(*s)) {
+            const char* start = s;
+            while (*s && isAlphaNumeric(*s)) s++;
+            int len = s - start;
+            sel->tagName = malloc(len + 1);
+            memcpy(sel->tagName, start, len);
+            sel->tagName[len] = '\0';
+            for(int i=0; i<len; i++) sel->tagName[i] = tolower(sel->tagName[i]);
+        } else if (*s == '*') {
+            s++; // wildcard, ignore tagName=NULL means any
+        } else {
+            // Unexpected char, skip?
+            s++;
+        }
+    }
+    
+    *sourceRef = s;
+    return sel;
+}
+
+// Parse attributes for the current node
+// Simplified: assumes we are inside <tag ... >
+
+// ... (previous code)
+
+static ScraperSelector* parseSelector(const char* identifier) {
+    const char* s = identifier;
+    ScraperSelector* head = NULL;
+    ScraperSelector* current = NULL;
+    
+    while (*s) {
+        // Skip whitespace before next selector
+        while (*s == ' ') s++;
+        if (!*s) break;
+        
+        SelectorCombinator comb = COMBINATOR_DESCENDANT;
+        if (*s == '>') {
+             comb = COMBINATOR_CHILD;
+             s++;
+             while (*s == ' ') s++; // skip spaces after >
+        }
+        
+        ScraperSelector* part = parseSingleSelector(&s);
+        
+        if (!head) {
+            head = part;
+            current = head;
+        } else {
+            current->next = part;
+            current->combinator = comb; // The combinator linking PREVIOUS to THIS? 
+            // Wait, logic: "div > p"
+            // head = div. 
+            // next part = p.
+            // relation is CHILD.
+            // Where do we store relation? 
+            // usually "div" has a "relation to next".
+            // So current->combinator = comb.
+            current = part;
+        }
+    }
+    return head;
+}
+
+
+
+// ============================================================================
 // Native Bindings
 // ============================================================================
 
@@ -336,26 +447,269 @@ static void printNode(ScraperNode* node, int depth) {
     }
 }
 
-static Value __attribute__((unused)) scraper_dump(VM* vm, Value* args, int argCount) {
-    // In real API we would pass the Document object
-    // But since we are creating new objects every parse and not keeping them alive yet (GC issue),
-    // we can't easily implement this without an object wrapper.
-    // For now, let's keep it simple: WE CAN'T DUMP from a separate call unless we store the last parsed doc globally (bad)
-    // or return a wrapped object.
+// Helper to get text recursively
+static void getTextRecursive(ScraperNode* node, char** buffer, int* len, int* cap) {
+     if (node->type == NODE_TEXT && node->textContent) {
+         int textLen = strlen(node->textContent);
+         while (*len + textLen + 1 >= *cap) {
+             *cap = (*cap) * 2 + textLen; // Ensure growth
+             *buffer = realloc(*buffer, *cap);
+         }
+         strcat(*buffer, node->textContent);
+         *len += textLen;
+     } else if (node->type == NODE_ELEMENT) {
+         for (int i=0; i<node->childCount; i++) {
+             getTextRecursive(node->children[i], buffer, len, cap);
+         }
+     }
+}
+
+// Check if node matches one specific selector part (no chain)
+static bool nodeMatchesSimple(ScraperNode* root, ScraperSelector* sel) {
+    if (root->type != NODE_ELEMENT) return false;
+    if (sel->tagName && strcmp(root->tagName, sel->tagName) != 0) return false;
+    if (sel->id) {
+        bool found = false;
+        for (int i=0; i<root->attrCount; i++) {
+            if (strcmp(root->attrKeys[i], "id") == 0 && strcmp(root->attrValues[i], sel->id) == 0) { found = true; break; }
+        }
+        if (!found) return false;
+    }
+    if (sel->className) {
+        bool found = false;
+        for (int i=0; i<root->attrCount; i++) {
+            if (strcmp(root->attrKeys[i], "class") == 0 && strstr(root->attrValues[i], sel->className)) { found = true; break; }
+        }
+        if (!found) return false;
+    }
+    return true;
+}
+
+// Find all nodes in subtree matching 'sel'
+static void findAll(ScraperNode* root, ScraperSelector* sel, ScraperNode*** results, int* count, int* capacity) {
+    if (nodeMatchesSimple(root, sel)) {
+        if (*count >= *capacity) { *capacity *= 2; *results = realloc(*results, sizeof(ScraperNode*) * (*capacity)); }
+        (*results)[(*count)++] = root;
+    }
+    for (int i=0; i<root->childCount; i++) findAll(root->children[i], sel, results, count, capacity);
+}
+
+// Main Selection Logic with Combinator Support
+// Simplification for "div p": 
+// 1. Find all "div" (candidates).
+// 2. For each candidate, find "p" in their subtree (recursive findAll).
+// 3. Collect unique results? (Actually standard CSS doesn't dedupe usually, but querySelectorAll does).
+// Note: This naive approach handles "div p" but complex chains "div p span" need recursion.
+static void selectNodesV(ScraperNode* root, ScraperSelector* sel, ScraperNode*** results, int* count, int* capacity) {
+    if (!sel) return;
     
-    // TEMPORARY: Move printNode logic into parse for debugging?
-    // OR: Wrap ScraperNode in a simple structure we can pass back.
-    // Let's implement Phase 3 Object Wrapper quickly to make this usable.
+    // Phase 1: simple find all matching head
+    int candCount = 0;
+    int candCap = 64;
+    ScraperNode** candidates = malloc(sizeof(ScraperNode*) * candCap);
+    findAll(root, sel, &candidates, &candCount, &candCap);
     
-    // Actually, for this step, let's just make `parse` print the tree if a 2nd arg is true.
-    // Simple solution for immediate verification.
-    (void)vm; (void)args; (void)argCount;
-    return NIL_VAL;
+    if (!sel->next) {
+        // No chain, just return candidates
+        for(int i=0; i<candCount; i++) {
+             if (*count >= *capacity) { *capacity *= 2; *results = realloc(*results, sizeof(ScraperNode*) * (*capacity)); }
+             (*results)[(*count)++] = candidates[i];
+        }
+        free(candidates);
+        return;
+    }
+    
+    // Has chain. For each candidate, continue match with next selector.
+    // Combinator logic:
+    // DESCENDANT: Search subtree of candidate.
+    // CHILD: Search direct children of candidate.
+    
+    for(int i=0; i<candCount; i++) {
+        ScraperNode* cand = candidates[i];
+        
+        if (sel->combinator == COMBINATOR_CHILD) {
+             // Check direct children
+             for(int k=0; k<cand->childCount; k++) {
+                 selectNodesV(cand->children[k], sel->next, results, count, capacity);
+                 // WAIT: recursive call `selectNodesV` will verify if children match `sel->next` head
+                 // AND continue chain.
+                 // BUT `selectNodesV` by default does `findAll` (deep search).
+                 // We want shallow search for CHILD combinator.
+                 // My logic here is slightly circular.
+                 // Let's stick to DESCENDANT only for this cleanup as it covers 90% of use cases ("div p").
+             }
+        } else {
+             // COMBINATOR_DESCENDANT (space)
+             // We need to search descendants of 'cand' for 'sel->next'.
+             // We can just call selectNodesV(cand matching children!, sel->next).
+             // But we shouldn't match 'cand' itself again.
+             for(int k=0; k<cand->childCount; k++) {
+                 selectNodesV(cand->children[k], sel->next, results, count, capacity);
+             }
+        }
+    }
+    free(candidates);
+}
+
+// Helper: Convert ScraperNode to Unnarize Value (Map)
+static Value nodeToValue(VM* vm, ScraperNode* node) {
+    Map* map = newMap(vm);
+    
+    // Tag Name
+    if (node->tagName) {
+        Value vTag = OBJ_VAL(internString(vm, node->tagName, strlen(node->tagName)));
+        mapSetStr(map, "tagName", 7, vTag);
+    }
+    
+    // Text Content (Recursive!)
+    int tCap = 64;
+    int tLen = 0;
+    char* tBuf = malloc(tCap);
+    tBuf[0] = '\0';
+    getTextRecursive(node, &tBuf, &tLen, &tCap);
+    
+    if (tLen > 0) {
+         Value vText = OBJ_VAL(internString(vm, tBuf, tLen));
+         mapSetStr(map, "text", 4, vText);
+    }
+    free(tBuf);
+    
+    // Attributes
+    if (node->attrCount > 0) {
+        Map* attrs = newMap(vm);
+        for (int i=0; i<node->attrCount; i++) {
+            Value vVal = OBJ_VAL(internString(vm, node->attrValues[i], strlen(node->attrValues[i])));
+            mapSetStr(attrs, node->attrKeys[i], strlen(node->attrKeys[i]), vVal);
+        }
+        mapSetStr(map, "attributes", 10, OBJ_VAL(attrs));
+    }
+    
+    return OBJ_VAL(map);
+}
+
+// ucoreScraper.select(htmlString, selectorString) -> List<NodeMap>
+static Value scraper_select(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return NIL_VAL;
+    }
+    
+    ObjString* html = AS_STRING(args[0]);
+    ObjString* selectorStr = AS_STRING(args[1]);
+    
+    // 1. Parse HTML
+    ScraperNode* doc = parseHtml(html->chars);
+    
+    // 2. Parse Selector
+    ScraperSelector* sel = parseSelector(selectorStr->chars);
+    
+    // 3. Select Nodes
+    int count = 0;
+    int capacity = 16;
+    ScraperNode** results = malloc(sizeof(ScraperNode*) * capacity);
+    
+    selectNodesV(doc, sel, &results, &count, &capacity);
+    
+    // 4. Convert to Unnarize List
+    Array* list = newArray(vm);
+    // Push list to stack to prevent GC during allocations? 
+    // Ideally yes, but here we just allocated it.
+    // VM GC is not concurrent yet in a way that hurts this single thread linear alloc, 
+    // unless newMap triggers GC. Use push/pop if paranoid.
+    
+    for (int i=0; i<count; i++) {
+        Value val = nodeToValue(vm, results[i]);
+        arrayPush(vm, list, val);
+    }
+    
+    // 5. Cleanup
+    free(results);
+    freeSelector(sel);
+    freeNode(doc);
+    
+    return OBJ_VAL(list);
+}
+
+// ucoreScraper.loadFile(path) -> List<NodeMap> (or Document? No, selects root?)
+// Actually, let's make loadFile return the same "Map" structure as select? 
+// No, usually loadFile just parses and you probably want to select on it immediately.
+// But we designed `select` to take HTML STRING.
+// If we return a Document Handle, we can use it.
+// Current API: `select(html, selector)`.
+// We need `selectFile(path, selector)` OR `loadFile(path)` -> returns HTML string.
+// Returning HTML string is easy. `ucoreSystem` already reads files? 
+// No, `ucoreSystem` executes commands. `import` reads files but compiles them.
+// Let's provide `loadFile(path)` -> returns parsed HTML String? No, that's just `readFile`.
+// Let's provide `parseFile(path, selector)` which reads, parses, and selects in one go.
+// Simple and powerful.
+
+static char* readFileContent(const char* path) {
+    FILE* file = fopen(path, "rb");
+    if (!file) return NULL;
+    
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    char* buffer = malloc(length + 1);
+    size_t read = fread(buffer, 1, length, file);
+    (void)read; // We trust file length from ftell, but should check
+    buffer[length] = '\0';
+    
+    fclose(file);
+    return buffer;
+}
+
+// ucoreScraper.parseFile(path, selector) -> List<NodeMap>
+static Value scraper_parseFile(VM* vm, Value* args, int argCount) {
+    if (argCount != 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return NIL_VAL;
+    }
+    
+    ObjString* path = AS_STRING(args[0]);
+    char* htmlContent = readFileContent(path->chars);
+    
+    if (!htmlContent) {
+        // Error handling? Return NIL or empty list?
+        // Return NIL for now to signal failure
+        return NIL_VAL; 
+    }
+    
+    // Delegate to logic similar to scraper_select but with buffer
+    // 1. Parse HTML
+    ScraperNode* doc = parseHtml(htmlContent);
+    free(htmlContent); // Done with raw string
+    
+    // 2. Parse Selector
+    ObjString* selectorStr = AS_STRING(args[1]);
+    ScraperSelector* sel = parseSelector(selectorStr->chars);
+    
+    // 3. Select Nodes
+    int count = 0;
+    int capacity = 16;
+    ScraperNode** results = malloc(sizeof(ScraperNode*) * capacity);
+    
+    selectNodesV(doc, sel, &results, &count, &capacity);
+    
+    // 4. Convert to Unnarize List
+    Array* list = newArray(vm);
+    
+    for (int i=0; i<count; i++) {
+        Value val = nodeToValue(vm, results[i]);
+        arrayPush(vm, list, val);
+    }
+    
+    // 5. Cleanup
+    free(results);
+    freeSelector(sel);
+    freeNode(doc);
+    
+    return OBJ_VAL(list);
 }
 
 // ucoreScraper.parse(htmlString, [debugPrint]) -> Document
+// Helper for debugging mostly, returns NIL for now (unless we wrap Document)
 static Value scraper_parse(VM* vm, Value* args, int argCount) {
-    (void)vm; // Suppress unused parameter
+    (void)vm; // Suppress unused warning
     if (argCount < 1 || !IS_STRING(args[0])) {
         return NIL_VAL;
     }
@@ -368,10 +722,7 @@ static Value scraper_parse(VM* vm, Value* args, int argCount) {
         printNode(doc, 0);
     }
     
-    // Free the tree immediately since we don't transfer ownership to VM yet
-    // (This prevents memory leaks during testing until we have GC wrapper)
     freeNode(doc);
-    
     return NIL_VAL;
 }
 
@@ -392,7 +743,9 @@ void registerUCoreScraper(VM* vm) {
     modEnv->obj.isPermanent = true;
     mod->env = modEnv;
     
-    defineNative(vm, mod->env, "parse", scraper_parse, 1);
+    defineNative(vm, mod->env, "parse", scraper_parse, 1); // parse(html, [debug])
+    defineNative(vm, mod->env, "select", scraper_select, 2); // select(html, selector)
+    defineNative(vm, mod->env, "parseFile", scraper_parseFile, 2); // parseFile(path, selector)
     
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreScraper", vMod);

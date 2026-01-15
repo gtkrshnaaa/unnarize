@@ -7,7 +7,30 @@ print("Parsing HTML...");
 print("---------------------------------------------------");
 
 // Parse and Debug Print
-ucoreScraper.parse(html, true);
+// ucoreScraper.parse(html, true);
+
+print("Selecting '#main'...");
+var main = ucoreScraper.select(html, "#main");
+if (length(main) > 0) {
+    print("Found ID main! Tag: " + main[0]["tagName"]);
+    print("Class: " + main[0]["attributes"]["class"]);
+}
+
+print("Selecting '.container'...");
+var containers = ucoreScraper.select(html, ".container");
+print("Containers found: " + length(containers));
+
+print("Selecting 'h1'...");
+var headers = ucoreScraper.select(html, "h1");
+if (length(headers) > 0) {
+    print("Header text: " + headers[0]["text"]);
+}
+
+print("Selecting 'img'...");
+var imgs = ucoreScraper.select(html, "img");
+if (length(imgs) > 0) {
+    print("Image Src: " + imgs[0]["attributes"]["src"]);
+}
 
 print("---------------------------------------------------");
 print("Done.");
