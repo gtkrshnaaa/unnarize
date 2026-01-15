@@ -1,0 +1,1128 @@
+#include "ucore_tui.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <ctype.h>
+
+// ============================================================================
+// ANSI Escape Code Constants
+// ============================================================================
+
+#define ESC "\033"
+#define CSI ESC "["
+
+// Colors (Foreground)
+#define FG_BLACK   "30"
+#define FG_RED     "31"
+#define FG_GREEN   "32"
+#define FG_YELLOW  "33"
+#define FG_BLUE    "34"
+#define FG_MAGENTA "35"
+#define FG_CYAN    "36"
+#define FG_WHITE   "37"
+#define FG_BRIGHT_BLACK   "90"
+#define FG_BRIGHT_RED     "91"
+#define FG_BRIGHT_GREEN   "92"
+#define FG_BRIGHT_YELLOW  "93"
+#define FG_BRIGHT_BLUE    "94"
+#define FG_BRIGHT_MAGENTA "95"
+#define FG_BRIGHT_CYAN    "96"
+#define FG_BRIGHT_WHITE   "97"
+
+// Colors (Background)
+#define BG_BLACK   "40"
+#define BG_RED     "41"
+#define BG_GREEN   "42"
+#define BG_YELLOW  "43"
+#define BG_BLUE    "44"
+#define BG_MAGENTA "45"
+#define BG_CYAN    "46"
+#define BG_WHITE   "47"
+
+// Box-drawing characters (Unicode)
+#define BOX_LIGHT_H  "─"
+#define BOX_LIGHT_V  "│"
+#define BOX_LIGHT_TL "┌"
+#define BOX_LIGHT_TR "┐"
+#define BOX_LIGHT_BL "└"
+#define BOX_LIGHT_BR "┘"
+#define BOX_LIGHT_LT "├"
+#define BOX_LIGHT_RT "┤"
+#define BOX_LIGHT_TT "┬"
+#define BOX_LIGHT_BT "┴"
+#define BOX_LIGHT_X  "┼"
+
+#define BOX_ROUND_TL "╭"
+#define BOX_ROUND_TR "╮"
+#define BOX_ROUND_BL "╰"
+#define BOX_ROUND_BR "╯"
+
+#define BOX_DOUBLE_H  "═"
+#define BOX_DOUBLE_V  "║"
+#define BOX_DOUBLE_TL "╔"
+#define BOX_DOUBLE_TR "╗"
+#define BOX_DOUBLE_BL "╚"
+#define BOX_DOUBLE_BR "╝"
+
+// Tree characters
+#define TREE_BRANCH "├── "
+#define TREE_LAST   "└── "
+#define TREE_PIPE   "│   "
+#define TREE_SPACE  "    "
+
+// ============================================================================
+// Terminal Mode Handling
+// ============================================================================
+
+static struct termios orig_termios;
+static int raw_mode_active = 0;
+
+static void disableRawMode(void) {
+    if (raw_mode_active) {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+        raw_mode_active = 0;
+    }
+}
+
+static void enableRawMode(void) {
+    if (raw_mode_active) return;
+    
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    atexit(disableRawMode);
+    
+    struct termios raw = orig_termios;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
+    
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    raw_mode_active = 1;
+}
+
+// ============================================================================
+// Helper: Color Name to ANSI Code
+// ============================================================================
+
+static const char* colorNameToFg(const char* name) {
+    if (strcmp(name, "black") == 0) return FG_BLACK;
+    if (strcmp(name, "red") == 0) return FG_RED;
+    if (strcmp(name, "green") == 0) return FG_GREEN;
+    if (strcmp(name, "yellow") == 0) return FG_YELLOW;
+    if (strcmp(name, "blue") == 0) return FG_BLUE;
+    if (strcmp(name, "magenta") == 0) return FG_MAGENTA;
+    if (strcmp(name, "cyan") == 0) return FG_CYAN;
+    if (strcmp(name, "white") == 0) return FG_WHITE;
+    if (strcmp(name, "brightBlack") == 0 || strcmp(name, "gray") == 0) return FG_BRIGHT_BLACK;
+    if (strcmp(name, "brightRed") == 0) return FG_BRIGHT_RED;
+    if (strcmp(name, "brightGreen") == 0) return FG_BRIGHT_GREEN;
+    if (strcmp(name, "brightYellow") == 0) return FG_BRIGHT_YELLOW;
+    if (strcmp(name, "brightBlue") == 0) return FG_BRIGHT_BLUE;
+    if (strcmp(name, "brightMagenta") == 0) return FG_BRIGHT_MAGENTA;
+    if (strcmp(name, "brightCyan") == 0) return FG_BRIGHT_CYAN;
+    if (strcmp(name, "brightWhite") == 0) return FG_BRIGHT_WHITE;
+    return FG_WHITE; // Default
+}
+
+static const char* colorNameToBg(const char* name) {
+    if (strcmp(name, "black") == 0) return BG_BLACK;
+    if (strcmp(name, "red") == 0) return BG_RED;
+    if (strcmp(name, "green") == 0) return BG_GREEN;
+    if (strcmp(name, "yellow") == 0) return BG_YELLOW;
+    if (strcmp(name, "blue") == 0) return BG_BLUE;
+    if (strcmp(name, "magenta") == 0) return BG_MAGENTA;
+    if (strcmp(name, "cyan") == 0) return BG_CYAN;
+    if (strcmp(name, "white") == 0) return BG_WHITE;
+    return BG_BLACK; // Default
+}
+
+// ============================================================================
+// Terminal Primitives
+// ============================================================================
+
+// clear() - Clear entire screen
+static Value tui_clear(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    printf(CSI "2J" CSI "H");
+    fflush(stdout);
+    return NIL_VAL;
+}
+
+// clearLine() - Clear current line
+static Value tui_clearLine(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    printf(CSI "2K\r");
+    fflush(stdout);
+    return NIL_VAL;
+}
+
+// moveTo(row, col) - Move cursor to position (1-indexed)
+static Value tui_moveTo(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount < 2) return NIL_VAL;
+    
+    int row = IS_INT(args[0]) ? AS_INT(args[0]) : (int)AS_FLOAT(args[0]);
+    int col = IS_INT(args[1]) ? AS_INT(args[1]) : (int)AS_FLOAT(args[1]);
+    
+    printf(CSI "%d;%dH", row, col);
+    fflush(stdout);
+    return NIL_VAL;
+}
+
+// hideCursor()
+static Value tui_hideCursor(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    printf(CSI "?25l");
+    fflush(stdout);
+    return NIL_VAL;
+}
+
+// showCursor()
+static Value tui_showCursor(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    printf(CSI "?25h");
+    fflush(stdout);
+    return NIL_VAL;
+}
+
+// size() - Returns struct {rows, cols}
+static Value tui_size(VM* vm, Value* args, int argCount) {
+    (void)args; (void)argCount;
+    
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    
+    // Create a map with rows and cols
+    Map* m = ALLOCATE_OBJ(vm, Map, OBJ_MAP);
+    memset(m->buckets, 0, sizeof(m->buckets));
+    
+    // Add rows
+    ObjString* rowsKey = internString(vm, "rows", 4);
+    mapSet(vm, m, OBJ_VAL(rowsKey), INT_VAL(w.ws_row));
+    
+    // Add cols
+    ObjString* colsKey = internString(vm, "cols", 4);
+    mapSet(vm, m, OBJ_VAL(colsKey), INT_VAL(w.ws_col));
+    
+    return OBJ_VAL(m);
+}
+
+// ============================================================================
+// Colors & Styling
+// ============================================================================
+
+// fg(color, text) - Apply foreground color
+static Value tui_fg(VM* vm, Value* args, int argCount) {
+    if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return argCount >= 2 ? args[1] : NIL_VAL;
+    }
+    
+    const char* colorName = AS_CSTRING(args[0]);
+    const char* text = AS_CSTRING(args[1]);
+    const char* code = colorNameToFg(colorName);
+    
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", code, text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// bg(color, text) - Apply background color
+static Value tui_bg(VM* vm, Value* args, int argCount) {
+    if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return argCount >= 2 ? args[1] : NIL_VAL;
+    }
+    
+    const char* colorName = AS_CSTRING(args[0]);
+    const char* text = AS_CSTRING(args[1]);
+    const char* code = colorNameToBg(colorName);
+    
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", code, text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// bold(text)
+static Value tui_bold(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_STRING(args[0])) return NIL_VAL;
+    
+    const char* text = AS_CSTRING(args[0]);
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "1m%s" CSI "0m", text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// dim(text)
+static Value tui_dim(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_STRING(args[0])) return NIL_VAL;
+    
+    const char* text = AS_CSTRING(args[0]);
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "2m%s" CSI "0m", text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// italic(text)
+static Value tui_italic(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_STRING(args[0])) return NIL_VAL;
+    
+    const char* text = AS_CSTRING(args[0]);
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "3m%s" CSI "0m", text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// underline(text)
+static Value tui_underline(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_STRING(args[0])) return NIL_VAL;
+    
+    const char* text = AS_CSTRING(args[0]);
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "4m%s" CSI "0m", text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// style(text, styles) - Apply multiple styles
+// styles can be: "bold", "dim", "italic", "underline", "red", "bg:blue", etc.
+static Value tui_style(VM* vm, Value* args, int argCount) {
+    if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return argCount >= 1 ? args[0] : NIL_VAL;
+    }
+    
+    const char* text = AS_CSTRING(args[0]);
+    const char* styles = AS_CSTRING(args[1]);
+    
+    char codes[256] = "";
+    char* stylesCopy = strdup(styles);
+    char* token = strtok(stylesCopy, " ");
+    
+    while (token) {
+        if (strcmp(token, "bold") == 0) strcat(codes, "1;");
+        else if (strcmp(token, "dim") == 0) strcat(codes, "2;");
+        else if (strcmp(token, "italic") == 0) strcat(codes, "3;");
+        else if (strcmp(token, "underline") == 0) strcat(codes, "4;");
+        else if (strncmp(token, "bg:", 3) == 0) {
+            strcat(codes, colorNameToBg(token + 3));
+            strcat(codes, ";");
+        }
+        else {
+            strcat(codes, colorNameToFg(token));
+            strcat(codes, ";");
+        }
+        token = strtok(NULL, " ");
+    }
+    free(stylesCopy);
+    
+    // Remove trailing semicolon
+    size_t len = strlen(codes);
+    if (len > 0 && codes[len - 1] == ';') codes[len - 1] = '\0';
+    
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), CSI "%sm%s" CSI "0m", codes, text);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// ============================================================================
+// Input Handling
+// ============================================================================
+
+// keypress() - Read single keypress, returns key name
+static Value tui_keypress(VM* vm, Value* args, int argCount) {
+    (void)args; (void)argCount;
+    
+    enableRawMode();
+    
+    char c;
+    while (read(STDIN_FILENO, &c, 1) != 1) {
+        // Wait for input
+    }
+    
+    char keyName[32] = "";
+    
+    if (c == '\033') {
+        // Escape sequence
+        char seq[3];
+        if (read(STDIN_FILENO, &seq[0], 1) == 1 && 
+            read(STDIN_FILENO, &seq[1], 1) == 1) {
+            if (seq[0] == '[') {
+                switch (seq[1]) {
+                    case 'A': strcpy(keyName, "up"); break;
+                    case 'B': strcpy(keyName, "down"); break;
+                    case 'C': strcpy(keyName, "right"); break;
+                    case 'D': strcpy(keyName, "left"); break;
+                    case 'H': strcpy(keyName, "home"); break;
+                    case 'F': strcpy(keyName, "end"); break;
+                    case '3':
+                        read(STDIN_FILENO, &seq[2], 1);
+                        strcpy(keyName, "delete");
+                        break;
+                    default: strcpy(keyName, "escape"); break;
+                }
+            }
+        } else {
+            strcpy(keyName, "escape");
+        }
+    } else if (c == '\r' || c == '\n') {
+        strcpy(keyName, "enter");
+    } else if (c == 127 || c == 8) {
+        strcpy(keyName, "backspace");
+    } else if (c == '\t') {
+        strcpy(keyName, "tab");
+    } else if (c >= 1 && c <= 26) {
+        snprintf(keyName, sizeof(keyName), "ctrl+%c", 'a' + c - 1);
+    } else if (isprint(c)) {
+        keyName[0] = c;
+        keyName[1] = '\0';
+    } else {
+        snprintf(keyName, sizeof(keyName), "unknown:%d", (int)c);
+    }
+    
+    disableRawMode();
+    
+    ObjString* result = internString(vm, keyName, strlen(keyName));
+    return OBJ_VAL(result);
+}
+
+// input(prompt) - Line input with arrow key navigation
+static Value tui_input(VM* vm, Value* args, int argCount) {
+    const char* prompt = "";
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        prompt = AS_CSTRING(args[0]);
+    }
+    
+    printf("%s", prompt);
+    fflush(stdout);
+    
+    enableRawMode();
+    
+    char buffer[4096] = "";
+    int len = 0;
+    int cursor = 0;
+    
+    while (1) {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        
+        if (c == '\r' || c == '\n') {
+            printf("\r\n");
+            break;
+        } else if (c == 127 || c == 8) { // Backspace
+            if (cursor > 0) {
+                memmove(&buffer[cursor - 1], &buffer[cursor], len - cursor + 1);
+                cursor--;
+                len--;
+                
+                // Redraw line
+                printf("\r%s%s \r", prompt, buffer);
+                printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+            }
+        } else if (c == '\033') { // Escape sequence
+            char seq[3];
+            if (read(STDIN_FILENO, &seq[0], 1) == 1 &&
+                read(STDIN_FILENO, &seq[1], 1) == 1) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'C' && cursor < len) { // Right
+                        cursor++;
+                        printf(CSI "C");
+                    } else if (seq[1] == 'D' && cursor > 0) { // Left
+                        cursor--;
+                        printf(CSI "D");
+                    } else if (seq[1] == 'H') { // Home
+                        cursor = 0;
+                        printf("\r" CSI "%dG", (int)(strlen(prompt) + 1));
+                    } else if (seq[1] == 'F') { // End
+                        cursor = len;
+                        printf("\r" CSI "%dG", (int)(strlen(prompt) + len + 1));
+                    } else if (seq[1] == '3') { // Delete
+                        read(STDIN_FILENO, &seq[2], 1);
+                        if (cursor < len) {
+                            memmove(&buffer[cursor], &buffer[cursor + 1], len - cursor);
+                            len--;
+                            printf("\r%s%s \r", prompt, buffer);
+                            printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+                        }
+                    }
+                }
+            }
+        } else if (c >= 32 && c < 127) { // Printable
+            if (len < (int)sizeof(buffer) - 1) {
+                memmove(&buffer[cursor + 1], &buffer[cursor], len - cursor + 1);
+                buffer[cursor] = c;
+                cursor++;
+                len++;
+                
+                printf("\r%s%s\r", prompt, buffer);
+                printf(CSI "%dG", (int)(strlen(prompt) + cursor + 1));
+            }
+        } else if (c == 3) { // Ctrl+C
+            buffer[0] = '\0';
+            len = 0;
+            printf("\r\n");
+            break;
+        }
+        fflush(stdout);
+    }
+    
+    disableRawMode();
+    
+    ObjString* result = internString(vm, buffer, len);
+    return OBJ_VAL(result);
+}
+
+// inputPassword(prompt) - Hidden input
+static Value tui_inputPassword(VM* vm, Value* args, int argCount) {
+    const char* prompt = "";
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        prompt = AS_CSTRING(args[0]);
+    }
+    
+    printf("%s", prompt);
+    fflush(stdout);
+    
+    enableRawMode();
+    
+    char buffer[256] = "";
+    int len = 0;
+    
+    while (1) {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        
+        if (c == '\r' || c == '\n') {
+            printf("\r\n");
+            break;
+        } else if (c == 127 || c == 8) { // Backspace
+            if (len > 0) {
+                len--;
+                printf("\b \b");
+            }
+        } else if (c >= 32 && c < 127 && len < (int)sizeof(buffer) - 1) {
+            buffer[len++] = c;
+            printf("*");
+        } else if (c == 3) { // Ctrl+C
+            buffer[0] = '\0';
+            len = 0;
+            printf("\r\n");
+            break;
+        }
+        fflush(stdout);
+    }
+    
+    disableRawMode();
+    buffer[len] = '\0';
+    
+    ObjString* result = internString(vm, buffer, len);
+    return OBJ_VAL(result);
+}
+
+// confirm(prompt) - Yes/No prompt
+static Value tui_confirm(VM* vm, Value* args, int argCount) {
+    const char* prompt = "Confirm?";
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        prompt = AS_CSTRING(args[0]);
+    }
+    
+    printf("%s [y/n] ", prompt);
+    fflush(stdout);
+    
+    enableRawMode();
+    
+    bool result = false;
+    while (1) {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        
+        if (c == 'y' || c == 'Y') {
+            result = true;
+            printf("y\r\n");
+            break;
+        } else if (c == 'n' || c == 'N' || c == '\r' || c == '\n') {
+            result = false;
+            printf("n\r\n");
+            break;
+        }
+    }
+    
+    disableRawMode();
+    return BOOL_VAL(result);
+}
+
+// select(prompt, options) - Arrow-key selection menu
+static Value tui_select(VM* vm, Value* args, int argCount) {
+    if (argCount < 2 || !IS_STRING(args[0]) || !IS_ARRAY(args[1])) {
+        return INT_VAL(-1);
+    }
+    
+    const char* prompt = AS_CSTRING(args[0]);
+    Array* options = AS_ARRAY(args[1]);
+    
+    if (options->count == 0) return INT_VAL(-1);
+    
+    int selected = 0;
+    
+    printf("%s\r\n", prompt);
+    
+    enableRawMode();
+    printf(CSI "?25l"); // Hide cursor
+    
+    while (1) {
+        // Draw options
+        for (int i = 0; i < options->count; i++) {
+            if (i == selected) {
+                printf(CSI "7m"); // Inverse
+            }
+            
+            if (IS_STRING(options->items[i])) {
+                printf("  %s%s  ", i == selected ? "> " : "  ", AS_CSTRING(options->items[i]));
+            }
+            
+            if (i == selected) {
+                printf(CSI "0m");
+            }
+            printf("\r\n");
+        }
+        
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) continue;
+        
+        if (c == '\033') {
+            char seq[2];
+            if (read(STDIN_FILENO, &seq[0], 1) == 1 &&
+                read(STDIN_FILENO, &seq[1], 1) == 1) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'A' && selected > 0) selected--; // Up
+                    if (seq[1] == 'B' && selected < options->count - 1) selected++; // Down
+                }
+            }
+        } else if (c == '\r' || c == '\n') {
+            break;
+        } else if (c == 3 || c == 27) { // Ctrl+C or Escape
+            selected = -1;
+            break;
+        }
+        
+        // Move cursor back up
+        printf(CSI "%dA", options->count);
+    }
+    
+    printf(CSI "?25h"); // Show cursor
+    disableRawMode();
+    
+    return INT_VAL(selected);
+}
+
+// ============================================================================
+// Tables
+// ============================================================================
+
+// Helper: calculate display width (handles ANSI codes)
+static int displayWidth(const char* str) {
+    int width = 0;
+    int inEscape = 0;
+    
+    for (const char* p = str; *p; p++) {
+        if (*p == '\033') {
+            inEscape = 1;
+        } else if (inEscape) {
+            if (*p == 'm') inEscape = 0;
+        } else {
+            // Handle UTF-8 (simplified: skip continuation bytes)
+            if ((*p & 0xC0) != 0x80) width++;
+        }
+    }
+    return width;
+}
+
+// table(data) - Render table from 2D array
+static Value tui_table(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_ARRAY(args[0])) {
+        return NIL_VAL;
+    }
+    
+    Array* rows = AS_ARRAY(args[0]);
+    if (rows->count == 0) return NIL_VAL;
+    
+    // Determine column count and widths
+    int colCount = 0;
+    for (int i = 0; i < rows->count; i++) {
+        if (IS_ARRAY(rows->items[i])) {
+            Array* row = AS_ARRAY(rows->items[i]);
+            if (row->count > colCount) colCount = row->count;
+        }
+    }
+    
+    if (colCount == 0) return NIL_VAL;
+    
+    int* colWidths = calloc(colCount, sizeof(int));
+    
+    // Calculate max width per column
+    for (int i = 0; i < rows->count; i++) {
+        if (!IS_ARRAY(rows->items[i])) continue;
+        Array* row = AS_ARRAY(rows->items[i]);
+        
+        for (int j = 0; j < row->count && j < colCount; j++) {
+            char cellBuf[256] = "";
+            if (IS_STRING(row->items[j])) {
+                strncpy(cellBuf, AS_CSTRING(row->items[j]), sizeof(cellBuf) - 1);
+            } else if (IS_INT(row->items[j])) {
+                snprintf(cellBuf, sizeof(cellBuf), "%d", AS_INT(row->items[j]));
+            } else if (IS_FLOAT(row->items[j])) {
+                snprintf(cellBuf, sizeof(cellBuf), "%.2f", AS_FLOAT(row->items[j]));
+            }
+            
+            int w = displayWidth(cellBuf);
+            if (w > colWidths[j]) colWidths[j] = w;
+        }
+    }
+    
+    // Build table string
+    char* output = malloc(32768);
+    output[0] = '\0';
+    
+    // Top border
+    strcat(output, BOX_ROUND_TL);
+    for (int j = 0; j < colCount; j++) {
+        for (int k = 0; k < colWidths[j] + 2; k++) strcat(output, BOX_LIGHT_H);
+        if (j < colCount - 1) strcat(output, BOX_LIGHT_TT);
+    }
+    strcat(output, BOX_ROUND_TR "\n");
+    
+    // Rows
+    for (int i = 0; i < rows->count; i++) {
+        if (!IS_ARRAY(rows->items[i])) continue;
+        Array* row = AS_ARRAY(rows->items[i]);
+        
+        strcat(output, BOX_LIGHT_V);
+        for (int j = 0; j < colCount; j++) {
+            char cellBuf[256] = "";
+            if (j < row->count) {
+                if (IS_STRING(row->items[j])) {
+                    strncpy(cellBuf, AS_CSTRING(row->items[j]), sizeof(cellBuf) - 1);
+                } else if (IS_INT(row->items[j])) {
+                    snprintf(cellBuf, sizeof(cellBuf), "%d", AS_INT(row->items[j]));
+                } else if (IS_FLOAT(row->items[j])) {
+                    snprintf(cellBuf, sizeof(cellBuf), "%.2f", AS_FLOAT(row->items[j]));
+                }
+            }
+            
+            int w = displayWidth(cellBuf);
+            int padding = colWidths[j] - w;
+            
+            strcat(output, " ");
+            strcat(output, cellBuf);
+            for (int k = 0; k < padding + 1; k++) strcat(output, " ");
+            strcat(output, BOX_LIGHT_V);
+        }
+        strcat(output, "\n");
+        
+        // Header separator (after first row)
+        if (i == 0 && rows->count > 1) {
+            strcat(output, BOX_LIGHT_LT);
+            for (int j = 0; j < colCount; j++) {
+                for (int k = 0; k < colWidths[j] + 2; k++) strcat(output, BOX_LIGHT_H);
+                if (j < colCount - 1) strcat(output, BOX_LIGHT_X);
+            }
+            strcat(output, BOX_LIGHT_RT "\n");
+        }
+    }
+    
+    // Bottom border
+    strcat(output, BOX_ROUND_BL);
+    for (int j = 0; j < colCount; j++) {
+        for (int k = 0; k < colWidths[j] + 2; k++) strcat(output, BOX_LIGHT_H);
+        if (j < colCount - 1) strcat(output, BOX_LIGHT_BT);
+    }
+    strcat(output, BOX_ROUND_BR "\n");
+    
+    free(colWidths);
+    
+    ObjString* result = internString(vm, output, strlen(output));
+    free(output);
+    return OBJ_VAL(result);
+}
+
+// ============================================================================
+// Tree View
+// ============================================================================
+
+// Helper: recursive tree builder
+static void buildTree(VM* vm, Value node, char* output, const char* prefix, bool isLast) {
+    if (!IS_MAP(node)) return;
+    
+    Map* m = AS_MAP(node);
+    
+    // Get name
+    ObjString* nameKey = internString(vm, "name", 4);
+    Value nameVal = mapGet(m, OBJ_VAL(nameKey));
+    const char* name = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "?";
+    
+    // Print current node
+    strcat(output, prefix);
+    strcat(output, isLast ? TREE_LAST : TREE_BRANCH);
+    strcat(output, name);
+    strcat(output, "\n");
+    
+    // Get children
+    ObjString* childKey = internString(vm, "children", 8);
+    Value childVal = mapGet(m, OBJ_VAL(childKey));
+    
+    if (IS_ARRAY(childVal)) {
+        Array* children = AS_ARRAY(childVal);
+        char newPrefix[1024];
+        snprintf(newPrefix, sizeof(newPrefix), "%s%s", prefix, isLast ? TREE_SPACE : TREE_PIPE);
+        
+        for (int i = 0; i < children->count; i++) {
+            buildTree(vm, children->items[i], output, newPrefix, i == children->count - 1);
+        }
+    }
+}
+
+// tree(data) - Render tree from nested map structure
+static Value tui_tree(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_MAP(args[0])) {
+        return NIL_VAL;
+    }
+    
+    Map* root = AS_MAP(args[0]);
+    
+    char* output = malloc(32768);
+    output[0] = '\0';
+    
+    // Get root name
+    ObjString* nameKey = internString(vm, "name", 4);
+    Value nameVal = mapGet(root, OBJ_VAL(nameKey));
+    const char* rootName = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "root";
+    
+    strcat(output, rootName);
+    strcat(output, "\n");
+    
+    // Get children
+    ObjString* childKey = internString(vm, "children", 8);
+    Value childVal = mapGet(root, OBJ_VAL(childKey));
+    
+    if (IS_ARRAY(childVal)) {
+        Array* children = AS_ARRAY(childVal);
+        for (int i = 0; i < children->count; i++) {
+            buildTree(vm, children->items[i], output, "", i == children->count - 1);
+        }
+    }
+    
+    ObjString* result = internString(vm, output, strlen(output));
+    free(output);
+    return OBJ_VAL(result);
+}
+
+// ============================================================================
+// Progress & Spinners
+// ============================================================================
+
+// progressBar(current, total, width) - Returns progress bar string
+static Value tui_progressBar(VM* vm, Value* args, int argCount) {
+    if (argCount < 2) return NIL_VAL;
+    
+    double current = IS_INT(args[0]) ? AS_INT(args[0]) : AS_FLOAT(args[0]);
+    double total = IS_INT(args[1]) ? AS_INT(args[1]) : AS_FLOAT(args[1]);
+    int width = argCount >= 3 ? (IS_INT(args[2]) ? AS_INT(args[2]) : (int)AS_FLOAT(args[2])) : 40;
+    
+    if (total <= 0) total = 1;
+    double ratio = current / total;
+    if (ratio > 1.0) ratio = 1.0;
+    if (ratio < 0.0) ratio = 0.0;
+    
+    int filled = (int)(ratio * width);
+    int percent = (int)(ratio * 100);
+    
+    char buffer[256];
+    char bar[128] = "";
+    
+    for (int i = 0; i < width; i++) {
+        if (i < filled) strcat(bar, "█");
+        else strcat(bar, "░");
+    }
+    
+    snprintf(buffer, sizeof(buffer), "[%s] %3d%%", bar, percent);
+    
+    ObjString* result = internString(vm, buffer, strlen(buffer));
+    return OBJ_VAL(result);
+}
+
+// spinner(style) - Returns array of spinner frames
+static Value tui_spinner(VM* vm, Value* args, int argCount) {
+    const char* style = "dots";
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        style = AS_CSTRING(args[0]);
+    }
+    
+    const char** frames;
+    int frameCount;
+    
+    const char* dots[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    const char* line[] = {"-", "\\", "|", "/"};
+    const char* arc[] = {"◜", "◠", "◝", "◞", "◡", "◟"};
+    const char* bounce[] = {"⠁", "⠂", "⠄", "⠂"};
+    const char* dots2[] = {"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"};
+    
+    if (strcmp(style, "line") == 0) {
+        frames = line; frameCount = 4;
+    } else if (strcmp(style, "arc") == 0) {
+        frames = arc; frameCount = 6;
+    } else if (strcmp(style, "bounce") == 0) {
+        frames = bounce; frameCount = 4;
+    } else if (strcmp(style, "dots2") == 0) {
+        frames = dots2; frameCount = 8;
+    } else {
+        frames = dots; frameCount = 10;
+    }
+    
+    Array* arr = newArray(vm);
+    for (int i = 0; i < frameCount; i++) {
+        ObjString* s = internString(vm, frames[i], strlen(frames[i]));
+        arrayPush(vm, arr, OBJ_VAL(s));
+    }
+    
+    return OBJ_VAL(arr);
+}
+
+// ============================================================================
+// Boxes & Panels
+// ============================================================================
+
+// box(content, style) - Wrap content in a box
+static Value tui_box(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_STRING(args[0])) return NIL_VAL;
+    
+    const char* content = AS_CSTRING(args[0]);
+    const char* style = "rounded";
+    if (argCount >= 2 && IS_STRING(args[1])) {
+        style = AS_CSTRING(args[1]);
+    }
+    
+    // Box characters based on style
+    const char *tl, *tr, *bl, *br, *h, *v;
+    if (strcmp(style, "double") == 0) {
+        tl = BOX_DOUBLE_TL; tr = BOX_DOUBLE_TR;
+        bl = BOX_DOUBLE_BL; br = BOX_DOUBLE_BR;
+        h = BOX_DOUBLE_H; v = BOX_DOUBLE_V;
+    } else if (strcmp(style, "simple") == 0) {
+        tl = BOX_LIGHT_TL; tr = BOX_LIGHT_TR;
+        bl = BOX_LIGHT_BL; br = BOX_LIGHT_BR;
+        h = BOX_LIGHT_H; v = BOX_LIGHT_V;
+    } else { // rounded
+        tl = BOX_ROUND_TL; tr = BOX_ROUND_TR;
+        bl = BOX_ROUND_BL; br = BOX_ROUND_BR;
+        h = BOX_LIGHT_H; v = BOX_LIGHT_V;
+    }
+    
+    // Split content by newlines and find max width
+    int maxWidth = 0;
+    int lineCount = 1;
+    const char* p = content;
+    int lineLen = 0;
+    
+    while (*p) {
+        if (*p == '\n') {
+            if (lineLen > maxWidth) maxWidth = lineLen;
+            lineLen = 0;
+            lineCount++;
+        } else {
+            lineLen++;
+        }
+        p++;
+    }
+    if (lineLen > maxWidth) maxWidth = lineLen;
+    
+    char* output = malloc(32768);
+    output[0] = '\0';
+    
+    // Top border
+    strcat(output, tl);
+    for (int i = 0; i < maxWidth + 2; i++) strcat(output, h);
+    strcat(output, tr);
+    strcat(output, "\n");
+    
+    // Content lines
+    p = content;
+    while (*p) {
+        strcat(output, v);
+        strcat(output, " ");
+        
+        int len = 0;
+        while (*p && *p != '\n') {
+            char c[2] = {*p, '\0'};
+            strcat(output, c);
+            len++;
+            p++;
+        }
+        
+        // Padding
+        for (int i = len; i < maxWidth; i++) strcat(output, " ");
+        strcat(output, " ");
+        strcat(output, v);
+        strcat(output, "\n");
+        
+        if (*p == '\n') p++;
+    }
+    
+    // Bottom border
+    strcat(output, bl);
+    for (int i = 0; i < maxWidth + 2; i++) strcat(output, h);
+    strcat(output, br);
+    strcat(output, "\n");
+    
+    ObjString* result = internString(vm, output, strlen(output));
+    free(output);
+    return OBJ_VAL(result);
+}
+
+// panel(title, content) - Box with title header
+static Value tui_panel(VM* vm, Value* args, int argCount) {
+    if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
+        return NIL_VAL;
+    }
+    
+    const char* title = AS_CSTRING(args[0]);
+    const char* content = AS_CSTRING(args[1]);
+    
+    // Calculate width
+    int titleLen = strlen(title);
+    int maxWidth = titleLen + 4;
+    
+    const char* p = content;
+    int lineLen = 0;
+    while (*p) {
+        if (*p == '\n') {
+            if (lineLen > maxWidth) maxWidth = lineLen;
+            lineLen = 0;
+        } else {
+            lineLen++;
+        }
+        p++;
+    }
+    if (lineLen > maxWidth) maxWidth = lineLen;
+    
+    char* output = malloc(32768);
+    output[0] = '\0';
+    
+    // Top border with title
+    strcat(output, BOX_ROUND_TL);
+    strcat(output, BOX_LIGHT_H);
+    strcat(output, " ");
+    strcat(output, title);
+    strcat(output, " ");
+    int remaining = maxWidth - titleLen - 2;
+    for (int i = 0; i < remaining; i++) strcat(output, BOX_LIGHT_H);
+    strcat(output, BOX_ROUND_TR);
+    strcat(output, "\n");
+    
+    // Content
+    p = content;
+    while (*p) {
+        strcat(output, BOX_LIGHT_V);
+        strcat(output, " ");
+        
+        int len = 0;
+        while (*p && *p != '\n') {
+            char c[2] = {*p, '\0'};
+            strcat(output, c);
+            len++;
+            p++;
+        }
+        
+        for (int i = len; i < maxWidth; i++) strcat(output, " ");
+        strcat(output, " ");
+        strcat(output, BOX_LIGHT_V);
+        strcat(output, "\n");
+        
+        if (*p == '\n') p++;
+    }
+    
+    // Bottom border
+    strcat(output, BOX_ROUND_BL);
+    for (int i = 0; i < maxWidth + 2; i++) strcat(output, BOX_LIGHT_H);
+    strcat(output, BOX_ROUND_BR);
+    strcat(output, "\n");
+    
+    ObjString* result = internString(vm, output, strlen(output));
+    free(output);
+    return OBJ_VAL(result);
+}
+
+// ============================================================================
+// Module Registration
+// ============================================================================
+
+void registerUCoreTui(VM* vm) {
+    ObjString* modNameObj = internString(vm, "ucoreTui", 8);
+    char* modName = modNameObj->chars;
+    
+    Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
+    mod->name = strdup(modName);
+    mod->source = NULL;
+    mod->obj.isMarked = true;
+    mod->obj.isPermanent = true;
+    
+    Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
+    memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
+    memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
+    modEnv->enclosing = NULL;
+    modEnv->obj.isMarked = true;
+    modEnv->obj.isPermanent = true;
+    mod->env = modEnv;
+
+    // Terminal primitives
+    defineNative(vm, mod->env, "clear", tui_clear, 0);
+    defineNative(vm, mod->env, "clearLine", tui_clearLine, 0);
+    defineNative(vm, mod->env, "moveTo", tui_moveTo, 2);
+    defineNative(vm, mod->env, "hideCursor", tui_hideCursor, 0);
+    defineNative(vm, mod->env, "showCursor", tui_showCursor, 0);
+    defineNative(vm, mod->env, "size", tui_size, 0);
+    
+    // Colors & styling
+    defineNative(vm, mod->env, "fg", tui_fg, 2);
+    defineNative(vm, mod->env, "bg", tui_bg, 2);
+    defineNative(vm, mod->env, "bold", tui_bold, 1);
+    defineNative(vm, mod->env, "dim", tui_dim, 1);
+    defineNative(vm, mod->env, "italic", tui_italic, 1);
+    defineNative(vm, mod->env, "underline", tui_underline, 1);
+    defineNative(vm, mod->env, "style", tui_style, 2);
+    
+    // Input handling
+    defineNative(vm, mod->env, "keypress", tui_keypress, 0);
+    defineNative(vm, mod->env, "input", tui_input, 1);
+    defineNative(vm, mod->env, "inputPassword", tui_inputPassword, 1);
+    defineNative(vm, mod->env, "confirm", tui_confirm, 1);
+    defineNative(vm, mod->env, "select", tui_select, 2);
+    
+    // Tables & trees
+    defineNative(vm, mod->env, "table", tui_table, 1);
+    defineNative(vm, mod->env, "tree", tui_tree, 1);
+    
+    // Progress & spinners
+    defineNative(vm, mod->env, "progressBar", tui_progressBar, 3);
+    defineNative(vm, mod->env, "spinner", tui_spinner, 1);
+    
+    // Boxes & panels
+    defineNative(vm, mod->env, "box", tui_box, 2);
+    defineNative(vm, mod->env, "panel", tui_panel, 2);
+
+    Value vMod = OBJ_VAL(mod);
+    defineGlobal(vm, "ucoreTui", vMod);
+}
