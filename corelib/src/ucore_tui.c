@@ -629,6 +629,415 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
 }
 
 // ============================================================================
+// Comprehensive Input Features
+// ============================================================================
+
+// inputBox(title, width, initialValue) - Input inside a styled box
+// Returns: string (user input)
+static Value tui_inputBox(VM* vm, Value* args, int argCount) {
+    const char* title = "Input";
+    int width = 40;
+    const char* initial = "";
+    
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        title = AS_CSTRING(args[0]);
+    }
+    if (argCount >= 2 && IS_INT(args[1])) {
+        width = AS_INT(args[1]);
+        if (width < 10) width = 10;
+        if (width > 120) width = 120;
+    }
+    if (argCount >= 3 && IS_STRING(args[2])) {
+        initial = AS_CSTRING(args[2]);
+    }
+    
+    int titleLen = (int)strlen(title);
+    if (width < titleLen + 6) width = titleLen + 6;
+    
+    char buffer[4096];
+    int len = (int)strlen(initial);
+    if (len >= (int)sizeof(buffer)) len = (int)sizeof(buffer) - 1;
+    strncpy(buffer, initial, sizeof(buffer) - 1);
+    buffer[len] = '\0';
+    
+    int cursor = len;
+    int scrollOffset = 0;
+    int inputWidth = width - 4; // Account for borders and padding
+    
+    enableRawMode();
+    
+    while (1) {
+        // Calculate scroll offset to keep cursor visible
+        if (cursor - scrollOffset >= inputWidth) {
+            scrollOffset = cursor - inputWidth + 1;
+        }
+        if (cursor < scrollOffset) {
+            scrollOffset = cursor;
+        }
+        
+        // Draw box
+        // Top border with title
+        printf("\r" CSI "2K"); // Clear line
+        printf(BOX_ROUND_TL BOX_LIGHT_H " ");
+        printf(CSI "1m%s" CSI "0m", title); // Bold title
+        printf(" ");
+        int remaining = width - titleLen - 4;
+        for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
+        printf(BOX_ROUND_TR "\r\n");
+        
+        // Input line
+        printf(CSI "2K"); // Clear line
+        printf(BOX_LIGHT_V " ");
+        
+        // Show visible portion of buffer
+        int visibleLen = len - scrollOffset;
+        if (visibleLen > inputWidth) visibleLen = inputWidth;
+        for (int i = 0; i < visibleLen; i++) {
+            printf("%c", buffer[scrollOffset + i]);
+        }
+        // Padding
+        for (int i = visibleLen; i < inputWidth; i++) printf(" ");
+        printf(" " BOX_LIGHT_V "\r\n");
+        
+        // Bottom border
+        printf(CSI "2K"); // Clear line
+        printf(BOX_ROUND_BL);
+        for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
+        printf(BOX_ROUND_BR);
+        
+        // Position cursor inside box
+        printf(CSI "2A"); // Move up 2 lines
+        printf("\r" CSI "%dC", 2 + (cursor - scrollOffset)); // Position cursor
+        fflush(stdout);
+        
+        char c;
+        if (!readChar(&c)) continue;
+        
+        if (c == '\r' || c == '\n') {
+            printf(CSI "2B\r\n"); // Move down to after box
+            break;
+        } else if (c == 127 || c == 8) { // Backspace
+            if (cursor > 0) {
+                memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
+                cursor--;
+                len--;
+            }
+        } else if (c == '\033') { // Escape sequence
+            char seq[3] = {0};
+            if (readChar(&seq[0]) && readChar(&seq[1])) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'C' && cursor < len) cursor++; // Right
+                    else if (seq[1] == 'D' && cursor > 0) cursor--; // Left
+                    else if (seq[1] == 'H') cursor = 0; // Home
+                    else if (seq[1] == 'F') cursor = len; // End
+                    else if (seq[1] == '3') { // Delete
+                        (void)readChar(&seq[2]);
+                        if (cursor < len) {
+                            memmove(&buffer[cursor], &buffer[cursor + 1], (size_t)(len - cursor));
+                            len--;
+                        }
+                    }
+                }
+            }
+        } else if (c == 1) { // Ctrl+A - Home
+            cursor = 0;
+        } else if (c == 5) { // Ctrl+E - End
+            cursor = len;
+        } else if (c == 11) { // Ctrl+K - Kill to end
+            buffer[cursor] = '\0';
+            len = cursor;
+        } else if (c == 21) { // Ctrl+U - Kill to start
+            memmove(buffer, &buffer[cursor], (size_t)(len - cursor + 1));
+            len = len - cursor;
+            cursor = 0;
+        } else if (c == 23) { // Ctrl+W - Delete word backward
+            while (cursor > 0 && buffer[cursor - 1] == ' ') {
+                memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
+                cursor--; len--;
+            }
+            while (cursor > 0 && buffer[cursor - 1] != ' ') {
+                memmove(&buffer[cursor - 1], &buffer[cursor], (size_t)(len - cursor + 1));
+                cursor--; len--;
+            }
+        } else if (c == 3 || c == 27) { // Ctrl+C or Escape - cancel
+            buffer[0] = '\0';
+            len = 0;
+            printf(CSI "2B\r\n"); // Move down
+            break;
+        } else if (c >= 32 && c < 127) { // Printable
+            if (len < (int)sizeof(buffer) - 1) {
+                memmove(&buffer[cursor + 1], &buffer[cursor], (size_t)(len - cursor + 1));
+                buffer[cursor] = c;
+                cursor++;
+                len++;
+            }
+        }
+        
+        // Clear and redraw (move up to redraw box)
+        printf("\r" CSI "2A");
+    }
+    
+    disableRawMode();
+    
+    ObjString* result = internString(vm, buffer, len);
+    return OBJ_VAL(result);
+}
+
+// inputMulti(title, rows, initialValue) - Multi-line text editor
+// Returns: string (with newlines)
+static Value tui_inputMulti(VM* vm, Value* args, int argCount) {
+    const char* title = "Editor";
+    int displayRows = 5;
+    const char* initial = "";
+    
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        title = AS_CSTRING(args[0]);
+    }
+    if (argCount >= 2 && IS_INT(args[1])) {
+        displayRows = AS_INT(args[1]);
+        if (displayRows < 2) displayRows = 2;
+        if (displayRows > 20) displayRows = 20;
+    }
+    if (argCount >= 3 && IS_STRING(args[2])) {
+        initial = AS_CSTRING(args[2]);
+    }
+    
+    // Multi-line buffer using array of lines
+    #define MAX_LINES 100
+    #define MAX_LINE_LEN 256
+    char lines[MAX_LINES][MAX_LINE_LEN];
+    int lineCount = 1;
+    int cursorRow = 0;
+    int cursorCol = 0;
+    int scrollRow = 0;
+    
+    // Initialize with empty line or initial value
+    memset(lines, 0, sizeof(lines));
+    if (initial[0] != '\0') {
+        const char* p = initial;
+        int row = 0;
+        int col = 0;
+        while (*p && row < MAX_LINES) {
+            if (*p == '\n') {
+                lines[row][col] = '\0';
+                row++;
+                col = 0;
+                lineCount = row + 1;
+            } else if (col < MAX_LINE_LEN - 1) {
+                lines[row][col++] = *p;
+            }
+            p++;
+        }
+        lines[row][col] = '\0';
+        if (row + 1 > lineCount) lineCount = row + 1;
+        cursorRow = row;
+        cursorCol = col;
+    }
+    
+    // Get terminal width
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int boxWidth = w.ws_col > 80 ? 78 : w.ws_col - 4;
+    if (boxWidth < 40) boxWidth = 40;
+    
+    int titleLen = (int)strlen(title);
+    
+    enableRawMode();
+    
+    while (1) {
+        // Adjust scroll
+        if (cursorRow < scrollRow) scrollRow = cursorRow;
+        if (cursorRow >= scrollRow + displayRows) scrollRow = cursorRow - displayRows + 1;
+        
+        // Draw box header
+        printf("\r" CSI "2K");
+        printf(BOX_ROUND_TL BOX_LIGHT_H " ");
+        printf(CSI "1m%s" CSI "0m", title);
+        printf(" " CSI "2m(Ctrl+D to save, Esc to cancel)" CSI "0m ");
+        int remaining = boxWidth - titleLen - 36;
+        for (int i = 0; i < remaining && i < boxWidth; i++) printf(BOX_LIGHT_H);
+        printf(BOX_ROUND_TR "\r\n");
+        
+        // Draw visible lines
+        for (int i = 0; i < displayRows; i++) {
+            int lineIdx = scrollRow + i;
+            printf(CSI "2K");
+            printf(BOX_LIGHT_V " ");
+            
+            // Line number (dim)
+            printf(CSI "2m%2d" CSI "0m " BOX_LIGHT_V " ", lineIdx + 1);
+            
+            // Line content
+            int contentWidth = boxWidth - 8;
+            if (lineIdx < lineCount) {
+                int lineLen = (int)strlen(lines[lineIdx]);
+                int showLen = lineLen > contentWidth ? contentWidth : lineLen;
+                for (int j = 0; j < showLen; j++) {
+                    printf("%c", lines[lineIdx][j]);
+                }
+                for (int j = showLen; j < contentWidth; j++) printf(" ");
+            } else {
+                for (int j = 0; j < contentWidth; j++) printf(" ");
+            }
+            
+            printf(" " BOX_LIGHT_V "\r\n");
+        }
+        
+        // Bottom border
+        printf(CSI "2K");
+        printf(BOX_ROUND_BL);
+        for (int i = 0; i < boxWidth - 2; i++) printf(BOX_LIGHT_H);
+        printf(BOX_ROUND_BR);
+        
+        // Position cursor
+        int cursorDisplayRow = cursorRow - scrollRow;
+        if (cursorDisplayRow >= 0 && cursorDisplayRow < displayRows) {
+            printf(CSI "%dA", displayRows - cursorDisplayRow); // Move up
+            int cursorX = 7 + cursorCol; // After "│ NN │ "
+            if (cursorX > boxWidth - 2) cursorX = boxWidth - 2;
+            printf("\r" CSI "%dC", cursorX);
+        }
+        fflush(stdout);
+        
+        char c;
+        if (!readChar(&c)) continue;
+        
+        int currentLineLen = (int)strlen(lines[cursorRow]);
+        
+        if (c == 4) { // Ctrl+D - Save and exit
+            printf("\r" CSI "%dB\r\n", displayRows - (cursorRow - scrollRow) + 1);
+            break;
+        } else if (c == 27) { // Escape - cancel
+            // Check if actual escape or sequence
+            char seq[2] = {0};
+            if (readChar(&seq[0])) {
+                if (seq[0] == '[' && readChar(&seq[1])) {
+                    if (seq[1] == 'A' && cursorRow > 0) { // Up
+                        cursorRow--;
+                        int newLen = (int)strlen(lines[cursorRow]);
+                        if (cursorCol > newLen) cursorCol = newLen;
+                    } else if (seq[1] == 'B' && cursorRow < lineCount - 1) { // Down
+                        cursorRow++;
+                        int newLen = (int)strlen(lines[cursorRow]);
+                        if (cursorCol > newLen) cursorCol = newLen;
+                    } else if (seq[1] == 'C' && cursorCol < currentLineLen) { // Right
+                        cursorCol++;
+                    } else if (seq[1] == 'D' && cursorCol > 0) { // Left
+                        cursorCol--;
+                    } else if (seq[1] == 'H') { // Home
+                        cursorCol = 0;
+                    } else if (seq[1] == 'F') { // End
+                        cursorCol = currentLineLen;
+                    } else if (seq[1] == '3') { // Delete
+                        (void)readChar(&seq[0]);
+                        if (cursorCol < currentLineLen) {
+                            memmove(&lines[cursorRow][cursorCol], &lines[cursorRow][cursorCol + 1],
+                                    (size_t)(currentLineLen - cursorCol));
+                        } else if (cursorRow < lineCount - 1) {
+                            // Join with next line (use temp buffer to avoid overlap)
+                            int nextLen = (int)strlen(lines[cursorRow + 1]);
+                            if (currentLineLen + nextLen < MAX_LINE_LEN - 1) {
+                                char temp[MAX_LINE_LEN];
+                                memcpy(temp, lines[cursorRow + 1], (size_t)(nextLen + 1));
+                                memcpy(&lines[cursorRow][currentLineLen], temp, (size_t)(nextLen + 1));
+                                for (int i = cursorRow + 1; i < lineCount - 1; i++) {
+                                    memcpy(lines[i], lines[i + 1], MAX_LINE_LEN);
+                                }
+                                lineCount--;
+                            }
+                        }
+                    }
+                    goto redraw;
+                }
+            }
+            // Pure escape - cancel
+            lines[0][0] = '\0';
+            lineCount = 1;
+            printf("\r" CSI "%dB\r\n", displayRows - (cursorRow - scrollRow) + 1);
+            break;
+        } else if (c == '\r' || c == '\n') { // Enter - new line
+            if (lineCount < MAX_LINES) {
+                // Move lines down (from end to avoid overlap)
+                for (int i = lineCount; i > cursorRow + 1; i--) {
+                    memcpy(lines[i], lines[i - 1], MAX_LINE_LEN);
+                }
+                // Split current line (use temp to avoid overlap)
+                char temp[MAX_LINE_LEN];
+                int restLen = (int)strlen(&lines[cursorRow][cursorCol]);
+                memcpy(temp, &lines[cursorRow][cursorCol], (size_t)(restLen + 1));
+                memcpy(lines[cursorRow + 1], temp, (size_t)(restLen + 1));
+                lines[cursorRow][cursorCol] = '\0';
+                lineCount++;
+                cursorRow++;
+                cursorCol = 0;
+            }
+        } else if (c == 127 || c == 8) { // Backspace
+            if (cursorCol > 0) {
+                memmove(&lines[cursorRow][cursorCol - 1], &lines[cursorRow][cursorCol],
+                        (size_t)(currentLineLen - cursorCol + 1));
+                cursorCol--;
+            } else if (cursorRow > 0) {
+                // Join with previous line (use temp to avoid overlap)
+                int prevLen = (int)strlen(lines[cursorRow - 1]);
+                if (prevLen + currentLineLen < MAX_LINE_LEN - 1) {
+                    cursorCol = prevLen;
+                    char temp[MAX_LINE_LEN];
+                    memcpy(temp, lines[cursorRow], (size_t)(currentLineLen + 1));
+                    memcpy(&lines[cursorRow - 1][prevLen], temp, (size_t)(currentLineLen + 1));
+                    for (int i = cursorRow; i < lineCount - 1; i++) {
+                        memcpy(lines[i], lines[i + 1], MAX_LINE_LEN);
+                    }
+                    lineCount--;
+                    cursorRow--;
+                }
+            }
+        } else if (c == 1) { // Ctrl+A - Start of line
+            cursorCol = 0;
+        } else if (c == 5) { // Ctrl+E - End of line
+            cursorCol = currentLineLen;
+        } else if (c == 11) { // Ctrl+K - Kill to end
+            lines[cursorRow][cursorCol] = '\0';
+        } else if (c >= 32 && c < 127) { // Printable
+            if (currentLineLen < MAX_LINE_LEN - 1) {
+                memmove(&lines[cursorRow][cursorCol + 1], &lines[cursorRow][cursorCol],
+                        (size_t)(currentLineLen - cursorCol + 1));
+                lines[cursorRow][cursorCol] = c;
+                cursorCol++;
+            }
+        } else if (c == '\t') { // Tab - insert spaces
+            int spaces = 4 - (cursorCol % 4);
+            for (int i = 0; i < spaces && currentLineLen < MAX_LINE_LEN - 1; i++) {
+                int lineLen = (int)strlen(lines[cursorRow]);
+                memmove(&lines[cursorRow][cursorCol + 1], &lines[cursorRow][cursorCol],
+                        (size_t)(lineLen - cursorCol + 1));
+                lines[cursorRow][cursorCol] = ' ';
+                cursorCol++;
+            }
+        }
+        
+        redraw:
+        // Move cursor back up to redraw
+        printf("\r" CSI "%dA", displayRows + 1);
+    }
+    
+    disableRawMode();
+    
+    // Build result string
+    char result[MAX_LINES * MAX_LINE_LEN];
+    result[0] = '\0';
+    for (int i = 0; i < lineCount; i++) {
+        strcat(result, lines[i]);
+        if (i < lineCount - 1) strcat(result, "\n");
+    }
+    
+    ObjString* resultStr = internString(vm, result, (int)strlen(result));
+    return OBJ_VAL(resultStr);
+    
+    #undef MAX_LINES
+    #undef MAX_LINE_LEN
+}
+
+// ============================================================================
 // Tables
 // ============================================================================
 
@@ -1119,6 +1528,8 @@ void registerUCoreTui(VM* vm) {
     defineNative(vm, mod->env, "inputPassword", tui_inputPassword, 1);
     defineNative(vm, mod->env, "confirm", tui_confirm, 1);
     defineNative(vm, mod->env, "select", tui_select, 2);
+    defineNative(vm, mod->env, "inputBox", tui_inputBox, 3);
+    defineNative(vm, mod->env, "inputMulti", tui_inputMulti, 3);
     
     // Tables & trees
     defineNative(vm, mod->env, "table", tui_table, 1);
