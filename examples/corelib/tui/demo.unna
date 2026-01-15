@@ -77,22 +77,31 @@ print(ucoreTui.box("Double border box", "double"));
 
 print(ucoreTui.panel("INFO", "This is a panel with a title header."));
 
-// Note: Terminal size() returns a map, access via map["key"] syntax
-// var size = ucoreTui.size();
-// print("Terminal size: " + size["cols"] + " cols x " + size["rows"] + " rows");
-
 // ========================
 // 6. DEMO COMPLETE
 // ========================
 print("");
 print(ucoreTui.fg("green", "Demo Complete!"));
 print("");
-print("Interactive features available:");
-print("  - ucoreTui.input(prompt)         Line input with arrow navigation");
-print("  - ucoreTui.inputPassword(prompt) Hidden password input");
-print("  - ucoreTui.confirm(prompt)       Yes/No confirmation");
-print("  - ucoreTui.select(prompt, arr)   Arrow-key selection menu");
-print("  - ucoreTui.keypress()            Read single keypress");
-print("  - ucoreTui.tree(map)             Tree view from nested map");
-print("  - ucoreTui.size()                Get terminal dimensions");
+print("=== INPUT FUNCTIONS ===");
+print("");
+print("Comprehensive input features available:");
+print("  - ucoreTui.input(prompt)             Line input with arrow nav");
+print("  - ucoreTui.inputBox(title,w,init)    Input in styled box");
+print("  - ucoreTui.inputMulti(title,rows)    Multi-line editor");
+print("  - ucoreTui.inputPassword(prompt)     Hidden password input");
+print("  - ucoreTui.confirm(prompt)           Yes/No confirmation");
+print("  - ucoreTui.select(prompt, arr)       Arrow-key selection");
+print("  - ucoreTui.keypress()                Read single keypress");
+print("");
+print("Keyboard shortcuts in inputBox/inputMulti:");
+print("  Arrow keys   Navigate cursor");
+print("  Home/End     Jump to start/end of line");
+print("  Ctrl+A       Start of line");
+print("  Ctrl+E       End of line");
+print("  Ctrl+K       Kill to end of line");
+print("  Ctrl+U       Kill to start of line");
+print("  Ctrl+W       Delete word backward");
+print("  Ctrl+D       Save and exit (multi)");
+print("  Esc          Cancel");
 print("");
