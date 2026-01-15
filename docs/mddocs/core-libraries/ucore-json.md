@@ -12,6 +12,7 @@
 | `stringify(obj)` | string | Convert object to JSON string |
 | `read(path)` | map/array | Read and parse JSON file |
 | `write(path, obj)` | bool | Write object as JSON to file |
+| `remove(path)` | bool | Delete a JSON file |
 
 ---
 
