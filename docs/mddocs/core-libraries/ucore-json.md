@@ -10,8 +10,8 @@
 |----------|---------|-------------|
 | `parse(str)` | map/array | Parse JSON string to object |
 | `stringify(obj)` | string | Convert object to JSON string |
-| `readFile(path)` | map/array | Read and parse JSON file |
-| `writeFile(path, obj)` | bool | Write object as JSON to file |
+| `read(path)` | map/array | Read and parse JSON file |
+| `write(path, obj)` | bool | Write object as JSON to file |
 
 ---
 
@@ -94,19 +94,19 @@ print(ucoreJson.stringify(user));
 
 ## File Operations
 
-### readFile(path)
+### read(path)
 
 Read and parse a JSON file:
 
 ```javascript
 // config.json: {"port": 8080, "debug": true}
-var config = ucoreJson.readFile("config.json");
+var config = ucoreJson.read("config.json");
 
 print(config["port"]);   // 8080
 print(config["debug"]);  // true
 ```
 
-### writeFile(path, obj)
+### write(path, obj)
 
 Write an object to a JSON file:
 
@@ -115,7 +115,7 @@ var settings = map();
 settings["theme"] = "dark";
 settings["language"] = "en";
 
-ucoreJson.writeFile("settings.json", settings);
+ucoreJson.write("settings.json", settings);
 // Creates: {"theme":"dark","language":"en"}
 ```
 
@@ -162,7 +162,7 @@ print(createResponse(false, nil, "Invalid input"));
 ```javascript
 // Load config with defaults
 function loadConfig(path) {
-    var config = ucoreJson.readFile(path);
+    var config = ucoreJson.read(path);
     
     // Set defaults if missing
     if (!has(config, "port")) {
@@ -199,11 +199,11 @@ function saveTodos() {
         item["done"] = todo.done;
         push(data, item);
     }
-    ucoreJson.writeFile("todos.json", data);
+    ucoreJson.write("todos.json", data);
 }
 
 function loadTodos() {
-    var data = ucoreJson.readFile("todos.json");
+    var data = ucoreJson.read("todos.json");
     todos = [];
     for (var item : data) {
         push(todos, Todo(item["id"], item["text"], item["done"]));
@@ -245,8 +245,8 @@ obj["count"] = 42;
 print("Generated: " + ucoreJson.stringify(obj));
 
 // File operations
-ucoreJson.writeFile("test.json", obj);
-var loaded = ucoreJson.readFile("test.json");
+ucoreJson.write("test.json", obj);
+var loaded = ucoreJson.read("test.json");
 print("Loaded status: " + loaded["status"]);
 ```
 
