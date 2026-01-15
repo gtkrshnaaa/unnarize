@@ -1,0 +1,75 @@
+print("=== ucoreScraper Benchmark ===");
+
+// Use a pre-downloaded file for consistent benchmarking
+// Files are stored in the scraper examples directory (run from there)
+var testFile = "benchmark_page.html";
+var url = "https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)";
+
+// Download once (file goes into examples/corelib/scraper/)
+print("Preparing: downloading test page...");
+ucoreScraper.download(url, testFile);
+
+var iterations = 10;
+
+// 1. Benchmark: parseFile with simple selector
+print("--- parseFile('tr') ---");
+var start = ucoreTimer.now();
+var i = 0;
+while (i < iterations) {
+    var rows = ucoreScraper.parseFile(testFile, "tr");
+    i = i + 1;
+}
+var elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 2. Benchmark: parseFile with class selector
+print("\n--- parseFile('.mw-headline') ---");
+start = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var headlines = ucoreScraper.parseFile(testFile, ".mw-headline");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 3. Benchmark: parseFile with many links
+print("\n--- parseFile('a') ---");
+start = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var links = ucoreScraper.parseFile(testFile, "a");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 4. Benchmark: fetch (network, just 1 iteration)
+print("\n--- fetch() (network) ---");
+start = ucoreTimer.now();
+var html = ucoreScraper.fetch(url);
+elapsed = ucoreTimer.now() - start;
+print("Fetch time: " + elapsed + "ms");
+print("Downloaded: " + length(html) + " bytes");
+
+// 5. Benchmark: select on in-memory HTML
+print("\n--- select() on in-memory HTML ---");
+var selectIter = 20;
+start = ucoreTimer.now();
+i = 0;
+while (i < selectIter) {
+    var tds = ucoreScraper.select(html, "td");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + selectIter);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (selectIter / elapsed * 1000));
+
+print("\n=== Benchmark Complete ===");

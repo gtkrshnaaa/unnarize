@@ -121,7 +121,11 @@ static void skipWhitespace(HtmlParser* parser) {
 
 // Parse attributes for the current node
 // Simplified: assumes we are inside <tag ... >
+// OPTIMIZED: Uses stack buffers for small attributes to reduce malloc overhead
 static void parseAttributes(HtmlParser* parser, ScraperNode* node) {
+    char nameBuf[128];
+    char valueBuf[1024];
+    
     while (parser->current < parser->length) {
         skipWhitespace(parser);
         char c = parser->source[parser->current];
@@ -137,49 +141,68 @@ static void parseAttributes(HtmlParser* parser, ScraperNode* node) {
         int nameLen = parser->current - nameStart;
         if (nameLen == 0) { parser->current++; continue; } // Skip garbage
         
-        char* name = malloc(nameLen + 1);
-        memcpy(name, parser->source + nameStart, nameLen);
-        name[nameLen] = '\0';
+        // Use stack buffer if small enough
+        char* name;
+        bool nameHeap = false;
+        if (nameLen < 127) {
+            memcpy(nameBuf, parser->source + nameStart, nameLen);
+            nameBuf[nameLen] = '\0';
+            name = nameBuf;
+        } else {
+            name = malloc(nameLen + 1);
+            memcpy(name, parser->source + nameStart, nameLen);
+            name[nameLen] = '\0';
+            nameHeap = true;
+        }
         
         // Check for =
         skipWhitespace(parser);
         char* value = NULL;
+        bool valueHeap = false;
         
         if (parser->source[parser->current] == '=') {
             parser->current++; // skip =
             skipWhitespace(parser);
             
             char quote = parser->source[parser->current];
+            int valStart, valLen;
+            
             if (quote == '"' || quote == '\'') {
                 parser->current++; // skip quote
-                int valStart = parser->current;
+                valStart = parser->current;
                 while (parser->current < parser->length && 
                        parser->source[parser->current] != quote) {
                     parser->current++;
                 }
-                int valLen = parser->current - valStart;
-                value = malloc(valLen + 1);
-                memcpy(value, parser->source + valStart, valLen);
-                value[valLen] = '\0';
+                valLen = parser->current - valStart;
                 if (parser->current < parser->length) parser->current++; // skip closing quote
             } else {
                 // Unquoted value
-                int valStart = parser->current;
+                valStart = parser->current;
                 while (parser->current < parser->length && 
                        !isspace(parser->source[parser->current]) && 
                        parser->source[parser->current] != '>') {
                     parser->current++;
                 }
-                int valLen = parser->current - valStart;
+                valLen = parser->current - valStart;
+            }
+            
+            // Use stack buffer if small enough
+            if (valLen < 1023) {
+                memcpy(valueBuf, parser->source + valStart, valLen);
+                valueBuf[valLen] = '\0';
+                value = valueBuf;
+            } else {
                 value = malloc(valLen + 1);
                 memcpy(value, parser->source + valStart, valLen);
                 value[valLen] = '\0';
+                valueHeap = true;
             }
         }
         
         addAttribute(node, name, value);
-        free(name);
-        if (value) free(value);
+        if (nameHeap) free(name);
+        if (valueHeap) free(value);
     }
 }
 

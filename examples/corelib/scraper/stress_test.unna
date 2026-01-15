@@ -1,4 +1,6 @@
 print("=== ucoreScraper Stress Test (Real-World HTML) ===");
+// NOTE: Run this script from examples/corelib/scraper/ directory
+// so downloaded files stay within this folder.
 
 // 1. Download a large real-world HTML page (Wikipedia article with many elements)
 var url = "https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)";

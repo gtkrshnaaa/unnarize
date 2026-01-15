@@ -1,4 +1,6 @@
 print("=== ucoreString Stress Test (Real-World Text) ===");
+// NOTE: Run this script from examples/corelib/string/ directory
+// so downloaded files stay within this folder.
 
 // 1. Download a large Wikipedia page
 var url = "https://en.wikipedia.org/wiki/History_of_the_Internet";

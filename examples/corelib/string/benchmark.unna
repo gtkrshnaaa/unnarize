@@ -1,0 +1,81 @@
+print("=== ucoreString Benchmark ===");
+
+// Prepare test data
+var testStr = "Hello World Unnarize Language Hello World Unnarize Test ";
+var i = 0;
+while (i < 8) {
+    testStr = testStr + testStr;
+    i = i + 1;
+}
+print("Test string length: " + length(testStr) + " chars");
+
+var iterations = 100;
+
+// 1. Benchmark: split
+print("\n--- split() ---");
+var start = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var parts = ucoreString.split(testStr, " ");
+    i = i + 1;
+}
+var elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 2. Benchmark: replace
+print("\n--- replace() ---");
+start = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var rep = ucoreString.replace(testStr, "Hello", "Hi");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 3. Benchmark: toLower
+print("\n--- toLower() ---");
+start = ucoreTimer.now();
+i = 0;
+while (i < iterations) {
+    var lower = ucoreString.toLower(testStr);
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + iterations);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (iterations / elapsed * 1000));
+
+// 4. Benchmark: contains
+print("\n--- contains() ---");
+var containsIter = 10000;
+start = ucoreTimer.now();
+i = 0;
+while (i < containsIter) {
+    var has = ucoreString.contains(testStr, "Unnarize");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + containsIter);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (containsIter / elapsed * 1000));
+
+// 5. Benchmark: regex extract
+print("\n--- extract() (regex) ---");
+var regexIter = 50;
+start = ucoreTimer.now();
+i = 0;
+while (i < regexIter) {
+    var matches = ucoreString.extract(testStr, "[A-Z][a-z]+");
+    i = i + 1;
+}
+elapsed = ucoreTimer.now() - start;
+print("Iterations: " + regexIter);
+print("Total time: " + elapsed + "ms");
+print("Ops/sec: " + (regexIter / elapsed * 1000));
+
+print("\n=== Benchmark Complete ===");
