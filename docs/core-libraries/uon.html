@@ -62,6 +62,10 @@
             <h1>ucoreUon</h1>
             <p class="lead">UON (Unnarize Object Notation) database with streaming cursor.</p>
             
+            <div style="background-color: #fff3cd; color: #856404; padding: 1rem; margin-bottom: 1rem; border: 1px solid #ffeeba; border-radius: 4px;">
+                <strong>Strict Path Resolution:</strong> Unnarize enforces strict sandboxing. All file paths used in this library are resolved relative to the directory of the <strong>executing script</strong>, regardless of where the <code>unnarize</code> command is run. Absolute paths are typically rebased or rejected to prevent sandbox escape.
+            </div>
+            
             <h2>Functions</h2>
             <table>
                 <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>

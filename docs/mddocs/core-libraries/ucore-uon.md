@@ -2,6 +2,9 @@
 
 > UON (Unnarize Object Notation) data format parser.
 
+> [!IMPORTANT]
+> **Strict Path Resolution**: Unnarize enforces strict sandboxing. All file paths used in this library are resolved relative to the directory of the **executing script**, regardless of where the `unnarize` command is run. Absolute paths (e.g., `/etc/passwd`) are typically rebased or rejected (treated as relative) to prevent sandbox escape.
+
 ---
 
 ## Overview
