@@ -36,7 +36,7 @@ if (length(imgs) > 0) {
 print("");
 print("--- parseFile (local file) ---");
 var localHtml = "<html><body><a href='page1.html'>Link 1</a><a href='page2.html'>Link 2</a></body></html>";
-var testHtmlPath = "examples/corelib/scraper/test_scraper.html";
+var testHtmlPath = "test_scraper.html";
 ucoreSystem.writeFile(testHtmlPath, localHtml);
 
 var linksFromFile = ucoreScraper.parseFile(testHtmlPath, "a");

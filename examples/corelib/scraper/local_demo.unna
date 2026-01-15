@@ -13,17 +13,14 @@ var htmlContent = "<html><body><div class='product' id='p1'><h1>Gaming Mouse</h1
 // Let's test that hypothesis later. safely:
 
 var safeHtml = "<html><body><div id=p1 class=product><h1>Gaming Mouse</h1><span class=price>$50</span></div></body></html>";
-// Use char code for quote or simple concatenation workaround if escaping is buggy
-// We use single quotes for the shell command since safeHtml has no single quotes
-var cmd = "echo '";
-cmd = cmd + safeHtml;
-cmd = cmd + "' > examples/corelib/scraper/product.html";
-ucoreSystem.exec(cmd);
 
-print("Created 'product.html'. Parsing...");
+var productFile = "product.html";
+ucoreSystem.writeFile(productFile, safeHtml);
+
+print("Created '" + productFile + "'. Parsing...");
 
 // 2. Parse using relative path
-var products = ucoreScraper.parseFile("examples/corelib/scraper/product.html", ".product");
+var products = ucoreScraper.parseFile(productFile, ".product");
 
 if (length(products) > 0) {
     print("Found Product!");
