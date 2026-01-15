@@ -30,7 +30,6 @@ if (back["newField"] == "Dynamic Add") {
     print("VERIFICATION FAILED");
 }
 
-// === CRUD FILE TEST ===
 var dbPath = "test_db.json";
 var dbData = ucoreJson.parse('{"users": ["Alice", "Bob"], "active": true}');
 

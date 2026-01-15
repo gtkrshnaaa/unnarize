@@ -1,10 +1,6 @@
-// ============================================================================
-// main.unna
 // SME Store Management System - Entry Point
-// ============================================================================
 // This demonstrates a Small-Medium Enterprise (SME) store management system
 // with modular architecture: Models, Services, and Utilities.
-// ============================================================================
 
 // Import Models
 import "./models/product.unna" as product;
@@ -17,9 +13,7 @@ import "./services/reporting.unna" as report;
 // Import Utilities
 import "./utils/logger.unna" as log;
 
-// ============================================================================
 // SYSTEM INITIALIZATION
-// ============================================================================
 
 print("============================================================");
 print("  SME STORE MANAGEMENT SYSTEM");
@@ -29,9 +23,7 @@ print("");
 
 log.logInfo("System", "Starting SME Store System...");
 
-// ============================================================================
 // STEP 1: CREATE PRODUCTS
-// ============================================================================
 
 print(report.generateReportHeader("INVENTORY SETUP"));
 
@@ -48,9 +40,7 @@ print(product.formatProduct(headset));
 print(report.separator());
 print("");
 
-// ============================================================================
 // STEP 2: REGISTER CUSTOMERS
-// ============================================================================
 
 print(report.generateReportHeader("CUSTOMER REGISTRATION"));
 
@@ -71,9 +61,7 @@ print(customer.formatCustomer(bob));
 print(report.separator());
 print("");
 
-// ============================================================================
 // STEP 3: PROCESS ORDER
-// ============================================================================
 
 print(report.generateReportHeader("ORDER PROCESSING"));
 
@@ -96,9 +84,7 @@ print("Discount applied: " + discount + "%");
 print(report.separator());
 print("");
 
-// ============================================================================
 // STEP 4: GENERATE SUMMARY
-// ============================================================================
 
 print(report.generateReportHeader("BUSINESS SUMMARY"));
 
@@ -110,9 +96,7 @@ print("Revenue: $" + finalAmount);
 print(report.separator());
 print("");
 
-// ============================================================================
 // SYSTEM SHUTDOWN
-// ============================================================================
 
 log.logInfo("System", "SME Store System shutdown complete");
 

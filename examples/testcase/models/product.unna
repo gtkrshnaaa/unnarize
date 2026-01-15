@@ -1,7 +1,5 @@
-// ============================================================================
 // models/product.unna
 // Product Model - Defines product structure and operations
-// ============================================================================
 
 // Product struct definition
 struct Product {

@@ -1,17 +1,14 @@
 // NOTE: File paths are relative to this script file, NOT from where `unnarize` is executed.
 //       This ensures consistent behavior regardless of your working directory.
 
-// ============================================================================
 // ucoreUon Practical Example
-// ============================================================================
 // Demonstrates reading from actual .uon file
 // Auto-creates sample.uon using ucoreUon.generate() if it doesn't exist
-// ============================================================================
 
 print("=== ucoreUon Practical Demo ===");
 print("");
 
-var samplePath = "examples/corelib/uon/sample.uon";
+var samplePath = "sample.uon";
 
 // Check if sample.uon exists, create if not
 if (!ucoreSystem.fileExists(samplePath)) {

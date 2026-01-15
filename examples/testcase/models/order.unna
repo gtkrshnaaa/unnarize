@@ -1,7 +1,5 @@
-// ============================================================================
 // models/order.unna
 // Order Model - Defines order structure and operations
-// ============================================================================
 
 // Order struct definition
 struct Order {

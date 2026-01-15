@@ -1,6 +1,4 @@
-// ===========================================
 // GC Long Running Simulation
-// ===========================================
 // Simulates a server processing many requests
 // Tests memory stability over time
 

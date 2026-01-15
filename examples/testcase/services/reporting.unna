@@ -1,7 +1,5 @@
-// ============================================================================
 // services/reporting.unna
 // Reporting Service - Generates business reports and analytics
-// ============================================================================
 
 import "../utils/logger.unna" as log;
 

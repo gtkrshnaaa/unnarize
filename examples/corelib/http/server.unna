@@ -1,10 +1,7 @@
-// ============================================================================
 // ucoreHttp Example - HTTP Server
-// ============================================================================
 // Demonstrates basic HTTP server with routing
 // Run: ./bin/unnarize examples/corelib/http/server.unna
 // Then open: http://localhost:8080
-// ============================================================================
 
 print("=== ucoreHttp Server Demo ===");
 print("");

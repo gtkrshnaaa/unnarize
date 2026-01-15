@@ -1,7 +1,5 @@
-// ============================================================================
 // utils/logger.unna
 // Logger Utility - Provides structured logging capabilities
-// ============================================================================
 
 // State: log counters by level
 var infoCount = 0;

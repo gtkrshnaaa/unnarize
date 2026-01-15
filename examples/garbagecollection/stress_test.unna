@@ -1,6 +1,4 @@
-// ===========================================
 // GC Stress Test - Massive Object Allocation
-// ===========================================
 // Tests: Object creation, array allocation, 
 //        string concatenation, GC under heavy load
 

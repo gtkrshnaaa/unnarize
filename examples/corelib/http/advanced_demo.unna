@@ -1,7 +1,6 @@
 // ucoreHttp Advanced Server Demo
 // Tests ALL new features: methods, query, params, response builder, static files
 
-// === Handlers ===
 
 // Simple health check (backwards compatible string return)
 function handleHealth(req) {
@@ -75,7 +74,6 @@ function handleDeleteUser(req) {
     return response;
 }
 
-// === Setup Routes ===
 ucoreHttp.route("GET", "/health", "handleHealth");
 ucoreHttp.route("GET", "/api/users", "handleGetUsers");
 ucoreHttp.route("GET", "/api/users/:id", "handleGetUser");
@@ -84,10 +82,8 @@ ucoreHttp.route("PUT", "/api/users/:id", "handleUpdateUser");
 ucoreHttp.route("DELETE", "/api/users/:id", "handleDeleteUser");
 ucoreHttp.route("GET", "/search", "handleSearch");
 
-// === Static Files ===
 // ucoreHttp.static("/public", "./public");
 
-// === Server ===
 print("=== ucoreHttp Advanced Server ===");
 print("http://localhost:3000");
 print("");

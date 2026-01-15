@@ -1,7 +1,5 @@
-// ============================================================================
 // utils/validator.unna
 // Validator Utility - Provides data validation functions
-// ============================================================================
 
 // Validate positive number
 function isPositive(value) {

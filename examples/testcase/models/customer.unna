@@ -1,7 +1,5 @@
-// ============================================================================
 // models/customer.unna
 // Customer Model - Defines customer structure and operations
-// ============================================================================
 
 // Customer struct definition
 struct Customer {

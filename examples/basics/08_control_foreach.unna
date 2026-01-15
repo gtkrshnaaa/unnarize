@@ -1,7 +1,4 @@
-// ==========================================
-// 08_control_foreach.unna
 // Control Flow: Foreach Loops
-// ==========================================
 
 print("=== Foreach Loops ===");
 

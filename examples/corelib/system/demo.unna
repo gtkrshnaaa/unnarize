@@ -1,11 +1,8 @@
 // NOTE: File paths are relative to this script file, NOT from where `unnarize` is executed.
 //       This ensures consistent behavior regardless of your working directory.
 
-// ============================================================================
 // ucoreSystem Example
-// ============================================================================
 // Demonstrates system operations: args(), input(), getenv(), fileExists()
-// ============================================================================
 
 print("=== ucoreSystem Demo ===");
 print("");

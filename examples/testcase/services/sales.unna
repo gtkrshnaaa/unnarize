@@ -1,7 +1,5 @@
-// ============================================================================
 // services/sales.unna
 // Sales Service - Handles sales transactions and order processing
-// ============================================================================
 
 import "../models/order.unna" as orderLib;
 import "../models/customer.unna" as customerLib;

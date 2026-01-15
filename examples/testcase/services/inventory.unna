@@ -1,7 +1,5 @@
-// ============================================================================
 // services/inventory.unna
 // Inventory Service - Manages product inventory operations
-// ============================================================================
 
 import "../models/product.unna" as productLib;
 

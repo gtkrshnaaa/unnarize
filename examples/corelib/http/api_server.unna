@@ -1,10 +1,7 @@
-// ============================================================================
 // ucoreHttp Simple API Server
-// ============================================================================
 // Demonstrates a REST-like API with JSON responses
 // Run: unnarize examples/corelib/http/api_server.unna
 // Test: curl http://localhost:8080/api/users
-// ============================================================================
 
 print("=== Simple API Server ===");
 print("");
