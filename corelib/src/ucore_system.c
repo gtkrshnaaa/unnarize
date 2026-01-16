@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
 // args() -> ["arg1", "arg2"]
 // args() -> ["arg1", "arg2"]
@@ -164,6 +166,22 @@ static Value sys_exec(VM* vm, Value* args, int argCount) {
     return INT_VAL(result); // Usually 0 is success
 }
 
+// sleep(ms)
+static Value sys_sleep(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    if (argCount != 1 || !IS_INT(args[0])) return NIL_VAL;
+    
+    int ms = AS_INT(args[0]);
+    if (ms < 0) ms = 0;
+    
+    struct timespec ts;
+    ts.tv_sec = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000000;
+    
+    nanosleep(&ts, NULL);
+    return NIL_VAL;
+}
+
 void registerUCoreSystem(VM* vm) {
     ObjString* modNameObj = internString(vm, "ucoreSystem", 11);
     char* modName = modNameObj->chars;
@@ -189,7 +207,9 @@ void registerUCoreSystem(VM* vm) {
     defineNative(vm, mod->env, "exit", sys_exit, 1);
     defineNative(vm, mod->env, "fileExists", sys_fileExists, 1);
     defineNative(vm, mod->env, "writeFile", sys_writeFile, 2);
+    defineNative(vm, mod->env, "writeFile", sys_writeFile, 2);
     defineNative(vm, mod->env, "readFile", sys_readFile, 1);
+    defineNative(vm, mod->env, "sleep", sys_sleep, 1);
 
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreSystem", vMod);
