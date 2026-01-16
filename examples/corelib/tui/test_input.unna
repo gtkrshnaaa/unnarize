@@ -16,9 +16,9 @@ var email = ucoreTui.inputBox("Email Address", 50, "example@email.com");
 print("You entered: " + email);
 print("");
 
-// Test 3: Password input
-print("Test 3: Password input (hidden)");
-var pass = ucoreTui.inputPassword("Enter password: ");
+// Test 3: Password box
+print("Test 3: Password input box (shows asterisks)");
+var pass = ucoreTui.inputPasswordBox("Enter Password", 50);
 print("Password entered successfully");
 print("");
 

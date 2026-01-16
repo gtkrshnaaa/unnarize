@@ -795,7 +795,102 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
     return OBJ_VAL(result);
 }
 
-// ============================================================================
+// inputPasswordBox(title, width) - Password input inside a styled box
+// Returns: string (user input, hidden with asterisks)
+static Value tui_inputPasswordBox(VM* vm, Value* args, int argCount) {
+    const char* title = "Password";
+    int width = 40;
+    
+    if (argCount >= 1 && IS_STRING(args[0])) {
+        title = AS_CSTRING(args[0]);
+    }
+    if (argCount >= 2 && IS_INT(args[1])) {
+        width = AS_INT(args[1]);
+        if (width < 10) width = 10;
+        if (width > 120) width = 120;
+    }
+    
+    int titleLen = (int)strlen(title);
+    if (width < titleLen + 6) width = titleLen + 6;
+    
+    char buffer[4096];
+    int len = 0;
+    buffer[0] = '\0';
+    
+    int cursor = 0;
+    int inputWidth = width - 4;
+    
+    // Draw box once (static)
+    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " , title);
+    int remaining = width - titleLen - 5;
+    for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_TR "\r\n");
+    
+    printf(BOX_LIGHT_V " ");
+    for (int i = 0; i < inputWidth; i++) printf(" ");
+    printf(" " BOX_LIGHT_V "\r\n");
+    
+    printf(BOX_ROUND_BL);
+    for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_BR "\r\n");
+    
+    // Move back to input line
+    printf(CSI "2A\r" CSI "2C");
+    fflush(stdout);
+    
+    enableRawMode();
+    
+    while (1) {
+        // Redraw asterisks (stay on same line)
+        printf("\r" CSI "2C");
+        int showLen = len > inputWidth ? inputWidth : len;
+        for (int i = 0; i < showLen; i++) printf("*");
+        for (int i = showLen; i < inputWidth; i++) printf(" ");
+        printf("\r" CSI "%dC", 2 + (len > inputWidth ? inputWidth : len));
+        fflush(stdout);
+        
+        char c;
+        if (!readChar(&c)) continue;
+        
+        if (c == '\r' || c == '\n') {
+            printf("\r\n" CSI "1B");
+            break;
+        } else if (c == 127 || c == 8) { // Backspace
+            if (len > 0) {
+                len--;
+                buffer[len] = '\0';
+            }
+        } else if (c == '\033') { // Escape - cancel
+            char seq[2];
+            if (!readChar(&seq[0]) || !readChar(&seq[1])) {
+                buffer[0] = '\0'; len = 0;
+                printf("\r\n" CSI "1B");
+                break;
+            }
+            // Ignore arrow keys for password
+        } else if (c == 3) { // Ctrl+C
+            buffer[0] = '\0'; len = 0;
+            printf("\r\n" CSI "1B");
+            break;
+        } else if (c == 21) { // Ctrl+U - clear
+            len = 0;
+            buffer[0] = '\0';
+        } else if (c >= 32 && c < 127) { // Printable
+            if (len < (int)sizeof(buffer) - 1) {
+                buffer[len] = c;
+                len++;
+                buffer[len] = '\0';
+            }
+        }
+    }
+    
+    disableRawMode();
+    
+    ObjString* result = internString(vm, buffer, len);
+    return OBJ_VAL(result);
+}
+
+
 // Tables
 // ============================================================================
 
@@ -1287,7 +1382,7 @@ void registerUCoreTui(VM* vm) {
     defineNative(vm, mod->env, "confirm", tui_confirm, 1);
     defineNative(vm, mod->env, "select", tui_select, 2);
     defineNative(vm, mod->env, "inputBox", tui_inputBox, 3);
-
+    defineNative(vm, mod->env, "inputPasswordBox", tui_inputPasswordBox, 2);
     
     // Tables & trees
     defineNative(vm, mod->env, "table", tui_table, 1);
