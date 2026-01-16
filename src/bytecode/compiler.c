@@ -13,6 +13,36 @@
  * Production-grade, zero external dependencies
  */
 
+// Helper to process string escapes
+static char* parseStringLiteral(const char* start, int length) {
+    char* buffer = malloc(length + 1); 
+    char* dest = buffer;
+    const char* src = start;
+    const char* end = start + length;
+    
+    while (src < end) {
+        if (*src == '\\' && src + 1 < end) {
+            src++;
+            switch (*src) {
+                case 'n': *dest++ = '\n'; break;
+                case 't': *dest++ = '\t'; break;
+                case 'r': *dest++ = '\r'; break;
+                case '"': *dest++ = '"'; break;
+                case '\'': *dest++ = '\''; break;
+                case '\\': *dest++ = '\\'; break;
+                default: 
+                    *dest++ = '\\';
+                    *dest++ = *src;
+            }
+            src++;
+        } else {
+            *dest++ = *src++;
+        }
+    }
+    *dest = '\0';
+    return buffer;
+}
+
 typedef struct {
     VM* vm;
     BytecodeChunk* chunk;
@@ -127,11 +157,11 @@ static void compileExpression(Compiler* c, Node* node) {
             } else if (tok.type == TOKEN_NIL) {
                 emitByte(c, OP_LOAD_NIL, line);
             } else if (tok.type == TOKEN_STRING) {
-                // Handle string literal
-                char* str = strndup(tok.start + 1, tok.length - 2); // Strip quotes
+                // Handle string literal with escape sequences
+                char* str = parseStringLiteral(tok.start + 1, tok.length - 2); 
                 
                 ObjString* objStr = internString(c->vm, str, strlen(str));
-                free(str); // internString makes its own copy (or interns)
+                free(str); 
                 
                 emitConstant(c, OBJ_VAL(objStr), line);
             }
