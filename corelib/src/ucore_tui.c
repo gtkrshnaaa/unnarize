@@ -1261,8 +1261,154 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     return OBJ_VAL(result);
 }
 
-// panel(title, content, width?) - Box with title header
-// width: optional, 0 or -1 = use terminal width, positive = fixed width
+// row(columns, spacing?) - Join components horizontally
+static Value tui_row(VM* vm, Value* args, int argCount) {
+    if (argCount < 1 || !IS_ARRAY(args[0])) {
+        return NIL_VAL;
+    }
+    
+    Array* cols = (Array*)AS_OBJ(args[0]);
+    int spacing = 1;
+    if (argCount >= 2 && IS_INT(args[1])) {
+        spacing = AS_INT(args[1]);
+    }
+    
+    int count = cols->count;
+    if (count == 0) return OBJ_VAL(internString(vm, "", 0));
+    
+    // 1. Analyze dimensions
+    int* colWidths = malloc(sizeof(int) * count);
+    int* colHeights = malloc(sizeof(int) * count);
+    int maxTotalHeight = 0;
+    
+    // Helper simple struct to store separated lines could be useful but we can parse on fly or 2-pass
+    // 2-pass is safer for calculation. 
+    // Let's store split lines for efficiency to avoid re-splitting.
+    // We need an array of (array of strings). 
+    // Since we are in C, let's just use raw char pointers.
+    
+    typedef struct {
+        char** lines;
+        int lineCount;
+        int width;
+    } ColumnData;
+    
+    ColumnData* colData = malloc(sizeof(ColumnData) * count);
+    
+    for (int i = 0; i < count; i++) {
+        Value v = cols->items[i];
+        const char* str = IS_STRING(v) ? AS_CSTRING(v) : "";
+        
+        // Count lines and max width
+        int lines = 0;
+        int maxWidth = 0;
+        int currentLen = 0;
+        const char* p = str;
+        
+        // First pass: count lines
+        if (*p) lines = 1; 
+        while (*p) {
+            if (*p == '\n') {
+                if (currentLen > maxWidth) maxWidth = currentLen;
+                currentLen = 0;
+                if (*(p+1)) lines++; 
+            } else {
+                currentLen++;
+            }
+            p++;
+        }
+        if (currentLen > maxWidth) maxWidth = currentLen;
+        
+        colData[i].width = maxWidth;
+        colData[i].lineCount = lines;
+        if (lines > maxTotalHeight) maxTotalHeight = lines;
+        
+        // Store lines
+        colData[i].lines = malloc(sizeof(char*) * lines);
+        p = str;
+        int l = 0;
+        while (l < lines) {
+            const char* start = p;
+            int len = 0;
+            while (*p && *p != '\n') {
+                p++;
+                len++;
+            }
+            
+            char* lineStr = malloc(len + 1);
+            memcpy(lineStr, start, len);
+            lineStr[len] = '\0';
+            colData[i].lines[l] = lineStr;
+            
+            if (*p == '\n') p++;
+            l++;
+        }
+    }
+    
+    // 2. Render joined rows
+    // Estimate output size: (sum(widths) + spacing*count) * height + margin
+    int totalWidth = 0;
+    for(int i=0; i<count; i++) totalWidth += colData[i].width;
+    totalWidth += spacing * (count - 1);
+    
+    int estSize = (totalWidth + 2) * maxTotalHeight + 1024;
+    char* output = malloc(estSize);
+    output[0] = '\0';
+    int outLen = 0;
+    
+    for (int y = 0; y < maxTotalHeight; y++) {
+        for (int i = 0; i < count; i++) {
+            ColumnData* cd = &colData[i];
+            
+            // Print line if exists, else padding
+            if (y < cd->lineCount) {
+                char* line = cd->lines[y];
+                int len = (int)strlen(line); // assumes ascii mostly or simple
+                // We must handle actual utf8 vs printed width? 
+                // For now simple strlen. Advanced TUI needs wcwidth.
+                strcat(output, line); // simple strcat for now, optimize later
+                outLen += len;
+                
+                // Pad to col width
+                for (int s = len; s < cd->width; s++) {
+                    strcat(output, " ");
+                    outLen++;
+                }
+            } else {
+                // Empty line padding for this column
+                for (int s = 0; s < cd->width; s++) {
+                    strcat(output, " "); 
+                    outLen++;
+                }
+            }
+            
+            // Spacing
+            if (i < count - 1) {
+                for (int s = 0; s < spacing; s++) {
+                    strcat(output, " ");
+                    outLen++;
+                }
+            }
+        }
+        strcat(output, "\n");
+        outLen++;
+    }
+    
+    // Cleanup
+    for (int i = 0; i < count; i++) {
+        for (int l = 0; l < colData[i].lineCount; l++) {
+            free(colData[i].lines[l]);
+        }
+        free(colData[i].lines);
+    }
+    free(colData);
+    free(colWidths);
+    free(colHeights);
+    
+    ObjString* result = internString(vm, output, (int)strlen(output));
+    free(output);
+    return OBJ_VAL(result);
+}
 static Value tui_panel(VM* vm, Value* args, int argCount) {
     if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         return NIL_VAL;
@@ -1422,6 +1568,7 @@ void registerUCoreTui(VM* vm) {
     // Boxes & panels
     defineNative(vm, mod->env, "box", tui_box, 2);
     defineNative(vm, mod->env, "panel", tui_panel, 3);
+    defineNative(vm, mod->env, "row", tui_row, 2);
 
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreTui", vMod);

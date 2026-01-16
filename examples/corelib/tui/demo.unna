@@ -57,7 +57,21 @@ print("  Types: 'dots' (braille), 'line' (rotating), 'arc' (circular)");
 print("");
 
 // ═══════════════════════════════════════════════════════════════════════
-// 6. TERMINAL INFO
+// 6. GRID LAYOUT
+// ═══════════════════════════════════════════════════════════════════════
+var tSize = ucoreTui.size();
+var halfW = (tSize["cols"] / 2) - 2;
+
+var col1 = ucoreTui.panel("Left Grid", "This is column 1.\nIt sits on the left.", halfW);
+var col2 = ucoreTui.panel("Right Grid", "This is column 2.\nIt sits on the right.", halfW);
+
+print(ucoreTui.panel("GRID LAYOUT", "row([col1, col2]) - Horizontal Grid", -1));
+print("");
+print(ucoreTui.row([col1, col2], 2));
+print("");
+
+// ═══════════════════════════════════════════════════════════════════════
+// 7. TERMINAL INFO
 // ═══════════════════════════════════════════════════════════════════════
 var termSize = ucoreTui.size();
 print(ucoreTui.panel("TERMINAL INFO", "size() - Returns cols and rows of terminal", -1));
@@ -66,7 +80,7 @@ print("  Current: " + termSize["cols"] + " columns x " + termSize["rows"] + " ro
 print("");
 
 // ═══════════════════════════════════════════════════════════════════════
-// 7. INPUT FUNCTIONS
+// 8. INPUT FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════
 print(ucoreTui.panel("INPUT FUNCTIONS", "Interactive input with keyboard support", -1));
 print("");
