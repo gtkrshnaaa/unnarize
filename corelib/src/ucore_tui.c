@@ -98,8 +98,8 @@ static void enableRawMode(void) {
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1;
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
     
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     raw_mode_active = 1;
@@ -580,6 +580,9 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
     
     printf("%s\r\n", prompt);
     
+    // Flush any existing garbage in input buffer BEFORE enabling raw mode
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    
     enableRawMode();
     printf(CSI "?25l"); // Hide cursor
     
@@ -591,41 +594,52 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
     printf(CSI "s");
     fflush(stdout);
     
+    int dirty = 1;
+    
     while (1) {
-        // Move up to start of options
-        printf(CSI "%dA", options->count);
-        
-        // Draw options with proper clearing
-        for (int i = 0; i < options->count; i++) {
-            printf("\r" CSI "2K"); // Clear entire line
+        if (dirty) {
+            // Move up to start of options
+            printf(CSI "%dA", options->count);
             
-            if (i == selected) {
-                printf(CSI "7m"); // Inverse
-                printf("  > ");
-            } else {
-                printf("    ");
+            // Draw options with proper clearing
+            for (int i = 0; i < options->count; i++) {
+                printf("\r" CSI "2K"); // Clear entire line
+                
+                if (i == selected) {
+                    printf(CSI "7m"); // Inverse
+                    printf("  > ");
+                } else {
+                    printf("    ");
+                }
+                
+                if (IS_STRING(options->items[i])) {
+                    printf("%s", AS_CSTRING(options->items[i]));
+                }
+                
+                if (i == selected) {
+                    printf(CSI "0m");
+                }
+                printf("\r\n");
             }
-            
-            if (IS_STRING(options->items[i])) {
-                printf("%s", AS_CSTRING(options->items[i]));
-            }
-            
-            if (i == selected) {
-                printf(CSI "0m");
-            }
-            printf("\r\n");
+            fflush(stdout);
+            dirty = 0;
         }
-        fflush(stdout);
         
         char c;
-        if (!readChar(&c)) continue;
+        if (!readChar(&c)) continue; // Timeout, no input
         
         if (c == '\033') {
             char seq[2] = {0};
             if (readChar(&seq[0]) && readChar(&seq[1])) {
                 if (seq[0] == '[') {
-                    if (seq[1] == 'A' && selected > 0) selected--;
-                    if (seq[1] == 'B' && selected < options->count - 1) selected++;
+                    if (seq[1] == 'A' && selected > 0) {
+                        selected--;
+                        dirty = 1;
+                    }
+                    if (seq[1] == 'B' && selected < options->count - 1) {
+                         selected++;
+                         dirty = 1;
+                    }
                 }
             } else {
                 // Pure escape
@@ -640,7 +654,12 @@ static Value tui_select(VM* vm, Value* args, int argCount) {
         }
     }
     
-    printf(CSI "?25h"); // Show cursor
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 50000000; // 50ms
+    nanosleep(&ts, NULL);
+    
+    tcflush(STDIN_FILENO, TCIFLUSH); // Flush any pending input (like extra newlines)
     disableRawMode();
     
     return INT_VAL(selected);
@@ -685,23 +704,31 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
     // Draw box once (static)
     // Top border: ╭─ Title ─...─╮
     // Chars: TL(1) + dash(1) + space(1) + title + space(1) + dashes(remaining) + TR(1) = width
+    // Save cursor position before drawing
+    printf(CSI "s");
+    
+    // Top border: ╭─ Title ─...─╮
     printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " , title);
     int remaining = width - titleLen - 5;  // 5 = TL + dash + space + space + TR
     for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
     printf(BOX_ROUND_TR "\r\n");
     
+    // Middle
     printf(BOX_LIGHT_V " ");
     int initialShow = len > inputWidth ? inputWidth : len;
     for (int i = 0; i < initialShow; i++) printf("%c", buffer[i]);
     for (int i = initialShow; i < inputWidth; i++) printf(" ");
     printf(" " BOX_LIGHT_V "\r\n");
     
+    // Bottom
     printf(BOX_ROUND_BL);
     for (int i = 0; i < width - 2; i++) printf(BOX_LIGHT_H);
     printf(BOX_ROUND_BR "\r\n");
     
-    // Move back to input line
-    printf(CSI "2A\r" CSI "2C");
+    // Move cursor back to input area using Restoring + Relative
+    // We saved at start of line 1. Input is at line 2.
+    // So Restore -> Down 1 -> Right 2
+    printf(CSI "u" CSI "1B" "\r" CSI "2C");
     fflush(stdout);
     
     enableRawMode();
@@ -1204,18 +1231,36 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     // Split content by newlines and find max width
     int maxWidth = 0;
     const char* p = content;
-    int lineLen = 0;
+    const char* lineStart = p;
     
     while (*p) {
         if (*p == '\n') {
-            if (lineLen > maxWidth) maxWidth = lineLen;
-            lineLen = 0;
-        } else {
-            lineLen++;
+            // Calculate visual width of this line segment
+            int segmentLen = p - lineStart;
+            char* temp = malloc(segmentLen + 1);
+            if (temp) {
+                memcpy(temp, lineStart, segmentLen);
+                temp[segmentLen] = '\0';
+                int w = displayWidth(temp);
+                if (w > maxWidth) maxWidth = w;
+                free(temp);
+            }
+            lineStart = p + 1;
         }
         p++;
     }
-    if (lineLen > maxWidth) maxWidth = lineLen;
+    // Last line (if no trailing newline or just one line)
+    if (p > lineStart) {
+        int segmentLen = p - lineStart;
+        char* temp = malloc(segmentLen + 1);
+        if (temp) {
+            memcpy(temp, lineStart, segmentLen);
+            temp[segmentLen] = '\0';
+            int w = displayWidth(temp);
+            if (w > maxWidth) maxWidth = w;
+            free(temp);
+        }
+    }
     
     char* output = malloc(32768);
     if (!output) return NIL_VAL;
@@ -1233,16 +1278,18 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
         strcat(output, v);
         strcat(output, " ");
         
-        int len = 0;
-        while (*p && *p != '\n') {
-            char c[2] = {*p, '\0'};
-            strcat(output, c);
-            len++;
-            p++;
+        char lineBuf[4096];
+        int bIdx = 0;
+        while (*p && *p != '\n' && bIdx < 4095) {
+            lineBuf[bIdx++] = *p++;
         }
+        lineBuf[bIdx] = '\0';
         
-        // Padding
-        for (int i = len; i < maxWidth; i++) strcat(output, " ");
+        strcat(output, lineBuf);
+        int visualLen = displayWidth(lineBuf);
+        
+        // Padding based on visual width
+        for (int i = visualLen; i < maxWidth; i++) strcat(output, " ");
         strcat(output, " ");
         strcat(output, v);
         strcat(output, "\n");
@@ -1261,261 +1308,141 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     return OBJ_VAL(result);
 }
 
-// row(columns, spacing?) - Join components horizontally
-static Value tui_row(VM* vm, Value* args, int argCount) {
-    if (argCount < 1 || !IS_ARRAY(args[0])) {
-        return NIL_VAL;
-    }
+// ============================================================================
+// ============================================================================
+// Streaming Box API (Stateful)
+// ============================================================================
+
+static int g_boxWidth = 0;
+
+// boxBegin(title, width)
+static Value tui_boxBegin(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    const char* title = "";
+    if (argCount >= 1 && IS_STRING(args[0])) title = AS_CSTRING(args[0]);
     
-    Array* cols = (Array*)AS_OBJ(args[0]);
-    int spacing = 1;
+    int width = 0; // 0 = auto/default
     if (argCount >= 2) {
-        if (IS_INT(args[1])) spacing = AS_INT(args[1]);
-        else if (IS_FLOAT(args[1])) spacing = (int)AS_FLOAT(args[1]);
+        if (IS_INT(args[1])) width = AS_INT(args[1]);
+        else if (IS_FLOAT(args[1])) width = (int)AS_FLOAT(args[1]);
     }
     
-    int count = cols->count;
-    if (count == 0) return OBJ_VAL(internString(vm, "", 0));
-    
-    // 1. Analyze dimensions
-    int* colWidths = malloc(sizeof(int) * count);
-    int* colHeights = malloc(sizeof(int) * count);
-    int maxTotalHeight = 0;
-    
-    // Helper simple struct to store separated lines could be useful but we can parse on fly or 2-pass
-    // 2-pass is safer for calculation. 
-    // Let's store split lines for efficiency to avoid re-splitting.
-    // We need an array of (array of strings). 
-    // Since we are in C, let's just use raw char pointers.
-    
-    typedef struct {
-        char** lines;
-        int lineCount;
-        int width;
-    } ColumnData;
-    
-    ColumnData* colData = malloc(sizeof(ColumnData) * count);
-    
-    for (int i = 0; i < count; i++) {
-        Value v = cols->items[i];
-        const char* str = IS_STRING(v) ? AS_CSTRING(v) : "";
-        
-        // Count lines and max width
-        int lines = 0;
-        int maxWidth = 0;
-        int currentLen = 0;
-        const char* p = str;
-        
-        // First pass: count lines
-        if (*p) lines = 1; 
-        while (*p) {
-            if (*p == '\n') {
-                if (currentLen > maxWidth) maxWidth = currentLen;
-                currentLen = 0;
-                if (*(p+1)) lines++; 
-            } else {
-                currentLen++;
-            }
-            p++;
-        }
-        if (currentLen > maxWidth) maxWidth = currentLen;
-        
-        colData[i].width = maxWidth;
-        colData[i].lineCount = lines;
-        if (lines > maxTotalHeight) maxTotalHeight = lines;
-        
-        // Store lines
-        colData[i].lines = malloc(sizeof(char*) * lines);
-        p = str;
-        int l = 0;
-        while (l < lines) {
-            const char* start = p;
-            int len = 0;
-            while (*p && *p != '\n') {
-                p++;
-                len++;
-            }
-            
-            char* lineStr = malloc(len + 1);
-            memcpy(lineStr, start, len);
-            lineStr[len] = '\0';
-            colData[i].lines[l] = lineStr;
-            
-            if (*p == '\n') p++;
-            l++;
-        }
-    }
-    
-    // 2. Render joined rows
-    // Estimate output size: (sum(widths) + spacing*count) * height + margin
-    int totalWidth = 0;
-    for(int i=0; i<count; i++) totalWidth += colData[i].width;
-    totalWidth += spacing * (count - 1);
-    
-    int estSize = (totalWidth + 2) * maxTotalHeight + 1024;
-    char* output = malloc(estSize);
-    output[0] = '\0';
-    int outLen = 0;
-    
-    for (int y = 0; y < maxTotalHeight; y++) {
-        for (int i = 0; i < count; i++) {
-            ColumnData* cd = &colData[i];
-            
-            // Print line if exists, else padding
-            if (y < cd->lineCount) {
-                char* line = cd->lines[y];
-                int len = (int)strlen(line); // assumes ascii mostly or simple
-                // We must handle actual utf8 vs printed width? 
-                // For now simple strlen. Advanced TUI needs wcwidth.
-                strcat(output, line); // simple strcat for now, optimize later
-                outLen += len;
-                
-                // Pad to col width
-                for (int s = len; s < cd->width; s++) {
-                    strcat(output, " ");
-                    outLen++;
-                }
-            } else {
-                // Empty line padding for this column
-                for (int s = 0; s < cd->width; s++) {
-                    strcat(output, " "); 
-                    outLen++;
-                }
-            }
-            
-            // Spacing
-            if (i < count - 1) {
-                for (int s = 0; s < spacing; s++) {
-                    strcat(output, " ");
-                    outLen++;
-                }
-            }
-        }
-        strcat(output, "\n");
-        outLen++;
-    }
-    
-    // Cleanup
-    for (int i = 0; i < count; i++) {
-        for (int l = 0; l < colData[i].lineCount; l++) {
-            free(colData[i].lines[l]);
-        }
-        free(colData[i].lines);
-    }
-    free(colData);
-    free(colWidths);
-    free(colHeights);
-    
-    ObjString* result = internString(vm, output, (int)strlen(output));
-    free(output);
-    return OBJ_VAL(result);
-}
-static Value tui_panel(VM* vm, Value* args, int argCount) {
-    if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
-        return NIL_VAL;
-    }
-    
-    const char* title = AS_CSTRING(args[0]);
-    const char* content = AS_CSTRING(args[1]);
-    
-    // Get terminal width
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    int termWidth = w.ws_col > 0 ? w.ws_col : 80;
+    int termWidth = w.ws_col;
     
-    // Optional width parameter: 0 = auto, -1 = full terminal width, positive = fixed
-    int requestedWidth = 0;
-    if (argCount >= 3) {
-        if (IS_INT(args[2])) requestedWidth = AS_INT(args[2]);
-        else if (IS_FLOAT(args[2])) requestedWidth = (int)AS_FLOAT(args[2]);
-        
-        if (requestedWidth == -1) {
-            requestedWidth = termWidth;
-        }
-    }
+    if (width <= 0) width = termWidth;
+    if (width > termWidth) width = termWidth;
     
-    // Calculate content width
-    int titleLen = (int)strlen(title);
-    int maxContentWidth = titleLen + 4;
+    g_boxWidth = width - 2; // Content width
     
-    const char* p = content;
-    int lineLen = 0;
-    while (*p) {
-        if (*p == '\n') {
-            if (lineLen > maxContentWidth) maxContentWidth = lineLen;
-            lineLen = 0;
-        } else {
-            lineLen++;
-        }
-        p++;
-    }
-    if (lineLen > maxContentWidth) maxContentWidth = lineLen;
-    
-    // Determine final box width
-    int boxWidth;
-    if (requestedWidth <= 0 || requestedWidth == -1) {
-        // Auto width based on content
-        boxWidth = maxContentWidth + 4;  // 4 = borders + padding
+    // Top Border
+    printf(BOX_ROUND_TL);
+    if (strlen(title) > 0) {
+        printf(" %s ", title);
+        int magic = strlen(title) + 2; 
+        for (int i = 0; i < g_boxWidth - magic; i++) printf(BOX_LIGHT_H);
     } else {
-        boxWidth = requestedWidth;
-        if (boxWidth < titleLen + 6) boxWidth = titleLen + 6;
+        for (int i = 0; i < g_boxWidth; i++) printf(BOX_LIGHT_H);
     }
-    int contentWidth = boxWidth - 4;
+    printf(BOX_ROUND_TR "\n");
     
-    char* output = malloc(32768);
-    if (!output) return NIL_VAL;
-    output[0] = '\0';
-    
-    // Top border with title
-    strcat(output, BOX_ROUND_TL);
-    strcat(output, BOX_LIGHT_H);
-    strcat(output, " ");
-    strcat(output, title);
-    strcat(output, " ");
-    int remaining = boxWidth - titleLen - 5;  // 5 = TL + H + space + space + TR
-    for (int i = 0; i < remaining && i < boxWidth; i++) strcat(output, BOX_LIGHT_H);
-    strcat(output, BOX_ROUND_TR);
-    strcat(output, "\n");
-    
-    // Content
-    p = content;
-    while (*p) {
-        strcat(output, BOX_LIGHT_V);
-        strcat(output, " ");
-        
-        int len = 0;
-        while (*p && *p != '\n' && len < contentWidth) {
-            char c[2] = {*p, '\0'};
-            strcat(output, c);
-            len++;
-            p++;
-        }
-        // Skip rest of line if too long
-        while (*p && *p != '\n') p++;
-        
-        for (int i = len; i < contentWidth; i++) strcat(output, " ");
-        strcat(output, " ");
-        strcat(output, BOX_LIGHT_V);
-        strcat(output, "\n");
-        
-        if (*p == '\n') p++;
-    }
-    
-    // Bottom border
-    strcat(output, BOX_ROUND_BL);
-    for (int i = 0; i < boxWidth - 2; i++) strcat(output, BOX_LIGHT_H);
-    strcat(output, BOX_ROUND_BR);
-    strcat(output, "\n");
-    
-    ObjString* result = internString(vm, output, (int)strlen(output));
-    free(output);
-    return OBJ_VAL(result);
+    return NIL_VAL;
 }
 
-// ============================================================================
-// Module Registration
-// ============================================================================
+// boxLine(text)
+static Value tui_boxLine(VM* vm, Value* args, int argCount) {
+    (void)vm;
+    const char* text = "";
+    if (argCount >= 1 && IS_STRING(args[0])) text = AS_CSTRING(args[0]);
+    
+    // Check if global state is set, otherwise default
+    int contentWidth = g_boxWidth > 0 ? g_boxWidth : 40;
+    
+    // Render Wrapped Lines
+    const char* p = text;
+    // Special handling for empty line (spacer)
+    if (*p == '\0') {
+         printf(BOX_LIGHT_V " ");
+         for (int k = 0; k < contentWidth; k++) printf(" ");
+         printf(" " BOX_LIGHT_V "\n");
+         return NIL_VAL;
+    }
+    
+    while (*p) {
+        // Visual Width Calculation (Simplified for stability)
+        int visualLen = 0;
+        int bytesCount = 0;
+        int lastSpaceByteIdx = -1;
+        int lastSpaceVisualLen = -1;
+        
+        char* ptr = (char*)p;
+        while (visualLen < contentWidth && *ptr && *ptr != '\n') {
+             // Assume 1 visual width per char to be safe for now, 
+             // but handle UTF8 bytes skipping
+             unsigned char c = (unsigned char)*ptr;
+             int seq = 1;
+             if (c >= 0xF0) seq = 4;
+             else if (c >= 0xE0) seq = 3;
+             else if (c >= 0xC0) seq = 2;
+             
+             if (*ptr == ' ') {
+                lastSpaceByteIdx = bytesCount;
+                lastSpaceVisualLen = visualLen;
+            }
+            
+            ptr += seq;
+            bytesCount += seq;
+            visualLen++;
+        }
+        
+        int segmentBytes = 0;
+        int segmentVisual = 0;
+        const char* nextStart = NULL;
+        
+        if (*ptr == '\0' || *ptr == '\n') {
+            segmentBytes = bytesCount;
+            segmentVisual = visualLen;
+            nextStart = p + bytesCount;
+            if (*ptr == '\n') nextStart++;
+        } else {
+            if (lastSpaceByteIdx != -1) {
+                segmentBytes = lastSpaceByteIdx;
+                segmentVisual = lastSpaceVisualLen;
+                nextStart = p + lastSpaceByteIdx + 1;
+            } else {
+                segmentBytes = bytesCount;
+                segmentVisual = visualLen;
+                nextStart = p + bytesCount;
+            }
+        }
+        
+        printf(BOX_LIGHT_V " ");
+        fwrite(p, 1, segmentBytes, stdout);
+        
+        for (int k = segmentVisual; k < contentWidth; k++) printf(" ");
+        printf(" " BOX_LIGHT_V "\n");
+        
+        p = nextStart;
+    }
+    
+    return NIL_VAL;
+}
 
+// boxEnd()
+static Value tui_boxEnd(VM* vm, Value* args, int argCount) {
+    (void)vm; (void)args; (void)argCount;
+    int contentWidth = g_boxWidth > 0 ? g_boxWidth : 40;
+    
+    printf(BOX_ROUND_BL);
+    for (int i = 0; i < contentWidth; i++) printf(BOX_LIGHT_H);
+    printf(BOX_ROUND_BR "\n");
+    
+    g_boxWidth = 0; // Reset
+    return NIL_VAL;
+}
+
+// Module Registration
 void registerUCoreTui(VM* vm) {
     ObjString* modNameObj = internString(vm, "ucoreTui", 8);
     char* modName = modNameObj->chars;
@@ -1551,27 +1478,34 @@ void registerUCoreTui(VM* vm) {
     defineNative(vm, mod->env, "underline", tui_underline, 1);
     defineNative(vm, mod->env, "style", tui_style, 2);
     
-    // Input handling
-    defineNative(vm, mod->env, "keypress", tui_keypress, 0);
+    // Components
+    defineNative(vm, mod->env, "box", tui_box, 3);
+    defineNative(vm, mod->env, "table", tui_table, 1);
+    defineNative(vm, mod->env, "tree", tui_tree, 1);
+    defineNative(vm, mod->env, "progressBar", tui_progressBar, 3);
+    defineNative(vm, mod->env, "spinner", tui_spinner, 1);
+    
+    // Streaming Box API
+    // Streaming Box API
+    defineNative(vm, mod->env, "boxBegin", tui_boxBegin, 2);
+    defineNative(vm, mod->env, "boxLine", tui_boxLine, 1);
+    defineNative(vm, mod->env, "boxEnd", tui_boxEnd, 0);
+    
+    // Components
+    defineNative(vm, mod->env, "box", tui_box, 3);
+    defineNative(vm, mod->env, "table", tui_table, 1);
+    defineNative(vm, mod->env, "tree", tui_tree, 1);
+    defineNative(vm, mod->env, "progressBar", tui_progressBar, 3);
+    defineNative(vm, mod->env, "spinner", tui_spinner, 1);
+    
+    // Input
     defineNative(vm, mod->env, "input", tui_input, 1);
     defineNative(vm, mod->env, "inputPassword", tui_inputPassword, 1);
     defineNative(vm, mod->env, "confirm", tui_confirm, 1);
     defineNative(vm, mod->env, "select", tui_select, 2);
     defineNative(vm, mod->env, "inputBox", tui_inputBox, 3);
     defineNative(vm, mod->env, "inputPasswordBox", tui_inputPasswordBox, 2);
-    
-    // Tables & trees
-    defineNative(vm, mod->env, "table", tui_table, 1);
-    defineNative(vm, mod->env, "tree", tui_tree, 1);
-    
-    // Progress & spinners
-    defineNative(vm, mod->env, "progressBar", tui_progressBar, 3);
-    defineNative(vm, mod->env, "spinner", tui_spinner, 1);
-    
-    // Boxes & panels
-    defineNative(vm, mod->env, "box", tui_box, 2);
-    defineNative(vm, mod->env, "panel", tui_panel, 3);
-    defineNative(vm, mod->env, "row", tui_row, 2);
+    defineNative(vm, mod->env, "keypress", tui_keypress, 0);
 
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreTui", vMod);
