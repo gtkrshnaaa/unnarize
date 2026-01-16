@@ -683,8 +683,10 @@ static Value tui_inputBox(VM* vm, Value* args, int argCount) {
     int inputWidth = width - 4;
     
     // Draw box once (static)
-    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m ", title);
-    int remaining = width - titleLen - 4;
+    // Top border: ╭─ Title ─...─╮
+    // Chars: TL(1) + dash(1) + space(1) + title + space(1) + dashes(remaining) + TR(1) = width
+    printf(BOX_ROUND_TL BOX_LIGHT_H " " CSI "1m%s" CSI "0m " , title);
+    int remaining = width - titleLen - 5;  // 5 = TL + dash + space + space + TR
     for (int i = 0; i < remaining; i++) printf(BOX_LIGHT_H);
     printf(BOX_ROUND_TR "\r\n");
     
