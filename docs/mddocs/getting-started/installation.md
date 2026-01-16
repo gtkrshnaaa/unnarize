@@ -62,7 +62,7 @@ Verify installation:
 
 ```bash
 unnarize -v
-# Output: unnarize 0.1.4-beta
+# Output: unnarize 0.1.6-beta
 ```
 
 ### Uninstall

@@ -15,6 +15,7 @@
 | [ucoreTimer](ucore-timer.md) | High-precision timing | Benchmarks, delays |
 | [ucoreSystem](ucore-system.md) | System operations | Files, shell, environment |
 | [ucoreUon](ucore-uon.md) | UON data format | Custom database format |
+| [ucoreTui](ucore-tui.md) | Terminal UI | Rich CLI, Input, Layouts |
 
 ---
 
@@ -88,6 +89,14 @@ var records = ucoreUon.all(db);
 for (var record : records) {
     print(record["name"]);
 }
+```
+
+### ucoreTui
+
+```javascript
+print(ucoreTui.box("Hello", "rounded"));
+var name = ucoreTui.input("Name: ");
+var choice = ucoreTui.select("Mode", ["Easy", "Hard"]);
 ```
 
 ---

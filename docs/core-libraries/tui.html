@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ucoreTui - Unnarize</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <button class="menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="sidebar-overlay"></div>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-logo">Unnarize</div>
+            <div class="nav-section">
+                <div class="nav-title">Getting Started</div>
+                <ul class="nav-links">
+                    <li><a href="../index.html">Introduction</a></li>
+                    <li><a href="../getting-started.html">Installation</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Language</div>
+                <ul class="nav-links">
+                    <li><a href="../language/variables.html">Variables</a></li>
+                    <li><a href="../language/operators.html">Operators</a></li>
+                    <li><a href="../language/arrays.html">Arrays</a></li>
+                    <li><a href="../language/structs.html">Structs</a></li>
+                    <li><a href="../language/control-flow.html">Control Flow</a></li>
+                    <li><a href="../language/functions.html">Functions</a></li>
+                    <li><a href="../language/modules.html">Modules</a></li>
+                    <li><a href="../language/async.html">Async/Await</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Core Libraries</div>
+                <ul class="nav-links">
+                    <li><a href="string.html">ucoreString</a></li>
+                    <li><a href="scraper.html">ucoreScraper</a></li>
+                    <li><a href="json.html">ucoreJson</a></li>
+                    <li><a href="http.html">ucoreHttp</a></li>
+                    <li><a href="timer.html">ucoreTimer</a></li>
+                    <li><a href="system.html">ucoreSystem</a></li>
+                    <li><a href="uon.html">ucoreUon</a></li>
+                    <li><a href="tui.html" class="active">ucoreTui</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Examples</div>
+                <ul class="nav-links">
+                    <li><a href="../examples/basics.html">Basics</a></li>
+                    <li><a href="../examples/sme-system.html">SME System</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <h1>ucoreTui</h1>
+            <p class="lead">Terminal User Interface primitives for building rich CLIs.</p>
+            
+            <h2>Components</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>box(content, style)</code></td>
+                        <td>string</td>
+                        <td>Wrap content in styled box</td>
+                    </tr>
+                    <tr>
+                        <td><code>table(data)</code></td>
+                        <td>string</td>
+                        <td>Render 2D array as table</td>
+                    </tr>
+                    <tr>
+                        <td><code>tree(map)</code></td>
+                        <td>string</td>
+                        <td>Render nested tree view</td>
+                    </tr>
+                    <tr>
+                        <td><code>progressBar(cur, tot, w)</code></td>
+                        <td>string</td>
+                        <td>Generate progress bar</td>
+                    </tr>
+                     <tr>
+                        <td><code>spinner(style)</code></td>
+                        <td>Array</td>
+                        <td>Get animation frames</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Interactive Input</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>input(prompt)</code></td>
+                        <td>string</td>
+                        <td>Read line of text</td>
+                    </tr>
+                    <tr>
+                        <td><code>inputPassword(prompt)</code></td>
+                        <td>string</td>
+                        <td>Read password (masked)</td>
+                    </tr>
+                    <tr>
+                        <td><code>inputBox(title, w, def)</code></td>
+                        <td>string</td>
+                        <td>Input widget in a box</td>
+                    </tr>
+                    <tr>
+                        <td><code>confirm(prompt)</code></td>
+                        <td>bool</td>
+                        <td>Yes/No prompt</td>
+                    </tr>
+                    <tr>
+                        <td><code>select(prompt, options)</code></td>
+                        <td>int</td>
+                        <td>Menu selection (arrow keys)</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Basic Usage</h2>
+            
+            <h3>Rich Output</h3>
+<pre><code><span class="token-comment">// Styled Box</span>
+<span class="token-function">print</span>(ucoreTui.<span class="token-function">box</span>(<span class="token-string">"Welcome to Unnarize!"</span>, <span class="token-string">"rounded"</span>));
+
+<span class="token-comment">// Table</span>
+<span class="token-keyword">var</span> data = [
+    [<span class="token-string">"ID"</span>, <span class="token-string">"Name"</span>],
+    [<span class="token-string">"1"</span>, <span class="token-string">"Alice"</span>],
+    [<span class="token-string">"2"</span>, <span class="token-string">"Bob"</span>]
+];
+<span class="token-function">print</span>(ucoreTui.<span class="token-function">table</span>(data));
+</code></pre>
+
+            <h3>Interactive Prompts</h3>
+<pre><code><span class="token-comment">// Selection Menu</span>
+<span class="token-keyword">var</span> menu = [<span class="token-string">"Start"</span>, <span class="token-string">"Options"</span>, <span class="token-string">"Exit"</span>];
+<span class="token-keyword">var</span> choice = ucoreTui.<span class="token-function">select</span>(<span class="token-string">"Main Menu"</span>, menu);
+
+<span class="token-keyword">if</span> (choice == <span class="token-number">0</span>) {
+    <span class="token-keyword">var</span> name = ucoreTui.<span class="token-function">inputBox</span>(<span class="token-string">"Player Name"</span>, <span class="token-number">40</span>, <span class="token-string">"Guest"</span>);
+    <span class="token-function">print</span>(<span class="token-string">"Welcome, "</span> + name);
+}</code></pre>
+            
+            <h2>Styling Primitives</h2>
+            <table>
+                <thead><tr><th>Function</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>clear()</code></td><td>Clear screen</td></tr>
+                    <tr><td><code>fg(color, text)</code></td><td>Set foreground color</td></tr>
+                    <tr><td><code>bg(color, text)</code></td><td>Set background color</td></tr>
+                    <tr><td><code>bold(text)</code></td><td>Bold text</td></tr>
+                    <tr><td><code>moveTo(row, col)</code></td><td>Move cursor</td></tr>
+                </tbody>
+            </table>
+            
+        </main>
+    </div>
+    <script src="../js/main.js"></script>
+</body>
+</html>
