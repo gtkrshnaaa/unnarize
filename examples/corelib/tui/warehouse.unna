@@ -1,165 +1,184 @@
-// Warehouse Management System - TUI + JSON CRUD
+// Warehouse Management System - Fixed & Improved
 // Run: ../../../bin/unnarize warehouse.unna
 
 var dataFile = "warehouse_data.json";
 var items = [];
 
-// Load data from JSON file
-fun loadData() {
-    var content = ucoreSystem.readFile(dataFile);
-    if (content != nil and content != "") {
-        var parsed = ucoreJson.parse(content);
-        if (parsed != nil) {
-            items = parsed;
+// ==========================================
+// DATA MANAGEMENET
+// ==========================================
+
+function loadData() {
+    // Check if file exists first to avoid errors
+    if (ucoreSystem.fileExists(dataFile)) {
+        var content = ucoreSystem.readFile(dataFile);
+        if (length(content) > 0) {
+            var parsed = ucoreJson.parse(content);
+            // Verify we got an array/list (by checking if it strictly not nil/empty)
+            // Unnarize truthiness check
+            if (parsed) {
+                items = parsed;
+            }
         }
     }
 }
 
-// Save data to JSON file
-fun saveData() {
+function saveData() {
     var json = ucoreJson.stringify(items);
     ucoreSystem.writeFile(dataFile, json);
 }
 
-// Display header
-fun showHeader() {
-    var term = ucoreTui.size();
-    print(ucoreTui.panel("Warehouse Management System", "CRUD with JSON storage", term["cols"]));
-    print("");
+// ==========================================
+// UI COMPONENTS
+// ==========================================
+
+function drawHeader(title) {
+    // Use a full-width panel as a header section
+    // Content is empty string because we just want the branded box title
+    print(ucoreTui.panel(title, "", -1)); 
 }
 
-// Display all items
-fun showItems() {
-    if (items.length() == 0) {
-        print(ucoreTui.dim("  (No items yet)"));
+function drawSection(title, content) {
+    print(ucoreTui.panel(title, content, -1));
+}
+
+// ==========================================
+// FEATURES
+// ==========================================
+
+function showItems() {
+    if (length(items) == 0) {
+        print(ucoreTui.dim("  (No items available. Add one!)"));
         print("");
         return;
     }
     
-    var tableData = [["ID", "Item Name", "Stock", "Price"]];
+    // Build table array
+    var tableData = [["ID", "Name", "Stock", "Price"]];
+    
     var i = 0;
-    while (i < items.length()) {
+    while (i < length(items)) {
         var item = items[i];
-        var row = [item["id"], item["name"], item["stock"], "$ " + item["price"]];
-        tableData.push(row);
+        // Ensure price is treated as displayable string
+        var priceDisplay = "$ " + item["price"];
+        
+        push(tableData, [item["id"], item["name"], item["stock"], priceDisplay]);
         i = i + 1;
     }
+    
     print(ucoreTui.table(tableData));
     print("");
 }
 
-// Main menu
-fun showMenu() {
-    print(ucoreTui.bold("Menu:"));
-    print("  [1] Add Item");
-    print("  [2] Edit Item");
-    print("  [3] Delete Item");
-    print("  [4] Search Item");
-    print("  [0] Exit");
-    print("");
-}
-
-// Add new item
-fun addItem() {
-    print(ucoreTui.panel("Add New Item", "Enter item details", -1));
+function addItem() {
+    drawHeader("Add New Item");
     print("");
     
+    // User Input
     var name = ucoreTui.inputBox("Item Name", 50, "");
     if (name == "") {
-        print(ucoreTui.fg("yellow", "  Cancelled"));
+        print(ucoreTui.fg("yellow", "  Cancelled."));
         return;
     }
     
-    var stockStr = ucoreTui.inputBox("Stock Quantity", 30, "0");
+    var stockStr = ucoreTui.inputBox("Stock Qty", 30, "0");
     var priceStr = ucoreTui.inputBox("Price ($)", 30, "0");
     
-    // Generate ID
+    // Auto-increment ID
     var newId = 1;
-    if (items.length() > 0) {
-        var lastItem = items[items.length() - 1];
+    if (length(items) > 0) {
+        var lastIdx = length(items) - 1;
+        var lastItem = items[lastIdx];
         newId = lastItem["id"] + 1;
     }
     
-    var newItem = {
-        "id": newId,
-        "name": name,
-        "stock": stockStr,
-        "price": priceStr
-    };
+    // Create Item Object (using JSON parse trick for object literal)
+    var newItem = ucoreJson.parse('{"id":0, "name":"", "stock":"", "price":""}');
+    newItem["id"] = newId;
+    newItem["name"] = name;
+    newItem["stock"] = stockStr;
+    newItem["price"] = priceStr;
     
-    items.push(newItem);
+    // Push to global items array
+    push(items, newItem);
     saveData();
     
     print("");
-    print(ucoreTui.fg("green", "  Item added successfully!"));
+    print(ucoreTui.fg("green", "  Success! Item added."));
 }
 
-// Edit item
-fun editItem() {
-    if (items.length() == 0) {
-        print(ucoreTui.fg("yellow", "  No items to edit"));
+function editItem() {
+    if (length(items) == 0) {
+        print(ucoreTui.fg("yellow", "  No items to edit."));
         return;
     }
     
-    print(ucoreTui.panel("Edit Item", "Enter the ID of item to edit", -1));
+    drawHeader("Edit Item");
     print("");
     
-    var idStr = ucoreTui.inputBox("Item ID", 20, "");
+    var idStr = ucoreTui.inputBox("Enter Item ID", 20, "");
     if (idStr == "") return;
     
-    // Find item
-    var found = -1;
+    // Find Item
+    var foundIdx = -1;
     var i = 0;
-    while (i < items.length()) {
-        if (items[i]["id"] == idStr) {
-            found = i;
+    while (i < length(items)) {
+        // Convert ID to string for comparison safely
+        var it = items[i];
+        if (it["id"] + "" == idStr) {
+            foundIdx = i;
         }
         i = i + 1;
     }
     
-    if (found == -1) {
+    if (foundIdx == -1) {
         print(ucoreTui.fg("red", "  Item not found!"));
         return;
     }
     
-    var item = items[found];
-    print("");
-    print("  Editing: " + item["name"]);
+    var item = items[foundIdx];
+    print("  Editing: " + ucoreTui.bold(item["name"]));
     print("");
     
-    var name = ucoreTui.inputBox("New Name", 50, item["name"]);
-    var stock = ucoreTui.inputBox("New Stock", 30, item["stock"]);
-    var price = ucoreTui.inputBox("New Price", 30, item["price"]);
+    var newName = ucoreTui.inputBox("New Name", 50, item["name"]);
+    if (newName == "") return; // Cancel if empty
     
-    items[found]["name"] = name;
-    items[found]["stock"] = stock;
-    items[found]["price"] = price;
+    var newStock = ucoreTui.inputBox("New Stock", 30, item["stock"]);
+    var newPrice = ucoreTui.inputBox("New Price", 30, item["price"]);
+    
+    // Update
+    item["name"] = newName;
+    item["stock"] = newStock;
+    item["price"] = newPrice;
+    
+    // Assign back to verify update (reference should hold, but safeguard)
+    items[foundIdx] = item;
+    
     saveData();
-    
     print("");
-    print(ucoreTui.fg("green", "  Item updated successfully!"));
+    print(ucoreTui.fg("green", "  Item updated successfully."));
 }
 
-// Delete item
-fun deleteItem() {
-    if (items.length() == 0) {
-        print(ucoreTui.fg("yellow", "  No items to delete"));
+function deleteItem() {
+    if (length(items) == 0) {
+        print(ucoreTui.fg("yellow", "  No items to delete."));
         return;
     }
     
-    print(ucoreTui.panel("Delete Item", "Enter the ID of item to delete", -1));
+    drawHeader("Delete Item");
     print("");
     
-    var idStr = ucoreTui.inputBox("Item ID", 20, "");
+    var idStr = ucoreTui.inputBox("Enter Item ID", 20, "");
     if (idStr == "") return;
     
-    // Find and remove
+    // Filter out item
     var newItems = [];
     var found = 0;
     var i = 0;
-    while (i < items.length()) {
-        if (items[i]["id"] != idStr) {
-            newItems.push(items[i]);
+    while (i < length(items)) {
+        var it = items[i];
+        if (it["id"] + "" != idStr) {
+            push(newItems, it);
         } else {
             found = 1;
         }
@@ -171,16 +190,15 @@ fun deleteItem() {
         return;
     }
     
+    // Update global list
     items = newItems;
     saveData();
-    
     print("");
-    print(ucoreTui.fg("green", "  Item deleted successfully!"));
+    print(ucoreTui.fg("green", "  Item deleted."));
 }
 
-// Search item
-fun searchItem() {
-    print(ucoreTui.panel("Search Item", "Enter search keyword", -1));
+function searchItem() {
+    drawHeader("Search Items");
     print("");
     
     var keyword = ucoreTui.inputBox("Keyword", 40, "");
@@ -188,64 +206,77 @@ fun searchItem() {
     
     var results = [];
     var i = 0;
-    while (i < items.length()) {
-        var item = items[i];
-        if (item["name"] == keyword) {
-            results.push(item);
+    while (i < length(items)) {
+        var it = items[i];
+        if (it["name"] == keyword) { // Simple exact match for now
+             push(results, it);
         }
         i = i + 1;
     }
     
     print("");
-    if (results.length() == 0) {
-        print(ucoreTui.fg("yellow", "  No items found with that name"));
+    if (length(results) == 0) {
+        print(ucoreTui.fg("yellow", "  No matches found."));
     } else {
-        print(ucoreTui.fg("green", "  Found " + results.length() + " item(s):"));
-        var tableData = [["ID", "Name", "Stock", "Price"]];
+        print(ucoreTui.fg("green", "  Found matches:"));
+        var resTable = [["ID", "Name", "Stock", "Price"]];
         i = 0;
-        while (i < results.length()) {
-            var r = results[i];
-            tableData.push([r["id"], r["name"], r["stock"], "$ " + r["price"]]);
+        while (i < length(results)) {
+            var rit = results[i];
+            push(resTable, [rit["id"], rit["name"], rit["stock"], "$ " + rit["price"]]);
             i = i + 1;
         }
-        print(ucoreTui.table(tableData));
+        print(ucoreTui.table(resTable));
     }
 }
 
-// Main loop
-loadData();
+// ==========================================
+// MAIN LOOP
+// ==========================================
 
-var running = 1;
-while (running == 1) {
-    ucoreTui.clear();
-    showHeader();
-    showItems();
-    showMenu();
+function main() {
+    loadData();
     
-    var options = ["Add Item", "Edit Item", "Delete Item", "Search Item", "Exit"];
-    var choice = ucoreTui.select("Select Menu:", options);
+    var running = 1;
+    while (running == 1) {
+        ucoreTui.clear();
+        
+        // Dashboard Header
+        var status = "Total Items: " + length(items);
+        drawSection("Warehouse Management System", "Status: " + status + "\nStorage: JSON");
+        print("");
+        
+        showItems();
+        
+        // Menu
+        var opts = ["Add Item", "Edit Item", "Delete Item", "Search", "Exit"];
+        var choice = ucoreTui.select("Menu Actions", opts);
+        
+        print(""); // Spacer
+        
+        if (choice == 0) {
+            addItem();
+        } else if (choice == 1) {
+            editItem();
+        } else if (choice == 2) {
+            deleteItem();
+        } else if (choice == 3) {
+            searchItem();
+        } else {
+            running = 0;
+        }
+        
+        if (running == 1) {
+            print("");
+            print(ucoreTui.dim("Press any key to continue..."));
+            ucoreTui.keypress();
+        }
+    }
     
     print("");
-    
-    if (choice == 0) {
-        addItem();
-    } else if (choice == 1) {
-        editItem();
-    } else if (choice == 2) {
-        deleteItem();
-    } else if (choice == 3) {
-        searchItem();
-    } else {
-        running = 0;
-    }
-    
-    if (running == 1) {
-        print("");
-        print(ucoreTui.dim("  Press Enter to continue..."));
-        ucoreTui.keypress();
-    }
+    print(ucoreTui.fg("cyan", "Bye! See you next time."));
+    print("");
 }
 
-print("");
-print(ucoreTui.fg("cyan", "Thank you for using Warehouse Management System!"));
-print("");
+// Start
+main();
