@@ -1,107 +1,112 @@
-// ucoreTui Demo - Comprehensive Terminal UI Library Demo
-// Run from: examples/corelib/tui/
+// ucoreTui Demo - Rich Terminal UI Library
+// Run: ../../../bin/unnarize demo.unna
 
-// ========================
+// ═══════════════════════════════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.style("ucoreTui Demo - Terminal UI Library for Unnarize", "bold cyan"));
+print("");
+
+// ═══════════════════════════════════════════════════════════════════════
 // 1. COLORS & STYLING
-// ========================
-print("=== COLORS & STYLING ===");
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ COLORS & STYLING ────────────────────────────────────────────────────┐"));
 print("");
 
-print(ucoreTui.bold("Bold text"));
-print(ucoreTui.italic("Italic text"));
-print(ucoreTui.underline("Underlined text"));
-print(ucoreTui.dim("Dimmed text"));
+// Text styles
+print("  " + ucoreTui.bold("Bold") + "  " + ucoreTui.italic("Italic") + "  " + ucoreTui.underline("Underline") + "  " + ucoreTui.dim("Dim"));
 print("");
 
-print(ucoreTui.fg("red", "Red text"));
-print(ucoreTui.fg("green", "Green text"));
-print(ucoreTui.fg("blue", "Blue text"));
-print(ucoreTui.fg("cyan", "Cyan text"));
-print(ucoreTui.fg("magenta", "Magenta text"));
-print(ucoreTui.fg("yellow", "Yellow text"));
+// Color palette
+print("  Standard: " + ucoreTui.fg("red", "■") + " " + ucoreTui.fg("green", "■") + " " + ucoreTui.fg("blue", "■") + " " + ucoreTui.fg("yellow", "■") + " " + ucoreTui.fg("magenta", "■") + " " + ucoreTui.fg("cyan", "■"));
+print("  Bright:   " + ucoreTui.fg("brightRed", "■") + " " + ucoreTui.fg("brightGreen", "■") + " " + ucoreTui.fg("brightBlue", "■") + " " + ucoreTui.fg("brightYellow", "■") + " " + ucoreTui.fg("brightMagenta", "■") + " " + ucoreTui.fg("brightCyan", "■"));
 print("");
 
-print(ucoreTui.style("Combined styles!", "bold red underline"));
-print(ucoreTui.style("Bright colors", "brightCyan bold"));
+// Combined styles
+print("  " + ucoreTui.style("Error: Connection failed!", "bold red"));
+print("  " + ucoreTui.style("Warning: Low memory", "bold yellow"));
+print("  " + ucoreTui.style("Success: Task completed", "bold green"));
 print("");
 
-// ========================
-// 2. TABLES
-// ========================
-print("=== RICH TABLES ===");
+// ═══════════════════════════════════════════════════════════════════════
+// 2. BOXES & PANELS
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ BOXES & PANELS ───────────────────────────────────────────────────────┐"));
 print("");
 
-var tableData = [
-    ["Name", "Age", "City"],
-    ["Alice", 28, "Jakarta"],
-    ["Bob", 35, "Surabaya"],
-    ["Charlie", 42, "Bandung"]
+// Box styles
+print(ucoreTui.box("Rounded corners (default)", "rounded"));
+print(ucoreTui.box("Simple corners", "simple"));
+print(ucoreTui.box("Double border", "double"));
+
+// Panel with title
+print(ucoreTui.panel("Server Status", "Host: localhost | Port: 8080 | Status: Running"));
+
+// ═══════════════════════════════════════════════════════════════════════
+// 3. TABLES
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ DATA TABLES ─────────────────────────────────────────────────────────┐"));
+print("");
+
+var users = [
+    ["ID", "Name", "Role", "Status"],
+    ["1", "Alice", "Admin", ucoreTui.fg("green", "Active")],
+    ["2", "Bob", "User", ucoreTui.fg("green", "Active")],
+    ["3", "Charlie", "Guest", ucoreTui.fg("yellow", "Pending")],
+    ["4", "Diana", "User", ucoreTui.fg("red", "Inactive")]
 ];
-print(ucoreTui.table(tableData));
+print(ucoreTui.table(users));
 
-// ========================
-// 3. PROGRESS BAR
-// ========================
-print("=== PROGRESS BARS ===");
+// ═══════════════════════════════════════════════════════════════════════
+// 4. PROGRESS BARS
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ PROGRESS INDICATORS ─────────────────────────────────────────────────┐"));
 print("");
 
-print("25%:  " + ucoreTui.progressBar(25, 100, 30));
-print("50%:  " + ucoreTui.progressBar(50, 100, 30));
-print("75%:  " + ucoreTui.progressBar(75, 100, 30));
-print("100%: " + ucoreTui.progressBar(100, 100, 30));
+print("  Downloading files...");
+print("  " + ucoreTui.fg("cyan", "file1.zip") + " " + ucoreTui.progressBar(100, 100, 30) + " " + ucoreTui.fg("green", "✓"));
+print("  " + ucoreTui.fg("cyan", "file2.zip") + " " + ucoreTui.progressBar(75, 100, 30) + " 75%");
+print("  " + ucoreTui.fg("cyan", "file3.zip") + " " + ucoreTui.progressBar(45, 100, 30) + " 45%");
+print("  " + ucoreTui.fg("cyan", "file4.zip") + " " + ucoreTui.progressBar(10, 100, 30) + " 10%");
 print("");
 
-// ========================
-// 4. SPINNER FRAMES
-// ========================
-print("=== SPINNER STYLES ===");
+// ═══════════════════════════════════════════════════════════════════════
+// 5. SPINNERS
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ SPINNER ANIMATIONS ──────────────────────────────────────────────────┐"));
 print("");
 
-var dotsSpinner = ucoreTui.spinner("dots");
-var lineSpinner = ucoreTui.spinner("line");
-var arcSpinner = ucoreTui.spinner("arc");
-
-print("Dots:   " + dotsSpinner[0] + " " + dotsSpinner[1] + " " + dotsSpinner[2] + " " + dotsSpinner[3]);
-print("Line:   " + lineSpinner[0] + " " + lineSpinner[1] + " " + lineSpinner[2] + " " + lineSpinner[3]);
-print("Arc:    " + arcSpinner[0] + " " + arcSpinner[1] + " " + arcSpinner[2] + " " + arcSpinner[3]);
+print("  Spinners: Use ucoreTui.spinner(type) to get animation frames");
+print("  Types: 'dots', 'line', 'arc'");
 print("");
 
-// ========================
-// 5. BOXES & PANELS
-// ========================
-print("=== BOXES & PANELS ===");
+// ═══════════════════════════════════════════════════════════════════════
+// 6. TERMINAL UTILITIES
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ TERMINAL INFO ────────────────────────────────────────────────────────┐"));
 print("");
 
-print(ucoreTui.box("Simple rounded box", "rounded"));
-print(ucoreTui.box("Double border box", "double"));
+var termSize = ucoreTui.size();
+print("  Terminal size: " + termSize["cols"] + " columns × " + termSize["rows"] + " rows");
+print("");
 
-print(ucoreTui.panel("INFO", "This is a panel with a title header."));
+// ═══════════════════════════════════════════════════════════════════════
+// 7. AVAILABLE INPUT FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════
+print(ucoreTui.bold("┌─ INPUT FUNCTIONS ─────────────────────────────────────────────────────┐"));
+print("");
 
-// ========================
-// 6. DEMO COMPLETE
-// ========================
+print("  input(prompt)             - Line input with arrow navigation");
+print("  inputBox(title, w, init)  - Styled box input");
+print("  inputPasswordBox(title,w) - Password input with asterisks");
+print("  inputPassword(prompt)     - Simple hidden password");
+print("  confirm(prompt)           - Yes/No confirmation");
+print("  select(prompt, options)   - Arrow-key selection menu");
+print("  keypress()                - Read single keypress");
+
+// ═══════════════════════════════════════════════════════════════════════
+// FOOTER
+// ═══════════════════════════════════════════════════════════════════════
 print("");
-print(ucoreTui.fg("green", "Demo Complete!"));
-print("");
-print("=== INPUT FUNCTIONS ===");
-print("");
-print("Comprehensive input features available:");
-print("  - ucoreTui.input(prompt)             Line input with arrow nav");
-print("  - ucoreTui.inputBox(title,w,init)    Input in styled box");
-print("  - ucoreTui.inputMulti(title,rows)    Multi-line editor");
-print("  - ucoreTui.inputPassword(prompt)     Hidden password input");
-print("  - ucoreTui.confirm(prompt)           Yes/No confirmation");
-print("  - ucoreTui.select(prompt, arr)       Arrow-key selection");
-print("  - ucoreTui.keypress()                Read single keypress");
-print("");
-print("Keyboard shortcuts in inputBox/inputMulti:");
-print("  Arrow keys   Navigate cursor");
-print("  Home/End     Jump to start/end of line");
-print("  Ctrl+A       Start of line");
-print("  Ctrl+E       End of line");
-print("  Ctrl+K       Kill to end of line");
-print("  Ctrl+U       Kill to start of line");
-print("  Ctrl+W       Delete word backward");
-print("  Ctrl+D       Save and exit (multi)");
-print("  Esc          Cancel");
+print("=== Demo Complete! Run test_input.unna for interactive demo. ===");
 print("");
