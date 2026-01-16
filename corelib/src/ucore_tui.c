@@ -1261,7 +1261,8 @@ static Value tui_box(VM* vm, Value* args, int argCount) {
     return OBJ_VAL(result);
 }
 
-// panel(title, content) - Box with title header
+// panel(title, content, width?) - Box with title header
+// width: optional, 0 or -1 = use terminal width, positive = fixed width
 static Value tui_panel(VM* vm, Value* args, int argCount) {
     if (argCount < 2 || !IS_STRING(args[0]) || !IS_STRING(args[1])) {
         return NIL_VAL;
@@ -1270,22 +1271,47 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     const char* title = AS_CSTRING(args[0]);
     const char* content = AS_CSTRING(args[1]);
     
-    // Calculate width
+    // Get terminal width
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int termWidth = w.ws_col > 0 ? w.ws_col : 80;
+    
+    // Optional width parameter: 0 = auto, -1 = full terminal width, positive = fixed
+    int requestedWidth = 0;
+    if (argCount >= 3 && IS_INT(args[2])) {
+        requestedWidth = AS_INT(args[2]);
+        if (requestedWidth == -1) {
+            requestedWidth = termWidth;
+        }
+    }
+    
+    // Calculate content width
     int titleLen = (int)strlen(title);
-    int maxWidth = titleLen + 4;
+    int maxContentWidth = titleLen + 4;
     
     const char* p = content;
     int lineLen = 0;
     while (*p) {
         if (*p == '\n') {
-            if (lineLen > maxWidth) maxWidth = lineLen;
+            if (lineLen > maxContentWidth) maxContentWidth = lineLen;
             lineLen = 0;
         } else {
             lineLen++;
         }
         p++;
     }
-    if (lineLen > maxWidth) maxWidth = lineLen;
+    if (lineLen > maxContentWidth) maxContentWidth = lineLen;
+    
+    // Determine final box width
+    int boxWidth;
+    if (requestedWidth <= 0 || requestedWidth == -1) {
+        // Auto width based on content
+        boxWidth = maxContentWidth + 4;  // 4 = borders + padding
+    } else {
+        boxWidth = requestedWidth;
+        if (boxWidth < titleLen + 6) boxWidth = titleLen + 6;
+    }
+    int contentWidth = boxWidth - 4;
     
     char* output = malloc(32768);
     if (!output) return NIL_VAL;
@@ -1297,8 +1323,8 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     strcat(output, " ");
     strcat(output, title);
     strcat(output, " ");
-    int remaining = maxWidth - titleLen - 2;
-    for (int i = 0; i < remaining; i++) strcat(output, BOX_LIGHT_H);
+    int remaining = boxWidth - titleLen - 5;  // 5 = TL + H + space + space + TR
+    for (int i = 0; i < remaining && i < boxWidth; i++) strcat(output, BOX_LIGHT_H);
     strcat(output, BOX_ROUND_TR);
     strcat(output, "\n");
     
@@ -1309,14 +1335,16 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
         strcat(output, " ");
         
         int len = 0;
-        while (*p && *p != '\n') {
+        while (*p && *p != '\n' && len < contentWidth) {
             char c[2] = {*p, '\0'};
             strcat(output, c);
             len++;
             p++;
         }
+        // Skip rest of line if too long
+        while (*p && *p != '\n') p++;
         
-        for (int i = len; i < maxWidth; i++) strcat(output, " ");
+        for (int i = len; i < contentWidth; i++) strcat(output, " ");
         strcat(output, " ");
         strcat(output, BOX_LIGHT_V);
         strcat(output, "\n");
@@ -1326,7 +1354,7 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     
     // Bottom border
     strcat(output, BOX_ROUND_BL);
-    for (int i = 0; i < maxWidth + 2; i++) strcat(output, BOX_LIGHT_H);
+    for (int i = 0; i < boxWidth - 2; i++) strcat(output, BOX_LIGHT_H);
     strcat(output, BOX_ROUND_BR);
     strcat(output, "\n");
     
@@ -1393,7 +1421,7 @@ void registerUCoreTui(VM* vm) {
     
     // Boxes & panels
     defineNative(vm, mod->env, "box", tui_box, 2);
-    defineNative(vm, mod->env, "panel", tui_panel, 2);
+    defineNative(vm, mod->env, "panel", tui_panel, 3);
 
     Value vMod = OBJ_VAL(mod);
     defineGlobal(vm, "ucoreTui", vMod);
