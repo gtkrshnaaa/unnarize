@@ -817,7 +817,6 @@ static Value tui_inputPasswordBox(VM* vm, Value* args, int argCount) {
     int len = 0;
     buffer[0] = '\0';
     
-    int cursor = 0;
     int inputWidth = width - 4;
     
     // Draw box once (static)
