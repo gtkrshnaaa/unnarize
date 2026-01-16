@@ -1,5 +1,5 @@
 // Warehouse Management System - Fixed & Improved
-// Run: ../../../bin/unnarize warehouse.unna
+// Run: ../../../bin/unnarize demo.unna
 
 var dataFile = "warehouse_data.json";
 var items = [];
@@ -33,13 +33,13 @@ function saveData() {
 // ==========================================
 
 function drawHeader(title) {
-    // Use a full-width panel as a header section
-    // Content is empty string because we just want the branded box title
-    print(ucoreTui.panel(title, "", -1)); 
+    // Replaced deprecated panel with box
+    print(ucoreTui.box(ucoreTui.bold(title), "double")); 
 }
 
 function drawSection(title, content) {
-    print(ucoreTui.panel(title, content, -1));
+    // Replaced deprecated panel with simple box concat
+    print(ucoreTui.box(ucoreTui.bold(title) + "\n" + content));
 }
 
 // ==========================================
@@ -74,6 +74,9 @@ function addItem() {
     drawHeader("Add New Item");
     print("");
     
+    // Safety pause for input race condition
+    ucoreSystem.sleep(100);
+
     // User Input
     var name = ucoreTui.inputBox("Item Name", 50, "");
     if (name == "") {
@@ -115,6 +118,9 @@ function editItem() {
     
     drawHeader("Edit Item");
     print("");
+    
+    // Safety pause
+    ucoreSystem.sleep(100);
     
     var idStr = ucoreTui.inputBox("Enter Item ID", 20, "");
     if (idStr == "") return;
@@ -168,6 +174,9 @@ function deleteItem() {
     drawHeader("Delete Item");
     print("");
     
+    // Safety pause
+    ucoreSystem.sleep(100);
+    
     var idStr = ucoreTui.inputBox("Enter Item ID", 20, "");
     if (idStr == "") return;
     
@@ -201,6 +210,9 @@ function searchItem() {
     drawHeader("Search Items");
     print("");
     
+    // Safety pause
+    ucoreSystem.sleep(100);
+    
     var keyword = ucoreTui.inputBox("Keyword", 40, "");
     if (keyword == "") return;
     
@@ -208,7 +220,12 @@ function searchItem() {
     var i = 0;
     while (i < length(items)) {
         var it = items[i];
-        if (it["name"] == keyword) { // Simple exact match for now
+        
+        // Smart Search: Case-Insensitive Contains
+        var nameBelow = ucoreString.toLower(it["name"]);
+        var keyLower = ucoreString.toLower(keyword);
+        
+        if (ucoreString.contains(nameBelow, keyLower)) { 
              push(results, it);
         }
         i = i + 1;
