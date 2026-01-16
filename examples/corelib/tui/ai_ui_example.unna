@@ -1,0 +1,72 @@
+// AI Assistant UI Example - Similar to Pai CLI Interface
+// Run: ../../../bin/unnarize ai_ui_example.unna
+
+// Get terminal size for responsive layout
+var term = ucoreTui.size();
+var w = term["cols"];
+
+// Header - Welcome Panel
+print(ucoreTui.panel("Interactive Auto Mode", "Welcome! I'm your AI coding companion. Powered by Single-Shot Intelligence.", w));
+
+print("");
+print(ucoreTui.fg("cyan", "user >") + " hai, make me a simple calculator in python.");
+print(ucoreTui.dim("  Tokens: 194 -> 1"));
+print("");
+
+// AI Response Panel
+print(ucoreTui.panel("AI Response", "Sure thing! A simple Python calculator, got it. Let me cook up a smart plan for that!", w));
+
+print("");
+
+// Planning Panel with nested table
+print(ucoreTui.panel("Call 1/2: Intelligence Planning", "Deep Analysis & Planning", w));
+
+print(ucoreTui.dim("  Tokens: 1853 -> 1138"));
+print("");
+
+// Planning Results
+var planTable = [
+    ["No", "Action", "Purpose"],
+    ["1", "WRITE calculator.py", "Create Python file"],
+    ["2", "LIST_PATH .", "Verify creation"],
+    ["3", "FINISH", "Inform user"]
+];
+
+var planContent = "Smart Analysis Results:\n";
+planContent = planContent + "  Intent: Create a simple calculator program in Python.\n";
+planContent = planContent + "  Files to create: 1\n";
+planContent = planContent + "  Efficiency: Standard approach\n\n";
+planContent = planContent + "Execution Plan: 3 steps";
+print(ucoreTui.panel("Planning Results", planContent, w));
+
+print("");
+print(ucoreTui.table(planTable));
+print("");
+
+// Execution Panel
+print(ucoreTui.panel("Call 2/2: Smart Execution", "Adaptive Intelligent Execution", w));
+print(ucoreTui.dim("  Tokens: 2989 -> 53"));
+print("");
+
+// Execution Results
+var execContent = "Executing 3 intelligent actions...\n";
+execContent = execContent + "  [1/3] WRITE calculator.py - " + ucoreTui.fg("green", "Success") + "\n";
+execContent = execContent + "  [2/3] LIST_PATH . - " + ucoreTui.fg("green", "Success") + "\n";
+execContent = execContent + "  [3/3] FINISH - " + ucoreTui.fg("green", "Success") + "\n\n";
+execContent = execContent + "Execution Summary: Successful 3/3 (100%)";
+print(ucoreTui.panel("Execution Results", execContent, w));
+
+print("");
+
+// Mission Accomplished
+print(ucoreTui.panel("Mission Accomplished", ucoreTui.style("Single-Shot Intelligence: SUCCESS", "bold green"), w));
+
+print("");
+
+// Next Steps
+print(ucoreTui.panel("Next Steps Suggestion", "Great! Now that you have a basic calculator, how about we add some more advanced operations like exponents or square roots?", w));
+
+print("");
+print(ucoreTui.dim("  Tip: Use Alt+Enter for new line, Enter to submit"));
+print("");
+print(ucoreTui.fg("cyan", "user >") + " ");
