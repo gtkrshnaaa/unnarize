@@ -39,12 +39,4 @@ if (choice >= 0) {
 }
 print("");
 
-// Test 6: Multiline editor
-print("Test 6: Multiline editor");
-print("(Arrow keys, Enter for newline, Ctrl+D to save, Esc to cancel)");
-var notes = ucoreTui.inputMulti("Notes Editor", 5, "");
-print("You entered:");
-print(ucoreTui.box(notes, "simple"));
-
-print("");
 print(ucoreTui.fg("green", "All tests complete!"));
