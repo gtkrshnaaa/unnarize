@@ -1,0 +1,251 @@
+// Warehouse Management System - TUI + JSON CRUD
+// Run: ../../../bin/unnarize warehouse.unna
+
+var dataFile = "warehouse_data.json";
+var items = [];
+
+// Load data from JSON file
+fun loadData() {
+    var content = ucoreSystem.readFile(dataFile);
+    if (content != nil and content != "") {
+        var parsed = ucoreUon.parse(content);
+        if (parsed != nil) {
+            items = parsed;
+        }
+    }
+}
+
+// Save data to JSON file
+fun saveData() {
+    var json = ucoreUon.stringify(items);
+    ucoreSystem.writeFile(dataFile, json);
+}
+
+// Display header
+fun showHeader() {
+    var term = ucoreTui.size();
+    print(ucoreTui.panel("Warehouse Management System", "CRUD dengan penyimpanan JSON", term["cols"]));
+    print("");
+}
+
+// Display all items
+fun showItems() {
+    if (items.length() == 0) {
+        print(ucoreTui.dim("  (Belum ada barang)"));
+        print("");
+        return;
+    }
+    
+    var tableData = [["ID", "Nama Barang", "Stok", "Harga"]];
+    var i = 0;
+    while (i < items.length()) {
+        var item = items[i];
+        var row = [item["id"], item["nama"], item["stok"], "Rp " + item["harga"]];
+        tableData.push(row);
+        i = i + 1;
+    }
+    print(ucoreTui.table(tableData));
+    print("");
+}
+
+// Main menu
+fun showMenu() {
+    print(ucoreTui.bold("Menu:"));
+    print("  [1] Tambah Barang");
+    print("  [2] Edit Barang");
+    print("  [3] Hapus Barang");
+    print("  [4] Cari Barang");
+    print("  [0] Keluar");
+    print("");
+}
+
+// Add new item
+fun addItem() {
+    print(ucoreTui.panel("Tambah Barang Baru", "Isi data barang", -1));
+    print("");
+    
+    var nama = ucoreTui.inputBox("Nama Barang", 50, "");
+    if (nama == "") {
+        print(ucoreTui.fg("yellow", "  Dibatalkan"));
+        return;
+    }
+    
+    var stokStr = ucoreTui.inputBox("Jumlah Stok", 30, "0");
+    var hargaStr = ucoreTui.inputBox("Harga (Rp)", 30, "0");
+    
+    // Generate ID
+    var newId = 1;
+    if (items.length() > 0) {
+        var lastItem = items[items.length() - 1];
+        newId = lastItem["id"] + 1;
+    }
+    
+    var newItem = {
+        "id": newId,
+        "nama": nama,
+        "stok": stokStr,
+        "harga": hargaStr
+    };
+    
+    items.push(newItem);
+    saveData();
+    
+    print("");
+    print(ucoreTui.fg("green", "  Barang berhasil ditambahkan!"));
+}
+
+// Edit item
+fun editItem() {
+    if (items.length() == 0) {
+        print(ucoreTui.fg("yellow", "  Tidak ada barang untuk diedit"));
+        return;
+    }
+    
+    print(ucoreTui.panel("Edit Barang", "Masukkan ID barang yang akan diedit", -1));
+    print("");
+    
+    var idStr = ucoreTui.inputBox("ID Barang", 20, "");
+    if (idStr == "") return;
+    
+    // Find item
+    var found = -1;
+    var i = 0;
+    while (i < items.length()) {
+        if (items[i]["id"] == idStr) {
+            found = i;
+        }
+        i = i + 1;
+    }
+    
+    if (found == -1) {
+        print(ucoreTui.fg("red", "  Barang tidak ditemukan!"));
+        return;
+    }
+    
+    var item = items[found];
+    print("");
+    print("  Editing: " + item["nama"]);
+    print("");
+    
+    var nama = ucoreTui.inputBox("Nama Baru", 50, item["nama"]);
+    var stok = ucoreTui.inputBox("Stok Baru", 30, item["stok"]);
+    var harga = ucoreTui.inputBox("Harga Baru", 30, item["harga"]);
+    
+    items[found]["nama"] = nama;
+    items[found]["stok"] = stok;
+    items[found]["harga"] = harga;
+    saveData();
+    
+    print("");
+    print(ucoreTui.fg("green", "  Barang berhasil diupdate!"));
+}
+
+// Delete item
+fun deleteItem() {
+    if (items.length() == 0) {
+        print(ucoreTui.fg("yellow", "  Tidak ada barang untuk dihapus"));
+        return;
+    }
+    
+    print(ucoreTui.panel("Hapus Barang", "Masukkan ID barang yang akan dihapus", -1));
+    print("");
+    
+    var idStr = ucoreTui.inputBox("ID Barang", 20, "");
+    if (idStr == "") return;
+    
+    // Find and remove
+    var newItems = [];
+    var found = 0;
+    var i = 0;
+    while (i < items.length()) {
+        if (items[i]["id"] != idStr) {
+            newItems.push(items[i]);
+        } else {
+            found = 1;
+        }
+        i = i + 1;
+    }
+    
+    if (found == 0) {
+        print(ucoreTui.fg("red", "  Barang tidak ditemukan!"));
+        return;
+    }
+    
+    items = newItems;
+    saveData();
+    
+    print("");
+    print(ucoreTui.fg("green", "  Barang berhasil dihapus!"));
+}
+
+// Search item
+fun searchItem() {
+    print(ucoreTui.panel("Cari Barang", "Masukkan kata kunci pencarian", -1));
+    print("");
+    
+    var keyword = ucoreTui.inputBox("Kata Kunci", 40, "");
+    if (keyword == "") return;
+    
+    var results = [];
+    var i = 0;
+    while (i < items.length()) {
+        var item = items[i];
+        if (item["nama"] == keyword) {
+            results.push(item);
+        }
+        i = i + 1;
+    }
+    
+    print("");
+    if (results.length() == 0) {
+        print(ucoreTui.fg("yellow", "  Tidak ditemukan barang dengan nama tersebut"));
+    } else {
+        print(ucoreTui.fg("green", "  Ditemukan " + results.length() + " barang:"));
+        var tableData = [["ID", "Nama", "Stok", "Harga"]];
+        i = 0;
+        while (i < results.length()) {
+            var r = results[i];
+            tableData.push([r["id"], r["nama"], r["stok"], "Rp " + r["harga"]]);
+            i = i + 1;
+        }
+        print(ucoreTui.table(tableData));
+    }
+}
+
+// Main loop
+loadData();
+
+var running = 1;
+while (running == 1) {
+    ucoreTui.clear();
+    showHeader();
+    showItems();
+    showMenu();
+    
+    var options = ["Tambah Barang", "Edit Barang", "Hapus Barang", "Cari Barang", "Keluar"];
+    var choice = ucoreTui.select("Pilih Menu:", options);
+    
+    print("");
+    
+    if (choice == 0) {
+        addItem();
+    } else if (choice == 1) {
+        editItem();
+    } else if (choice == 2) {
+        deleteItem();
+    } else if (choice == 3) {
+        searchItem();
+    } else {
+        running = 0;
+    }
+    
+    if (running == 1) {
+        print("");
+        print(ucoreTui.dim("  Tekan Enter untuk melanjutkan..."));
+        ucoreTui.keypress();
+    }
+}
+
+print("");
+print(ucoreTui.fg("cyan", "Terima kasih telah menggunakan Warehouse Management System!"));
+print("");
