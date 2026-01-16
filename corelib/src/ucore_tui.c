@@ -1269,8 +1269,9 @@ static Value tui_row(VM* vm, Value* args, int argCount) {
     
     Array* cols = (Array*)AS_OBJ(args[0]);
     int spacing = 1;
-    if (argCount >= 2 && IS_INT(args[1])) {
-        spacing = AS_INT(args[1]);
+    if (argCount >= 2) {
+        if (IS_INT(args[1])) spacing = AS_INT(args[1]);
+        else if (IS_FLOAT(args[1])) spacing = (int)AS_FLOAT(args[1]);
     }
     
     int count = cols->count;
@@ -1424,8 +1425,10 @@ static Value tui_panel(VM* vm, Value* args, int argCount) {
     
     // Optional width parameter: 0 = auto, -1 = full terminal width, positive = fixed
     int requestedWidth = 0;
-    if (argCount >= 3 && IS_INT(args[2])) {
-        requestedWidth = AS_INT(args[2]);
+    if (argCount >= 3) {
+        if (IS_INT(args[2])) requestedWidth = AS_INT(args[2]);
+        else if (IS_FLOAT(args[2])) requestedWidth = (int)AS_FLOAT(args[2]);
+        
         if (requestedWidth == -1) {
             requestedWidth = termWidth;
         }
