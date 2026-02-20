@@ -1171,8 +1171,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                 } else {  printf("Runtime Error: Struct '%s' has no field '%s'.\n", inst->def->name, name->chars);
                     exit(1);
                 }
-                sp[-1] = val; // Replace instance with value
-                *sp++ = val; // Push value back onto stack
+                sp[-1] = val; // Replace object ref with stored value (compiler emits OP_POP after)
                 NEXT();
             }
         }

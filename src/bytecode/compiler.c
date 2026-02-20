@@ -246,8 +246,7 @@ static void compileExpression(Compiler* c, Node* node) {
                         compileExpression(c, arg);       // Array
                         compileExpression(c, arg->next); // Value
                         emitByte(c, OP_ARRAY_PUSH_CLEAN, line);
-                        emitByte(c, OP_LOAD_NIL, line); 
-                        emitByte(c, OP_LOAD_NIL, line); // Stack adjustment for push operation
+                        emitByte(c, OP_LOAD_NIL, line); // Placeholder consumed by compileNode's OP_POP
                     }
                     isBuiltin = true;
                 } else if (strcmp(funcName, "pop") == 0) {
