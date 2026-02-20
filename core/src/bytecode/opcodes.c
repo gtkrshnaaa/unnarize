@@ -2,126 +2,93 @@
 #include <string.h>
 
 /**
- * Opcode metadata table
- * Zero dependencies - pure static data
+ * Register-based opcode metadata table
+ * format: 0=ABC, 1=ABx, 2=AsBx, 3=sBx, 4=A-only
  */
 
 static const OpcodeInfo OPCODE_TABLE[] = {
-    // Stack ops
-    {"LOAD_IMM", 4, false},
-    {"LOAD_CONST", 1, false},
-    {"LOAD_NIL", 0, false},
-    {"LOAD_TRUE", 0, false},
-    {"LOAD_FALSE", 0, false},
-    {"POP", 0, false},
-    {"DUP", 0, false},
-    
-    // Local variables
-    {"LOAD_LOCAL", 1, false},
-    {"STORE_LOCAL", 1, true},
-    {"LOAD_LOCAL_0", 0, false},
-    {"LOAD_LOCAL_1", 0, false},
-    {"LOAD_LOCAL_2", 0, false},
-    {"INC_LOCAL", 1, true},
-    {"DEC_LOCAL", 1, true},
-    
+    // Data movement
+    [OP_MOVE]       = {"MOVE",       0, false},
+    [OP_LOADK]      = {"LOADK",      1, false},
+    [OP_LOADI]      = {"LOADI",      1, false},
+    [OP_LOADNIL]    = {"LOADNIL",    4, false},
+    [OP_LOADTRUE]   = {"LOADTRUE",   4, false},
+    [OP_LOADFALSE]  = {"LOADFALSE",  4, false},
+
     // Global variables
-    {"LOAD_GLOBAL", 2, false},
-    {"STORE_GLOBAL", 2, true},
-    {"DEFINE_GLOBAL", 2, true},
-    
-    // Specialized arithmetic (int)
-    {"ADD_II", 0, false},
-    {"SUB_II", 0, false},
-    {"MUL_II", 0, false},
-    {"DIV_II", 0, false},
-    {"MOD_II", 0, false},
-    {"NEG_I", 0, false},
-    
-    // Specialized arithmetic (float)
-    {"ADD_FF", 0, false},
-    {"SUB_FF", 0, false},
-    {"MUL_FF", 0, false},
-    {"DIV_FF", 0, false},
-    {"NEG_F", 0, false},
-    
-    // Generic arithmetic
-    {"ADD", 0, false},
-    {"SUB", 0, false},
-    {"MUL", 0, false},
-    {"DIV", 0, false},
-    {"MOD", 0, false},
-    {"NEG", 0, false},
-    
-    // Specialized comparisons (int)
-    {"LT_II", 0, false},
-    {"LE_II", 0, false},
-    {"GT_II", 0, false},
-    {"GE_II", 0, false},
-    {"EQ_II", 0, false},
-    {"NE_II", 0, false},
-    
-    // Specialized comparisons (float)
-    {"LT_FF", 0, false},
-    {"LE_FF", 0, false},
-    {"GT_FF", 0, false},
-    {"GE_FF", 0, false},
-    {"EQ_FF", 0, false},
-    {"NE_FF", 0, false},
-    
-    // Generic comparisons
-    {"LT", 0, false},
-    {"LE", 0, false},
-    {"GT", 0, false},
-    {"GE", 0, false},
-    {"EQ", 0, false},
-    {"NE", 0, false},
-    
+    [OP_GETGLOBAL]  = {"GETGLOBAL",  1, false},
+    [OP_SETGLOBAL]  = {"SETGLOBAL",  1, true},
+    [OP_DEFGLOBAL]  = {"DEFGLOBAL",  1, true},
+
+    // Arithmetic
+    [OP_ADD]        = {"ADD",        0, false},
+    [OP_SUB]        = {"SUB",        0, false},
+    [OP_MUL]        = {"MUL",        0, false},
+    [OP_DIV]        = {"DIV",        0, false},
+    [OP_MOD]        = {"MOD",        0, false},
+    [OP_NEG]        = {"NEG",        0, false},
+
+    // Comparisons
+    [OP_LT]         = {"LT",        0, false},
+    [OP_LE]         = {"LE",        0, false},
+    [OP_GT]         = {"GT",        0, false},
+    [OP_GE]         = {"GE",        0, false},
+    [OP_EQ]         = {"EQ",        0, false},
+    [OP_NE]         = {"NE",        0, false},
+
     // Logical
-    {"NOT", 0, false},
-    {"AND", 0, false},
-    {"OR", 0, false},
-    
+    [OP_NOT]        = {"NOT",        0, false},
+
     // Control flow
-    {"JUMP", 2, false},
-    {"JUMP_IF_FALSE", 2, false},
-    {"JUMP_IF_TRUE", 2, false},
-    {"LOOP", 2, false},
-    {"LOOP_HEADER", 0, false},
-    
+    [OP_JMP]        = {"JMP",        3, false},
+    [OP_JMPF]       = {"JMPF",       2, false},
+    [OP_JMPT]       = {"JMPT",       2, false},
+    [OP_LOOP]       = {"LOOP",       3, false},
+
     // Function calls
-    {"CALL", 1, true},
-    {"CALL_0", 0, true},
-    {"CALL_1", 0, true},
-    {"CALL_2", 0, true},
-    {"RETURN", 0, true},
-    {"RETURN_NIL", 0, true},
-    
-    // Object/property
-    {"LOAD_PROPERTY", 2, false},
-    {"STORE_PROPERTY", 2, true},
-    {"LOAD_INDEX", 0, false},
-    {"STORE_INDEX", 0, true},
-    
+    [OP_CALL]       = {"CALL",       0, true},
+    [OP_RETURN]     = {"RETURN",     4, true},
+    [OP_RETURNNIL]  = {"RETURNNIL",  4, true},
+
+    // Property access
+    [OP_GETPROP]    = {"GETPROP",    0, false},
+    [OP_SETPROP]    = {"SETPROP",    0, true},
+
+    // Index access
+    [OP_GETIDX]     = {"GETIDX",     0, false},
+    [OP_SETIDX]     = {"SETIDX",     0, true},
+
     // Object creation
-    {"NEW_ARRAY", 1, true},
-    {"NEW_MAP", 0, true},
-    {"NEW_OBJECT", 0, true},
-    
-    // Array ops
-    {"ARRAY_PUSH", 0, true},
-    {"ARRAY_POP", 0, true},
-    {"ARRAY_LEN", 0, false},
-    
-    // Async ops
-    {"ASYNC_CALL", 1, true},
-    {"AWAIT", 0, true},
-    
+    [OP_NEWARRAY]   = {"NEWARRAY",   1, true},
+    [OP_NEWMAP]     = {"NEWMAP",     4, true},
+    [OP_NEWSTRUCT]  = {"NEWSTRUCT",  0, true},
+
+    // Struct definition
+    [OP_STRUCTDEF]  = {"STRUCTDEF",  1, true},
+
+    // Array builtins
+    [OP_PUSH]       = {"PUSH",       0, true},
+    [OP_POP]        = {"POP",        0, true},
+    [OP_LEN]        = {"LEN",        0, false},
+
+    // Import
+    [OP_IMPORT]     = {"IMPORT",     1, true},
+
+    // Async
+    [OP_ASYNC]      = {"ASYNC",      0, true},
+    [OP_AWAIT]      = {"AWAIT",      0, true},
+
     // Special
-    {"PRINT", 0, true},
-    {"HALT", 0, true},
-    [OP_NOP] = {"NOP", 0, false},
-    [OP_ARRAY_PUSH_CLEAN] = {"ARRAY_PUSH_CLEAN", 0, true},
+    [OP_PRINT]      = {"PRINT",      4, true},
+    [OP_HALT]       = {"HALT",       4, true},
+    [OP_NOP]        = {"NOP",        4, false},
+
+    // Foreach
+    [OP_FOREACH_PREP] = {"FOREACH_PREP", 0, true},
+    [OP_FOREACH_NEXT] = {"FOREACH_NEXT", 2, true},
+
+    // Concatenation
+    [OP_CONCAT]     = {"CONCAT",     0, false},
 };
 
 const OpcodeInfo* getOpcodeInfo(OpCode op) {

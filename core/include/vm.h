@@ -261,20 +261,21 @@ struct Function {
 // Forward declaration
 struct BytecodeChunk;
 
-// VM constants
-#define STACK_MAX 65536           // Maximum stack size
+#define STACK_MAX 65536           // Register file size (shared across all frames)
 #define CALL_STACK_MAX 1024       // Maximum call stack depth
+#define FRAME_REG_MAX 256         // Maximum registers per function frame
 
 // Call frame structure for function calls
 struct CallFrame {
     Environment* env;       // Previous environment
     Environment* prevGlobalEnv; // Previous global environment
-    int fp;                 // Previous frame pointer (stack index)
+    int regBase;            // Base register index in register file
     Value returnValue;      // Function return value
     bool hasReturned;       // Whether function has returned
-    
+    int resultReg;          // Caller's register to store return value
+
     // Bytecode support
-    uint8_t* ip;            // Return address (caller's IP)
+    uint32_t* ip;           // Return address (caller's IP)
     struct BytecodeChunk* chunk; // Caller's chunk
     struct Function* function;   // Executing function (GC Root)
 };
@@ -310,9 +311,13 @@ typedef struct {
 
 // Virtual Machine structure
 struct VM {
-    Value stack[STACK_MAX];         // Value stack
-    int stackTop;                   // Stack pointer
-    int fp;                         // Current frame pointer
+    Value registers[STACK_MAX];     // Register file (shared across all frames)
+    int regTop;                     // Next free register index
+    int regBase;                    // Current frame's base register
+    // Legacy stack compat (used by AST walker)
+    Value stack[8192];              // Small stack for AST walker compatibility
+    int stackTop;                   // Stack pointer (AST walker)
+    int fp;                         // Frame pointer (AST walker)
     Environment* env;               // Current environment
     Environment* globalEnv;         // Global environment
     Environment* defEnv;            // Target environment for function definitions
