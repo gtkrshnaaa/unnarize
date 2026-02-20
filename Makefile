@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -O3 -march=native -mtune=native -Iinclude -Icorelib/include -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Wextra -std=c11 -O3 -march=native -mtune=native -Icore/include -Icore/corelib/include -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl -lpthread -Wl,-export-dynamic
 
-SRC_DIR = src
+SRC_DIR = core/src
 OBJ_DIR = obj
 BIN_DIR = bin
 LIST_DIR = z_listing
@@ -11,13 +11,13 @@ LIST_DIR = z_listing
 SRCS_MAIN = $(wildcard $(SRC_DIR)/*.c) \
             $(wildcard $(SRC_DIR)/bytecode/*.c) \
             $(wildcard $(SRC_DIR)/runtime/*.c)
-SRCS_CORE = $(wildcard corelib/src/*.c)
+SRCS_CORE = $(wildcard core/corelib/src/*.c)
 
 SRCS = $(SRCS_MAIN) $(SRCS_CORE)
 
 # Object files
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS_MAIN)) \
-       $(patsubst corelib/src/%.c, $(OBJ_DIR)/corelib/%.o, $(SRCS_CORE))
+       $(patsubst core/corelib/src/%.c, $(OBJ_DIR)/corelib/%.o, $(SRCS_CORE))
 
 # Target executable
 TARGET = $(BIN_DIR)/unnarize
@@ -46,7 +46,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile corelib source files
-$(OBJ_DIR)/corelib/%.o: corelib/src/%.c
+$(OBJ_DIR)/corelib/%.o: core/corelib/src/%.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
@@ -94,17 +94,17 @@ core_list:
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
 	@echo "UNNARIZE CORE SOURCE LISTING" >> $(LIST_DIR)/corelist.txt
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@echo "SECTION: include/ (Public Headers)" >> $(LIST_DIR)/corelist.txt
+	@echo "SECTION: core/include/ (Public Headers)" >> $(LIST_DIR)/corelist.txt
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@find include -type f \( -name "*.h" -o -name "*.c" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LIST_DIR)/corelist.txt'
+	@find core/include -type f \( -name "*.h" -o -name "*.c" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LIST_DIR)/corelist.txt'
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@echo "SECTION: src/ (Interpreter Sources)" >> $(LIST_DIR)/corelist.txt
+	@echo "SECTION: core/src/ (Interpreter Sources)" >> $(LIST_DIR)/corelist.txt
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@find $(SRC_DIR) -type f \( -name "*.c" -o -name "*.h" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LISTDIR)/corelist.txt'
+	@find $(SRC_DIR) -type f \( -name "*.c" -o -name "*.h" -o -name "*.unna" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LIST_DIR)/corelist.txt'
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@echo "SECTION: corelib/ (Standard Library)" >> $(LIST_DIR)/corelist.txt
+	@echo "SECTION: core/corelib/ (Standard Library)" >> $(LIST_DIR)/corelist.txt
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
-	@find corelib -type f \( -name "*.c" -o -name "*.h" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LIST_DIR)/corelist.txt'
+	@find core/corelib -type f \( -name "*.c" -o -name "*.h" \) -print0 | sort -z | xargs -0 -I{} sh -c 'echo "=================================================================" >> $(LIST_DIR)/corelist.txt; echo "FILE: {}" >> $(LIST_DIR)/corelist.txt; echo "=================================================================" >> $(LIST_DIR)/corelist.txt; cat "{}" >> $(LIST_DIR)/corelist.txt; echo "" >> $(LIST_DIR)/corelist.txt'
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
 	@echo "SECTION: Makefile (Build System)" >> $(LIST_DIR)/corelist.txt
 	@echo "=================================================================" >> $(LIST_DIR)/corelist.txt
