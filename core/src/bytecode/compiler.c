@@ -5,21 +5,24 @@
 // #define DEBUG_PRINT_CODE
 
 #ifdef DEBUG_PRINT_CODE
-#include "bytecode/chunk.h" // disassemble header is in chunk.h
+#include "bytecode/chunk.h"
 #endif
 
 /**
- * AST → Bytecode Compiler
- * Production-grade, zero external dependencies
+ * AST → Register-Based Bytecode Compiler
+ *
+ * Each expression compiles into a destination register.
+ * Local variables occupy dedicated registers.
+ * No push/pop stack operations needed.
  */
 
 // Helper to process string escapes
 static char* parseStringLiteral(const char* start, int length) {
-    char* buffer = malloc(length + 1); 
+    char* buffer = malloc(length + 1);
     char* dest = buffer;
     const char* src = start;
     const char* end = start + length;
-    
+
     while (src < end) {
         if (*src == '\\' && src + 1 < end) {
             src++;
@@ -30,7 +33,7 @@ static char* parseStringLiteral(const char* start, int length) {
                 case '"': *dest++ = '"'; break;
                 case '\'': *dest++ = '\''; break;
                 case '\\': *dest++ = '\\'; break;
-                default: 
+                default:
                     *dest++ = '\\';
                     *dest++ = *src;
             }
@@ -46,19 +49,19 @@ static char* parseStringLiteral(const char* start, int length) {
 typedef struct {
     VM* vm;
     BytecodeChunk* chunk;
-    
-    // Local variable tracking
+
+    // Register-based local variable tracking
     struct {
         const char* name;
         int depth;
-        int slot;
+        int reg;        // Register index for this variable
     } locals[256];
     int localCount;
 
+    int nextReg;        // Next free register index
     int scopeDepth;
     const char* modulePath;
-    
-    // Error tracking
+
     bool hadError;
 } Compiler;
 
@@ -68,787 +71,740 @@ static void initCompiler(Compiler* c, VM* vm, BytecodeChunk* chunk, const char* 
     c->modulePath = modulePath;
     c->hadError = false;
     c->scopeDepth = 0;
-    
-    // Reserve slot 0 for the function/script itself
+
+    // Reserve register 0 for the function/script itself
     c->localCount = 1;
     c->locals[0].depth = 0;
-    c->locals[0].name = ""; 
-    c->locals[0].slot = 0;
+    c->locals[0].name = "";
+    c->locals[0].reg = 0;
+    c->nextReg = 1;
 }
 
-// Emit single byte
-static void emitByte(Compiler* c, uint8_t byte, int line) {
-    writeChunk(c->chunk, byte, line);
-}
-
-// Emit two bytes
-static void emitBytes(Compiler* c, uint8_t b1, uint8_t b2, int line) {
-    emitByte(c, b1, line);
-    emitByte(c, b2, line);
-}
-
-// Emit constant
-static void emitConstant(Compiler* c, Value value, int line) {
-    int index = addConstant(c->chunk, value);
-    emitBytes(c, OP_LOAD_CONST, (uint8_t)index, line);
-}
-
-// Emit jump
-static int emitJump(Compiler* c, uint8_t instruction, int line) {
-    emitByte(c, instruction, line);
-    emitByte(c, 0xff, line);  // Placeholder
-    emitByte(c, 0xff, line);
-    return c->chunk->codeSize - 2;
-}
-
-// Add local variable
-static int addLocal(Compiler* c, const char* name) {
-    if (c->localCount >= 256) {
-        fprintf(stderr, "Too many local variables\n");
+// Allocate a temporary register
+static int allocReg(Compiler* c) {
+    if (c->nextReg >= FRAME_REG_MAX) {
+        fprintf(stderr, "Register overflow (%d)\n", c->nextReg);
         c->hadError = true;
-        return -1;
+        return 0;
     }
-    
-    c->locals[c->localCount].name = name;
-    c->locals[c->localCount].depth = c->scopeDepth;
-    c->locals[c->localCount].slot = c->localCount;
-    return c->localCount++;
+    int r = c->nextReg++;
+    if (r > c->chunk->maxRegs) c->chunk->maxRegs = r;
+    return r;
 }
 
-// Resolve local variable
+// Free temporary registers back to 'target' (used after sub-expressions)
+static void freeRegsTo(Compiler* c, int target) {
+    if (target < c->nextReg) c->nextReg = target;
+}
+
+// Emit a 32-bit instruction
+static void emit(Compiler* c, uint32_t inst, int line) {
+    writeChunk(c->chunk, inst, line);
+}
+
+// Emit jump placeholder, return instruction index for patching
+static int emitJumpPlaceholder(Compiler* c, uint8_t op, uint8_t a, int line) {
+    int idx = c->chunk->codeSize;
+    if (op == OP_JMP || op == OP_LOOP) {
+        emit(c, ENCODE_sBx(op, 0), line);
+    } else {
+        emit(c, ENCODE_AsBx(op, a, 0), line);
+    }
+    return idx;
+}
+
+// Resolve local variable -> register
 static int resolveLocal(Compiler* c, const char* name, int length) {
     for (int i = c->localCount - 1; i >= 0; i--) {
         if (strlen(c->locals[i].name) == (size_t)length &&
             memcmp(c->locals[i].name, name, length) == 0) {
-            return c->locals[i].slot;
+            return c->locals[i].reg;
         }
     }
-    return -1;  // Not found, assume global
+    return -1; // Not found, assume global
+}
+
+// Add local variable in the current register
+static int addLocal(Compiler* c, const char* name) {
+    if (c->localCount >= 256) {
+        fprintf(stderr, "Too many local variables\n");
+        c->hadError = true;
+        return 0;
+    }
+    int reg = allocReg(c);
+    c->locals[c->localCount].name = name;
+    c->locals[c->localCount].depth = c->scopeDepth;
+    c->locals[c->localCount].reg = reg;
+    c->localCount++;
+    return reg;
+}
+
+// Add constant and return its index
+static int emitConstant(Compiler* c, Value value) {
+    return addConstant(c->chunk, value);
+}
+
+// Intern a name token and add to constant pool
+static int internNameConst(Compiler* c, Token name) {
+    char* str = strndup(name.start, name.length);
+    ObjString* obj = internString(c->vm, str, name.length);
+    free(str);
+    return addConstant(c->chunk, OBJ_VAL(obj));
 }
 
 // Forward declarations
 static void compileNode(Compiler* c, Node* node);
-static void compileExpression(Compiler* c, Node* node);
-static void compileStatement(Compiler* c, Node* node);
+static void compileExpr(Compiler* c, Node* node, int dest);
+static void compileStmt(Compiler* c, Node* node);
 
-// Compile expression
-static void compileExpression(Compiler* c, Node* node) {
+/**
+ * Compile expression, result goes into register 'dest'
+ */
+static void compileExpr(Compiler* c, Node* node, int dest) {
     if (!node) return;
-    
-    int line = 1;  // TODO: Get from node
-    
+    int line = node->literal.token.line > 0 ? node->literal.token.line : 1;
+
     switch (node->type) {
         case NODE_EXPR_LITERAL: {
             Token tok = node->literal.token;
+            line = tok.line > 0 ? tok.line : 1;
             if (tok.type == TOKEN_NUMBER) {
-                // Parse number
                 char* str = strndup(tok.start, tok.length);
                 if (strchr(str, '.')) {
                     double val = atof(str);
-                    emitConstant(c, FLOAT_VAL(val), line);
+                    int ki = emitConstant(c, FLOAT_VAL(val));
+                    emit(c, ENCODE_ABx(OP_LOADK, dest, ki), line);
                 } else {
                     int64_t val = atoll(str);
-                    emitConstant(c, INT_VAL(val), line);
+                    // Use LOADI for small integers that fit in signed 16-bit
+                    if (val >= -32767 && val <= 32767) {
+                        emit(c, ENCODE_ABx(OP_LOADI, dest, (uint16_t)(val + 0x7FFF)), line);
+                    } else {
+                        int ki = emitConstant(c, INT_VAL(val));
+                        emit(c, ENCODE_ABx(OP_LOADK, dest, ki), line);
+                    }
                 }
+                free(str);
             } else if (tok.type == TOKEN_TRUE) {
-                emitByte(c, OP_LOAD_TRUE, line);
+                emit(c, ENCODE_A(OP_LOADTRUE, dest), line);
             } else if (tok.type == TOKEN_FALSE) {
-                emitByte(c, OP_LOAD_FALSE, line);
+                emit(c, ENCODE_A(OP_LOADFALSE, dest), line);
             } else if (tok.type == TOKEN_NIL) {
-                emitByte(c, OP_LOAD_NIL, line);
+                emit(c, ENCODE_A(OP_LOADNIL, dest), line);
             } else if (tok.type == TOKEN_STRING) {
-                // Handle string literal with escape sequences
-                char* str = parseStringLiteral(tok.start + 1, tok.length - 2); 
-                
+                char* str = parseStringLiteral(tok.start + 1, tok.length - 2);
                 ObjString* objStr = internString(c->vm, str, strlen(str));
-                free(str); 
-                
-                emitConstant(c, OBJ_VAL(objStr), line);
+                free(str);
+                int ki = emitConstant(c, OBJ_VAL(objStr));
+                emit(c, ENCODE_ABx(OP_LOADK, dest, ki), line);
             }
             break;
-            break;
         }
-        
+
         case NODE_EXPR_VAR: {
-            // Variable load
             Token name = node->var.name;
+            line = name.line > 0 ? name.line : 1;
             int local = resolveLocal(c, name.start, name.length);
             if (local != -1) {
-                emitBytes(c, OP_LOAD_LOCAL, (uint8_t)local, line);
+                if (local != dest) {
+                    emit(c, ENCODE_ABC(OP_MOVE, dest, local, 0), line);
+                }
             } else {
-                // Global variable
-                char* varName = strndup(name.start, name.length);
-                ObjString* nameStr = internString(c->vm, varName, name.length);
-                free(varName);
-                
-                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-                emitBytes(c, OP_LOAD_GLOBAL, (uint8_t)constIdx, line);
+                int ki = internNameConst(c, name);
+                emit(c, ENCODE_ABx(OP_GETGLOBAL, dest, ki), line);
             }
             break;
         }
-        
+
         case NODE_EXPR_BINARY: {
-            // Compile operands
-            compileExpression(c, node->binary.left);
-            compileExpression(c, node->binary.right);
-            
-            // Emit operation
+            int regB = allocReg(c);
+            int regC = allocReg(c);
+            compileExpr(c, node->binary.left, regB);
+            compileExpr(c, node->binary.right, regC);
+
             switch (node->binary.op.type) {
-                case TOKEN_PLUS:   emitByte(c, OP_ADD, line); break;
-                case TOKEN_MINUS:  emitByte(c, OP_SUB, line); break;
-                case TOKEN_STAR:   emitByte(c, OP_MUL, line); break;
-                case TOKEN_SLASH:  emitByte(c, OP_DIV, line); break;
-                case TOKEN_PERCENT: emitByte(c, OP_MOD, line); break;
-                case TOKEN_LESS:   emitByte(c, OP_LT, line); break;
-                case TOKEN_LESS_EQUAL: emitByte(c, OP_LE, line); break;
-                case TOKEN_GREATER: emitByte(c, OP_GT, line); break;
-                case TOKEN_GREATER_EQUAL: emitByte(c, OP_GE, line); break;
-                case TOKEN_EQUAL_EQUAL: emitByte(c, OP_EQ, line); break;
+                case TOKEN_PLUS:          emit(c, ENCODE_ABC(OP_ADD, dest, regB, regC), line); break;
+                case TOKEN_MINUS:         emit(c, ENCODE_ABC(OP_SUB, dest, regB, regC), line); break;
+                case TOKEN_STAR:          emit(c, ENCODE_ABC(OP_MUL, dest, regB, regC), line); break;
+                case TOKEN_SLASH:         emit(c, ENCODE_ABC(OP_DIV, dest, regB, regC), line); break;
+                case TOKEN_PERCENT:       emit(c, ENCODE_ABC(OP_MOD, dest, regB, regC), line); break;
+                case TOKEN_LESS:          emit(c, ENCODE_ABC(OP_LT,  dest, regB, regC), line); break;
+                case TOKEN_LESS_EQUAL:    emit(c, ENCODE_ABC(OP_LE,  dest, regB, regC), line); break;
+                case TOKEN_GREATER:       emit(c, ENCODE_ABC(OP_GT,  dest, regB, regC), line); break;
+                case TOKEN_GREATER_EQUAL: emit(c, ENCODE_ABC(OP_GE,  dest, regB, regC), line); break;
+                case TOKEN_EQUAL_EQUAL:   emit(c, ENCODE_ABC(OP_EQ,  dest, regB, regC), line); break;
+                case TOKEN_BANG_EQUAL:    emit(c, ENCODE_ABC(OP_NE,  dest, regB, regC), line); break;
                 default: break;
             }
+            freeRegsTo(c, regB);
             break;
         }
-        
+
         case NODE_EXPR_UNARY: {
-            compileExpression(c, node->unary.expr);
+            int regB = allocReg(c);
+            compileExpr(c, node->unary.expr, regB);
             if (node->unary.op.type == TOKEN_MINUS) {
-                emitByte(c, OP_NEG, line);
+                emit(c, ENCODE_ABC(OP_NEG, dest, regB, 0), line);
             } else if (node->unary.op.type == TOKEN_BANG) {
-                emitByte(c, OP_NOT, line);
+                emit(c, ENCODE_ABC(OP_NOT, dest, regB, 0), line);
             }
+            freeRegsTo(c, regB);
             break;
         }
-        
+
         case NODE_EXPR_AWAIT: {
-            // Compile the awaited expression (should produce a Future)
-            compileExpression(c, node->unary.expr);
-            // Emit await opcode to wait and extract result
-            emitByte(c, OP_AWAIT, line);
+            int regB = allocReg(c);
+            compileExpr(c, node->unary.expr, regB);
+            emit(c, ENCODE_ABC(OP_AWAIT, dest, regB, 0), line);
+            freeRegsTo(c, regB);
             break;
         }
 
         case NODE_EXPR_CALL: {
-            // Check for built-ins first (optimization)
+            // Check builtins
             if (node->call.callee->type == NODE_EXPR_VAR) {
                 Token name = node->call.callee->var.name;
                 char* funcName = strndup(name.start, name.length);
-                
-                bool isBuiltin = false;
-                if (strcmp(funcName, "array") == 0) {
-                    emitByte(c, OP_NEW_ARRAY, line);
-                    isBuiltin = true;
-                } else if (strcmp(funcName, "map") == 0) {
-                    emitByte(c, OP_NEW_MAP, line);
-                    isBuiltin = true;
-                } else if (strcmp(funcName, "push") == 0) {
+
+                if (strcmp(funcName, "push") == 0) {
                     Node* arg = node->call.arguments;
-                    if (arg && arg->next) { // Ensure 2 args
-                        compileExpression(c, arg);       // Array
-                        compileExpression(c, arg->next); // Value
-                        emitByte(c, OP_ARRAY_PUSH_CLEAN, line);
-                        emitByte(c, OP_LOAD_NIL, line); // Placeholder consumed by compileNode's OP_POP
+                    if (arg && arg->next) {
+                        int regArr = allocReg(c);
+                        int regVal = allocReg(c);
+                        compileExpr(c, arg, regArr);
+                        compileExpr(c, arg->next, regVal);
+                        emit(c, ENCODE_ABC(OP_PUSH, regArr, regVal, 0), line);
+                        emit(c, ENCODE_A(OP_LOADNIL, dest), line);
+                        freeRegsTo(c, regArr);
                     }
-                    isBuiltin = true;
+                    free(funcName);
+                    break;
                 } else if (strcmp(funcName, "pop") == 0) {
                     Node* arg = node->call.arguments;
                     if (arg) {
-                        compileExpression(c, arg);
-                        emitByte(c, OP_ARRAY_POP, line);
+                        int regArr = allocReg(c);
+                        compileExpr(c, arg, regArr);
+                        emit(c, ENCODE_ABC(OP_POP, dest, regArr, 0), line);
+                        freeRegsTo(c, regArr);
                     }
-                    isBuiltin = true;
+                    free(funcName);
+                    break;
                 } else if (strcmp(funcName, "length") == 0) {
                     Node* arg = node->call.arguments;
                     if (arg) {
-                        compileExpression(c, arg); 
-                        emitByte(c, OP_ARRAY_LEN, line);
+                        int regArr = allocReg(c);
+                        compileExpr(c, arg, regArr);
+                        emit(c, ENCODE_ABC(OP_LEN, dest, regArr, 0), line);
+                        freeRegsTo(c, regArr);
                     }
-                    isBuiltin = true;
+                    free(funcName);
+                    break;
+                } else if (strcmp(funcName, "array") == 0) {
+                    emit(c, ENCODE_ABx(OP_NEWARRAY, dest, 0), line);
+                    free(funcName);
+                    break;
+                } else if (strcmp(funcName, "map") == 0) {
+                    emit(c, ENCODE_A(OP_NEWMAP, dest), line);
+                    free(funcName);
+                    break;
                 }
-                
                 free(funcName);
-                if (isBuiltin) break;
             }
-            
-            // Regular function call
-            compileExpression(c, node->call.callee);
-            
+
+            // Regular function call: R(dest) = call R(funcReg) with args
+            // Layout: funcReg, arg0, arg1, ..., argN (contiguous)
+            int funcReg = allocReg(c);
+            compileExpr(c, node->call.callee, funcReg);
+
             int argCount = 0;
             Node* arg = node->call.arguments;
             while (arg) {
-                compileExpression(c, arg);
+                int argReg = allocReg(c);
+                compileExpr(c, arg, argReg);
                 argCount++;
                 arg = arg->next;
             }
-            
-            if (argCount == 0) emitByte(c, OP_CALL_0, line);
-            else if (argCount == 1) emitByte(c, OP_CALL_1, line);
-            else if (argCount == 2) emitByte(c, OP_CALL_2, line);
-            else {
-                emitByte(c, OP_CALL, line);
-                emitByte(c, (uint8_t)argCount, line);
+
+            // OP_CALL A=funcReg B=argCount C=resultCount
+            // Result goes into funcReg, then MOVE to dest
+            emit(c, ENCODE_ABC(OP_CALL, funcReg, argCount, 1), line);
+            if (funcReg != dest) {
+                emit(c, ENCODE_ABC(OP_MOVE, dest, funcReg, 0), line);
             }
+            freeRegsTo(c, funcReg);
             break;
         }
 
         case NODE_EXPR_INDEX: {
-            // target[index]
-            compileExpression(c, node->index.target);
-            compileExpression(c, node->index.index);
-            emitByte(c, OP_LOAD_INDEX, line);
+            int regB = allocReg(c);
+            int regC = allocReg(c);
+            compileExpr(c, node->index.target, regB);
+            compileExpr(c, node->index.index, regC);
+            emit(c, ENCODE_ABC(OP_GETIDX, dest, regB, regC), line);
+            freeRegsTo(c, regB);
             break;
         }
-        
+
         case NODE_EXPR_ARRAY_LITERAL: {
-            // [1, 2, 3] -> new array then push each
-            emitByte(c, OP_NEW_ARRAY, line);
-            
-            Node* element = node->arrayLiteral.elements;
-            while (element) {
-                emitByte(c, OP_DUP, line); // Stack: [array, array]
-                compileExpression(c, element); // Stack: [array, array, val]
-                emitByte(c, OP_ARRAY_PUSH, line); 
-                emitByte(c, OP_POP, line); // Remove push result (or duplicate array ref depending on implementation)
-                // OP_ARRAY_PUSH peeks array, pops value. Stack remains: [array, array].
-                // We need POP to remove duplicate array ref.
-                
-                element = element->next;
+            // Count elements
+            int count = 0;
+            Node* el = node->arrayLiteral.elements;
+            while (el) { count++; el = el->next; }
+
+            // Allocate contiguous regs for elements
+            int baseReg = c->nextReg;
+            el = node->arrayLiteral.elements;
+            while (el) {
+                int r = allocReg(c);
+                compileExpr(c, el, r);
+                el = el->next;
             }
+
+            // Put array into dest, init with baseReg..baseReg+count-1
+            // OP_NEWARRAY A=dest Bx=count; elements in R(dest+1)..R(dest+count)
+            // Actually, simpler: create empty array then push
+            emit(c, ENCODE_ABx(OP_NEWARRAY, dest, 0), line);
+            for (int i = 0; i < count; i++) {
+                emit(c, ENCODE_ABC(OP_PUSH, dest, baseReg + i, 0), line);
+            }
+            freeRegsTo(c, baseReg);
             break;
         }
 
         case NODE_EXPR_GET: {
-            compileExpression(c, node->get.object);
-            
-            Token name = node->get.name;
-            char* propName = strndup(name.start, name.length);
-            ObjString* nameStr = internString(c->vm, propName, name.length);
-            free(propName);
-            
-            int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-            emitBytes(c, OP_LOAD_PROPERTY, (uint8_t)constIdx, line);
+            int regB = allocReg(c);
+            compileExpr(c, node->get.object, regB);
+            int ki = internNameConst(c, node->get.name);
+            emit(c, ENCODE_ABC(OP_GETPROP, dest, regB, ki), line);
+            freeRegsTo(c, regB);
             break;
         }
-        
+
         case NODE_STMT_ASSIGN: {
-            compileExpression(c, node->assign.value);
+            // Assignment used as expression
             Token name = node->assign.name;
             int local = resolveLocal(c, name.start, name.length);
             if (local != -1) {
-                emitBytes(c, OP_STORE_LOCAL, (uint8_t)local, line);
+                compileExpr(c, node->assign.value, local);
+                if (local != dest) {
+                    emit(c, ENCODE_ABC(OP_MOVE, dest, local, 0), line);
+                }
             } else {
-                char* varName = strndup(name.start, name.length);
-                ObjString* nameStr = internString(c->vm, varName, name.length);
-                free(varName);
-
-                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-                emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
+                compileExpr(c, node->assign.value, dest);
+                int ki = internNameConst(c, name);
+                emit(c, ENCODE_ABx(OP_SETGLOBAL, dest, ki), line);
             }
-
-            // emitByte(c, OP_POP, line); // Pop assignment value (FIX: Expression should return value)
             break;
         }
-        
+
         default:
             break;
     }
 }
 
-// Compile statement
-static void compileStatement(Compiler* c, Node* node) {
+/**
+ * Compile statement (no result register needed)
+ */
+static void compileStmt(Compiler* c, Node* node) {
     if (!node) return;
-    
     int line = 1;
-    
+
     switch (node->type) {
         case NODE_STMT_PRINT: {
-            compileExpression(c, node->print.expr);
-            emitByte(c, OP_PRINT, line);
+            int reg = allocReg(c);
+            compileExpr(c, node->print.expr, reg);
+            emit(c, ENCODE_A(OP_PRINT, reg), line);
+            freeRegsTo(c, reg);
             break;
         }
-        
+
         case NODE_STMT_VAR_DECL: {
-            // Add local
-            // Node: varDecl
             Token name = node->varDecl.name;
-            
-            // Compile initializer
-            if (node->varDecl.initializer) {
-                compileExpression(c, node->varDecl.initializer);
-            } else {
-                emitByte(c, OP_LOAD_NIL, line);
-            }
+            line = name.line > 0 ? name.line : 1;
 
             if (c->scopeDepth > 0) {
-                // Local variable
-                char* varName = strndup(name.start, name.length);
-                int slot = addLocal(c, varName);
-                c->locals[slot].depth = c->scopeDepth; // Initialize depth
-                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+                // Local variable -> allocate register
+                int reg = addLocal(c, strndup(name.start, name.length));
+                if (node->varDecl.initializer) {
+                    compileExpr(c, node->varDecl.initializer, reg);
+                } else {
+                    emit(c, ENCODE_A(OP_LOADNIL, reg), line);
+                }
             } else {
                 // Global variable
-                char* varName = strndup(name.start, name.length);
-                ObjString* nameStr = internString(c->vm, varName, name.length);
-                free(varName);
-                
-                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)constIdx, line);
+                int reg = allocReg(c);
+                if (node->varDecl.initializer) {
+                    compileExpr(c, node->varDecl.initializer, reg);
+                } else {
+                    emit(c, ENCODE_A(OP_LOADNIL, reg), line);
+                }
+                int ki = internNameConst(c, name);
+                emit(c, ENCODE_ABx(OP_DEFGLOBAL, reg, ki), line);
+                freeRegsTo(c, reg);
             }
             break;
         }
-        
+
         case NODE_STMT_ASSIGN: {
-            // Check for optimizable patterns: i = i + 1 or i = i - 1
             Token name = node->assign.name;
             int local = resolveLocal(c, name.start, name.length);
-            
-            // Pattern detection for i = i + 1 or i = i - 1
+
+            // Pattern: i = i + 1 / i = i - 1 -> ADD/SUB in place
             if (local != -1 && node->assign.value && node->assign.value->type == NODE_EXPR_BINARY) {
                 Node* bin = node->assign.value;
-                // Check if left side is same variable
                 if (bin->binary.left && bin->binary.left->type == NODE_EXPR_VAR) {
                     Token leftName = bin->binary.left->var.name;
-                    // Check if same variable name
-                    if (leftName.length == name.length && 
+                    if (leftName.length == name.length &&
                         memcmp(leftName.start, name.start, name.length) == 0) {
-                        // Check if right side is literal 1
-                        if (bin->binary.right && bin->binary.right->type == NODE_EXPR_LITERAL) {
-                            Token lit = bin->binary.right->literal.token;
-                            if (lit.type == TOKEN_NUMBER && lit.length == 1 && lit.start[0] == '1') {
-                                // Detected pattern!
-                                if (bin->binary.op.type == TOKEN_PLUS) {
-                                    // i = i + 1 -> OP_INC_LOCAL
-                                    emitBytes(c, OP_INC_LOCAL, (uint8_t)local, line);
-                                    break;
-                                } else if (bin->binary.op.type == TOKEN_MINUS) {
-                                    // i = i - 1 -> OP_DEC_LOCAL
-                                    emitBytes(c, OP_DEC_LOCAL, (uint8_t)local, line);
-                                    break;
-                                }
-                            }
+                        // i = i OP expr
+                        int regC = allocReg(c);
+                        compileExpr(c, bin->binary.right, regC);
+                        switch (bin->binary.op.type) {
+                            case TOKEN_PLUS:  emit(c, ENCODE_ABC(OP_ADD, local, local, regC), line); break;
+                            case TOKEN_MINUS: emit(c, ENCODE_ABC(OP_SUB, local, local, regC), line); break;
+                            case TOKEN_STAR:  emit(c, ENCODE_ABC(OP_MUL, local, local, regC), line); break;
+                            case TOKEN_SLASH: emit(c, ENCODE_ABC(OP_DIV, local, local, regC), line); break;
+                            default: goto fallback_assign;
                         }
+                        freeRegsTo(c, regC);
+                        break;
                     }
                 }
             }
-            
-            // Standard assignment (no optimization)
-            compileExpression(c, node->assign.value);
-            
-            // Store to variable
-            if (local != -1) {
-                emitBytes(c, OP_STORE_LOCAL, (uint8_t)local, line);
-            } else {
-                char* varName = strndup(name.start, name.length);
-                ObjString* nameStr = internString(c->vm, varName, name.length);
-                free(varName);
 
-                int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-                emitBytes(c, OP_STORE_GLOBAL, (uint8_t)constIdx, line);
+            fallback_assign:
+            if (local != -1) {
+                compileExpr(c, node->assign.value, local);
+            } else {
+                int reg = allocReg(c);
+                compileExpr(c, node->assign.value, reg);
+                int ki = internNameConst(c, name);
+                emit(c, ENCODE_ABx(OP_SETGLOBAL, reg, ki), line);
+                freeRegsTo(c, reg);
             }
-            emitByte(c, OP_POP, line);
             break;
         }
 
         case NODE_STMT_INDEX_ASSIGN: {
-            // target[index] = value;
-            compileExpression(c, node->indexAssign.target);
-            compileExpression(c, node->indexAssign.index);
-            compileExpression(c, node->indexAssign.value);
-            
-            emitByte(c, OP_STORE_INDEX, line);
-            emitByte(c, OP_POP, line); // Statement should not leave value on stack
+            int regA = allocReg(c);
+            int regB = allocReg(c);
+            int regC = allocReg(c);
+            compileExpr(c, node->indexAssign.target, regA);
+            compileExpr(c, node->indexAssign.index, regB);
+            compileExpr(c, node->indexAssign.value, regC);
+            emit(c, ENCODE_ABC(OP_SETIDX, regA, regB, regC), line);
+            freeRegsTo(c, regA);
             break;
         }
-        
+
         case NODE_STMT_IF: {
-            // Compile condition
-            compileExpression(c, node->ifStmt.condition);
-            
-            // Jump to else if false
-            int thenJump = emitJump(c, OP_JUMP_IF_FALSE, line);
-            emitByte(c, OP_POP, line);  // Pop condition
-            
-            // Then branch
-            compileStatement(c, node->ifStmt.thenBranch);
-            
-            int elseJump = emitJump(c, OP_JUMP, line);
-            
-            // Patch then jump
-            patchJump(c->chunk, thenJump);
-            emitByte(c, OP_POP, line);
-            
-            // Else branch
+            int condReg = allocReg(c);
+            compileExpr(c, node->ifStmt.condition, condReg);
+
+            int elseJmp = emitJumpPlaceholder(c, OP_JMPF, condReg, line);
+            freeRegsTo(c, condReg);
+
+            compileStmt(c, node->ifStmt.thenBranch);
+
             if (node->ifStmt.elseBranch) {
-                compileStatement(c, node->ifStmt.elseBranch);
+                int endJmp = emitJumpPlaceholder(c, OP_JMP, 0, line);
+                patchJump(c->chunk, elseJmp);
+                compileStmt(c, node->ifStmt.elseBranch);
+                patchJump(c->chunk, endJmp);
+            } else {
+                patchJump(c->chunk, elseJmp);
             }
-            
-            patchJump(c->chunk, elseJump);
             break;
         }
-        
+
         case NODE_STMT_WHILE: {
             int loopStart = c->chunk->codeSize;
-            
-            // Loop header marker for OSR
-            emitByte(c, OP_LOOP_HEADER, line);
-            
-            // Hotspot check
 
-            
-            // Condition
-            compileExpression(c, node->whileStmt.condition);
-            
-            // Exit if false
-            int exitJump = emitJump(c, OP_JUMP_IF_FALSE, line);
-            emitByte(c, OP_POP, line);
-            
-            // Body
-            compileStatement(c, node->whileStmt.body);
-            
+            int condReg = allocReg(c);
+            compileExpr(c, node->whileStmt.condition, condReg);
+            int exitJmp = emitJumpPlaceholder(c, OP_JMPF, condReg, line);
+            freeRegsTo(c, condReg);
+
+            compileStmt(c, node->whileStmt.body);
+
             // Loop back
-            int offset = c->chunk->codeSize - loopStart + 3;
-            emitByte(c, OP_LOOP, line);
-            emitByte(c, (offset >> 8) & 0xff, line);
-            emitByte(c, offset & 0xff, line);
-            
-            // Patch exit
-            patchJump(c->chunk, exitJump);
-            emitByte(c, OP_POP, line);
+            int backOffset = c->chunk->codeSize - loopStart + 1;
+            emit(c, ENCODE_sBx(OP_LOOP, backOffset), line);
+
+            patchJump(c->chunk, exitJmp);
             break;
-        }
-        
-
-
-
-        case NODE_STMT_FOREACH: {
-            // foreach (var item : collection) body
-            c->scopeDepth++;
-            
-            // 1. Evaluate collection -> local ".col"
-            compileExpression(c, node->foreachStmt.collection);
-            addLocal(c, strdup(".col"));
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // Do NOT pop! Reserve slot. 
-
-            // 2. Index -> local ".idx" = 0
-            int zeroIdx = addConstant(c->chunk, INT_VAL(0));
-            emitBytes(c, OP_LOAD_CONST, (uint8_t)zeroIdx, line);
-            addLocal(c, strdup(".idx"));
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // Do NOT pop! Reserve slot.
-
-            // 3. Loop Start
-            int loopStart = c->chunk->codeSize;
-            emitByte(c, OP_LOOP_HEADER, line);
-
-            // 4. Condition: .idx < len(.col)
-            // Load .idx
-            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -1), line); 
-            
-            // Load .col
-            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -2), line);
-            emitByte(c, OP_ARRAY_LEN, line);
-            emitByte(c, OP_LT, line);
-            
-            // 5. Exit if false
-            int exitJump = emitJump(c, OP_JUMP_IF_FALSE, line);
-            emitByte(c, OP_POP, line); // Pop condition
-
-            // 6. Load item: .col[.idx] -> userVar
-            // Load .col
-            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -2), line);
-            // Load .idx
-            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)(c->localCount -1), line);
-            emitByte(c, OP_LOAD_INDEX, line);
-            
-            // Assign to user variable
-            // Create inner scope for loop variable
-            c->scopeDepth++;
-            Token iterator = node->foreachStmt.iterator;
-            char* iterName = strndup(iterator.start, iterator.length);
-            addLocal(c, iterName); // New slot
-            c->locals[c->localCount - 1].depth = c->scopeDepth; // Mark initialized!
-            
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)(c->localCount - 1), line);
-            // NO POP! Keep it on stack to protect slot.
-
-            // 7. Body
-            compileStatement(c, node->foreachStmt.body);
-
-            // 8. Increment .idx
-            int idxLocal = resolveLocal(c, ".idx", 4);
-            if (idxLocal == -1) { printf("Compiler Error: .idx missing\n"); exit(1); }
-            
-            emitBytes(c, OP_LOAD_LOCAL, (uint8_t)idxLocal, line);
-            int oneIdx = addConstant(c->chunk, INT_VAL(1));
-            emitBytes(c, OP_LOAD_CONST, (uint8_t)oneIdx, line);
-            emitByte(c, OP_ADD, line);
-            emitBytes(c, OP_STORE_LOCAL, (uint8_t)idxLocal, line);
-            emitByte(c, OP_POP, line);
-            
-            // Loop back
-            int offset = c->chunk->codeSize - loopStart + 3;
-            emitByte(c, OP_LOOP, line);
-            emitByte(c, (offset >> 8) & 0xff, line);
-            emitByte(c, offset & 0xff, line);
-            
-            // Patch exit
-            patchJump(c->chunk, exitJump);
-            emitByte(c, OP_POP, line);
-
-            // Pop .col and .idx
-            c->scopeDepth--; // Exit foreach scope
-            emitByte(c, OP_POP, line); // .idx
-            emitByte(c, OP_POP, line); // .col
-            c->localCount -= 2;
-
-            break; 
         }
 
         case NODE_STMT_FOR: {
-            // New scope for loop variable
             c->scopeDepth++;
-            
-            // Initializer
+            int savedLocalCount = c->localCount;
+            int savedNextReg = c->nextReg;
+
             if (node->forStmt.initializer) {
                 if (node->forStmt.initializer->type == NODE_STMT_VAR_DECL) {
-                    compileStatement(c, node->forStmt.initializer);
+                    compileStmt(c, node->forStmt.initializer);
                 } else {
-                    compileExpression(c, node->forStmt.initializer);
-                    emitByte(c, OP_POP, line); // Expression stmt pops
+                    int tmp = allocReg(c);
+                    compileExpr(c, node->forStmt.initializer, tmp);
+                    freeRegsTo(c, tmp);
                 }
             }
-            
+
             int loopStart = c->chunk->codeSize;
-            emitByte(c, OP_LOOP_HEADER, line);
-            
-            // Condition
-            int exitJump = -1;
+            int exitJmp = -1;
+
             if (node->forStmt.condition) {
-                compileExpression(c, node->forStmt.condition);
-                exitJump = emitJump(c, OP_JUMP_IF_FALSE, line);
-                emitByte(c, OP_POP, line); // Pop condition result
+                int condReg = allocReg(c);
+                compileExpr(c, node->forStmt.condition, condReg);
+                exitJmp = emitJumpPlaceholder(c, OP_JMPF, condReg, line);
+                freeRegsTo(c, condReg);
             }
-            
-            // Body
-            compileStatement(c, node->forStmt.body);
-            
-            // Increment
+
+            compileStmt(c, node->forStmt.body);
+
             if (node->forStmt.increment) {
-                compileExpression(c, node->forStmt.increment);
-                emitByte(c, OP_POP, line);
+                if (node->forStmt.increment->type >= NODE_STMT_VAR_DECL &&
+                    node->forStmt.increment->type <= NODE_STMT_PROP_ASSIGN) {
+                    compileStmt(c, node->forStmt.increment);
+                } else {
+                    int tmp = allocReg(c);
+                    compileExpr(c, node->forStmt.increment, tmp);
+                    freeRegsTo(c, tmp);
+                }
             }
-            
-            // Loop back
-            int offset = c->chunk->codeSize - loopStart + 3;
-            emitByte(c, OP_LOOP, line);
-            emitByte(c, (offset >> 8) & 0xff, line);
-            emitByte(c, offset & 0xff, line);
-            
-            // Patch exit
-            if (exitJump != -1) {
-                patchJump(c->chunk, exitJump);
-                emitByte(c, OP_POP, line); // Pop condition result (if jumped)
-            }
-            
-            // End scope
+
+            int backOffset = c->chunk->codeSize - loopStart + 1;
+            emit(c, ENCODE_sBx(OP_LOOP, backOffset), line);
+
+            if (exitJmp != -1) patchJump(c->chunk, exitJmp);
+
             c->scopeDepth--;
-            while (c->localCount > 0 &&
-                   c->locals[c->localCount - 1].depth > c->scopeDepth) {
-                emitByte(c, OP_POP, line);
-                c->localCount--;
-            }
+            c->localCount = savedLocalCount;
+            c->nextReg = savedNextReg;
+            break;
+        }
+
+        case NODE_STMT_FOREACH: {
+            c->scopeDepth++;
+            int savedLocalCount = c->localCount;
+            int savedNextReg = c->nextReg;
+
+            // Collection register
+            int colReg = addLocal(c, strdup(".col"));
+            compileExpr(c, node->foreachStmt.collection, colReg);
+
+            // Index register = 0
+            int idxReg = addLocal(c, strdup(".idx"));
+            emit(c, ENCODE_ABx(OP_LOADI, idxReg, 0 + 0x7FFF), line); // 0
+
+            // Loop start
+            int loopStart = c->chunk->codeSize;
+
+            // Condition: idx < len(col)
+            int lenReg = allocReg(c);
+            int condReg = allocReg(c);
+            emit(c, ENCODE_ABC(OP_LEN, lenReg, colReg, 0), line);
+            emit(c, ENCODE_ABC(OP_LT, condReg, idxReg, lenReg), line);
+            int exitJmp = emitJumpPlaceholder(c, OP_JMPF, condReg, line);
+            freeRegsTo(c, lenReg);
+
+            // Iterator variable = col[idx]
+            c->scopeDepth++;
+            Token iterator = node->foreachStmt.iterator;
+            int iterReg = addLocal(c, strndup(iterator.start, iterator.length));
+            emit(c, ENCODE_ABC(OP_GETIDX, iterReg, colReg, idxReg), line);
+
+            // Body
+            compileStmt(c, node->foreachStmt.body);
+
+            // Increment idx
+            int oneReg = allocReg(c);
+            emit(c, ENCODE_ABx(OP_LOADI, oneReg, 1 + 0x7FFF), line); // 1
+            emit(c, ENCODE_ABC(OP_ADD, idxReg, idxReg, oneReg), line);
+            freeRegsTo(c, oneReg);
+
+            // Loop back
+            int backOffset = c->chunk->codeSize - loopStart + 1;
+            emit(c, ENCODE_sBx(OP_LOOP, backOffset), line);
+
+            patchJump(c->chunk, exitJmp);
+
+            c->scopeDepth--;
+            c->scopeDepth--;
+            c->localCount = savedLocalCount;
+            c->nextReg = savedNextReg;
             break;
         }
 
         case NODE_STMT_BLOCK: {
             c->scopeDepth++;
+            int savedLocalCount = c->localCount;
+            int savedNextReg = c->nextReg;
+
             for (int i = 0; i < node->block.count; i++) {
                 compileNode(c, node->block.statements[i]);
             }
+
             c->scopeDepth--;
-            
-            // Pop locals
-            while (c->localCount > 0 &&
-                   c->locals[c->localCount - 1].depth > c->scopeDepth) {
-                // Block scope locals need explicit pop.
-                emitByte(c, OP_POP, line); 
-                c->localCount--;
-            }
+            c->localCount = savedLocalCount;
+            c->nextReg = savedNextReg;
             break;
         }
 
         case NODE_STMT_FUNCTION: {
-            // Manually allocate to avoid private macro dependency
+            // Allocate Function object
             Function* func = malloc(sizeof(Function));
             func->obj.type = OBJ_FUNCTION;
             func->obj.isMarked = false;
-            // Link to GC
+            func->obj.isPermanent = false;
+            func->obj.generation = 0;
             func->obj.next = c->vm->objects;
             c->vm->objects = (Obj*)func;
-            
+
             func->name = node->function.name;
             func->params = node->function.params;
             func->paramCount = node->function.paramCount;
             func->isNative = false;
             func->isAsync = false;
             func->modulePath = c->modulePath ? strdup(c->modulePath) : NULL;
-            func->moduleEnv = c->vm->globalEnv; // Capture defining module/global env
-            
-            // Create independent chunk for function
+            func->moduleEnv = c->vm->globalEnv;
+            func->closure = NULL;
+            func->native = NULL;
+
+            // Compile function body into new chunk
             func->bytecodeChunk = malloc(sizeof(BytecodeChunk));
             initChunk(func->bytecodeChunk);
-            
-            // Critical GC Fix: Root the function object on VM stack
-            // so it doesn't get collected during compilation of its body.
-            // (GC traces stack -> func -> bytecodeChunk -> constants)
-            if (c->vm->stackTop < STACK_MAX) {
+
+            // Root function for GC safety
+            if (c->vm->stackTop < 8192) {
                 c->vm->stack[c->vm->stackTop++] = OBJ_VAL(func);
-            } else {
-                fprintf(stderr, "Stack overflow during compilation\n");
-                exit(1);
             }
-            
-            // Compile function body in new context
+
             Compiler funcCompiler;
             initCompiler(&funcCompiler, c->vm, func->bytecodeChunk, c->modulePath);
-            
-            // Add parameters as locals (slot 0..N)
+
+            // Parameters occupy registers 1..paramCount
             for (int i = 0; i < func->paramCount; i++) {
                 Token p = func->params[i];
                 char* pname = strndup(p.start, p.length);
                 addLocal(&funcCompiler, pname);
             }
-            
+
             // Compile body
             compileNode(&funcCompiler, node->function.body);
 
+            // Implicit return nil
+            emit(&funcCompiler, ENCODE_A(OP_RETURNNIL, 0), line);
+
 #ifdef DEBUG_PRINT_CODE
-    if (!funcCompiler.hadError) {
-        disassembleChunk(func->bytecodeChunk, func->name.start ? func->name.start : "script");
-    }
+            if (!funcCompiler.hadError) {
+                char fname[256];
+                snprintf(fname, sizeof(fname), "%.*s", func->name.length, func->name.start);
+                disassembleChunk(func->bytecodeChunk, fname);
+            }
 #endif
-            
-            // Ensure return at end
-            emitByte(&funcCompiler, OP_LOAD_NIL, line);
-            emitByte(&funcCompiler, OP_RETURN, line);
-            
-            // Pop function from stack
+
+            // Unroot
             c->vm->stackTop--;
-            
-            // Store function object in parent
-            int constIdx = addConstant(c->chunk, OBJ_VAL(func));
-            
+
+            // Store function in parent scope
+            int funcConstIdx = emitConstant(c, OBJ_VAL(func));
+
             if (c->scopeDepth == 0) {
                 // Global function
-                char* funcNameStr = strndup(node->function.name.start, node->function.name.length);
-                ObjString* nameObj = internString(c->vm, funcNameStr, node->function.name.length);
-                free(funcNameStr);
-                int nameIdx = addConstant(c->chunk, OBJ_VAL(nameObj));
-                
-                emitBytes(c, OP_LOAD_CONST, (uint8_t)constIdx, line);
-                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)nameIdx, line);
+                int nameIdx = internNameConst(c, node->function.name);
+                int reg = allocReg(c);
+                emit(c, ENCODE_ABx(OP_LOADK, reg, funcConstIdx), line);
+                emit(c, ENCODE_ABx(OP_DEFGLOBAL, reg, nameIdx), line);
+                freeRegsTo(c, reg);
             } else {
                 // Local function
-                char* funcNameStr = strndup(node->function.name.start, node->function.name.length);
-                int slot = addLocal(c, funcNameStr);
-                emitBytes(c, OP_LOAD_CONST, (uint8_t)constIdx, line);
-                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+                int reg = addLocal(c, strndup(node->function.name.start, node->function.name.length));
+                emit(c, ENCODE_ABx(OP_LOADK, reg, funcConstIdx), line);
             }
             break;
         }
-        
+
         case NODE_STMT_RETURN: {
             if (node->returnStmt.value) {
-                compileExpression(c, node->returnStmt.value);
-                emitByte(c, OP_RETURN, line);
+                int reg = allocReg(c);
+                compileExpr(c, node->returnStmt.value, reg);
+                emit(c, ENCODE_A(OP_RETURN, reg), line);
+                freeRegsTo(c, reg);
             } else {
-                emitByte(c, OP_RETURN_NIL, line);
+                emit(c, ENCODE_A(OP_RETURNNIL, 0), line);
             }
             break;
         }
 
         case NODE_STMT_STRUCT_DECL: {
-            // struct Name { f1; f2; ... }
             Token name = node->structDecl.name;
-            
-            // Push name
-            char* nameStr = strndup(name.start, name.length);
-            ObjString* nameObj = internString(c->vm, nameStr, name.length);
-            free(nameStr);
-            int nameIdx = addConstant(c->chunk, OBJ_VAL(nameObj));
-            emitBytes(c, OP_LOAD_CONST, (uint8_t)nameIdx, line);
-            
-            // Push fields
+            int nameIdx = internNameConst(c, name);
+
+            // Push struct name into a register
+            int nameReg = allocReg(c);
+            emit(c, ENCODE_ABx(OP_LOADK, nameReg, nameIdx), line);
+
+            // Field names into constant pool
             int fieldCount = node->structDecl.fieldCount;
             for (int i = 0; i < fieldCount; i++) {
                 Token ft = node->structDecl.fields[i];
-                char* fStr = strndup(ft.start, ft.length);
-                ObjString* fObj = internString(c->vm, fStr, ft.length);
-                free(fStr);
-                int fIdx = addConstant(c->chunk, OBJ_VAL(fObj));
-                emitBytes(c, OP_LOAD_CONST, (uint8_t)fIdx, line);
+                int fIdx = internNameConst(c, ft);
+                int fReg = allocReg(c);
+                emit(c, ENCODE_ABx(OP_LOADK, fReg, fIdx), line);
             }
-            
-            // Emit struct definition opcode
-            emitByte(c, OP_STRUCT_DEF, line);
-            emitByte(c, (uint8_t)fieldCount, line);
-            
-            // Define variable
+
+            // OP_STRUCTDEF A=fieldCount Bx=nameIdx
+            emit(c, ENCODE_ABx(OP_STRUCTDEF, fieldCount, nameIdx), line);
+
+            // Define as global/local
             if (c->scopeDepth == 0) {
-                emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)nameIdx, line);
+                emit(c, ENCODE_ABx(OP_DEFGLOBAL, nameReg, nameIdx), line);
             } else {
-                int slot = addLocal(c, strndup(name.start, name.length));
-                emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
+                int reg = addLocal(c, strndup(name.start, name.length));
+                emit(c, ENCODE_ABC(OP_MOVE, reg, nameReg, 0), line);
             }
+            freeRegsTo(c, nameReg);
             break;
         }
-        
+
         case NODE_STMT_PROP_ASSIGN: {
-             compileExpression(c, node->propAssign.object);
-             compileExpression(c, node->propAssign.value);
-             
-             Token name = node->propAssign.name;
-             char* propName = strndup(name.start, name.length);
-             ObjString* nameStr = internString(c->vm, propName, name.length);
-             free(propName);
-             int constIdx = addConstant(c->chunk, OBJ_VAL(nameStr));
-             
-             emitBytes(c, OP_STORE_PROPERTY, (uint8_t)constIdx, line);
-             emitByte(c, OP_POP, line); 
-             break;
+            int regObj = allocReg(c);
+            int regVal = allocReg(c);
+            compileExpr(c, node->propAssign.object, regObj);
+            compileExpr(c, node->propAssign.value, regVal);
+            int ki = internNameConst(c, node->propAssign.name);
+            emit(c, ENCODE_ABC(OP_SETPROP, regObj, ki, regVal), line);
+            freeRegsTo(c, regObj);
+            break;
         }
 
         case NODE_STMT_IMPORT: {
-             // import name as alias;
-             Token name = node->importStmt.module; // FIXED: .module not .name
-             Token alias = node->importStmt.alias; // "math"
-             
-             // 1. Emit OP_IMPORT <name_string_index>
-             char* modName = NULL;
-             if (name.type == TOKEN_STRING) {
-                 modName = strndup(name.start + 1, name.length - 2); // Strip quotes
-             } else {
-                 modName = strndup(name.start, name.length);
-             }
-             ObjString* modStr = internString(c->vm, modName, strlen(modName));
-             free(modName);
-             int constIdx = addConstant(c->chunk, OBJ_VAL(modStr));
-             emitBytes(c, OP_IMPORT, (uint8_t)constIdx, line);
-             
-             // 2. Store result in variable 'alias'
-             if (c->scopeDepth == 0) {
-                 char* aliasName = strndup(alias.start, alias.length);
-                 ObjString* aliasStr = internString(c->vm, aliasName, alias.length);
-                 free(aliasName);
-                 int aliasIdx = addConstant(c->chunk, OBJ_VAL(aliasStr));
-                 emitBytes(c, OP_DEFINE_GLOBAL, (uint8_t)aliasIdx, line);
-             } else {
-                 int slot = addLocal(c, strndup(alias.start, alias.length));
-                 emitBytes(c, OP_STORE_LOCAL, (uint8_t)slot, line);
-             }
-             break;
+            Token name = node->importStmt.module;
+            Token alias = node->importStmt.alias;
+
+            char* modName = NULL;
+            if (name.type == TOKEN_STRING) {
+                modName = strndup(name.start + 1, name.length - 2);
+            } else {
+                modName = strndup(name.start, name.length);
+            }
+            ObjString* modStr = internString(c->vm, modName, strlen(modName));
+            free(modName);
+            int modIdx = emitConstant(c, OBJ_VAL(modStr));
+
+            int reg = allocReg(c);
+            emit(c, ENCODE_ABx(OP_IMPORT, reg, modIdx), line);
+
+            if (c->scopeDepth == 0) {
+                int aliasIdx = internNameConst(c, alias);
+                emit(c, ENCODE_ABx(OP_DEFGLOBAL, reg, aliasIdx), line);
+            } else {
+                int localReg = addLocal(c, strndup(alias.start, alias.length));
+                emit(c, ENCODE_ABC(OP_MOVE, localReg, reg, 0), line);
+            }
+            freeRegsTo(c, reg);
+            break;
         }
 
         default:
@@ -858,19 +814,16 @@ static void compileStatement(Compiler* c, Node* node) {
 
 static void compileNode(Compiler* c, Node* node) {
     if (!node) return;
-    
-    // Fix dispatch: check for ANY statement type
-    // In parser.h, VAR_DECL is before PRINT.
-    // We should check if it's a statement vs expression.
-    // Simplest is to check if it's NOT an expression.
+
     if (node->type >= NODE_STMT_VAR_DECL && node->type <= NODE_STMT_PROP_ASSIGN) {
-        compileStatement(c, node);
+        compileStmt(c, node);
     } else {
-        compileExpression(c, node);
-        emitByte(c, OP_POP, 1);  // Pop unused expression result
+        // Expression statement -> result is discarded
+        int reg = allocReg(c);
+        compileExpr(c, node, reg);
+        freeRegsTo(c, reg);
     }
-    
-    // Compile next node in sequence
+
     if (node->next) {
         compileNode(c, node->next);
     }
@@ -879,30 +832,24 @@ static void compileNode(Compiler* c, Node* node) {
 bool compileToBytecode(VM* vm, Node* ast, BytecodeChunk* chunk, const char* modulePath) {
     Compiler compiler;
     initCompiler(&compiler, vm, chunk, modulePath);
-    
-    // Compile AST
-    if (ast) {} // printf("DEBUG: compileToBytecode AST Type: %d\n", ast->type);
-    
+
     if (ast && ast->type == NODE_STMT_BLOCK) {
-        // printf("DEBUG: compileToBytecode BLOCK count=%d\n", ast->block.count);
         for (int i = 0; i < ast->block.count; i++) {
-            Node* s = ast->block.statements[i];
-            // printf("DEBUG: Compiling statement %d type=%d\n", i, s->type);
-            compileNode(&compiler, s);
+            compileNode(&compiler, ast->block.statements[i]);
         }
     } else {
-        // printf("DEBUG: Compiling single node type=%d\n", ast ? ast->type : -1);
         compileNode(&compiler, ast);
     }
-    
-    emitByte(&compiler, OP_RETURN_NIL, 0); // Implicit return
-    
-    #ifdef DEBUG_PRINT_CODE
+
+    // Implicit halt/return at end of script
+    emit(&compiler, ENCODE_A(OP_RETURNNIL, 0), 0);
+
+#ifdef DEBUG_PRINT_CODE
     if (!compiler.hadError) {
-        printf("== Bytecode ==\n");
+        printf("== Script Bytecode ==\n");
         disassembleChunk(chunk, "script");
     }
-    #endif
-    
+#endif
+
     return !compiler.hadError;
 }
