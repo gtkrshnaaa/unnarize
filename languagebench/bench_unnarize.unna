@@ -1,0 +1,114 @@
+// Unnarize Benchmark Suite
+// Matches C++/Node.js benchmark structure
+
+struct Obj { val; }
+
+function printHeader() {
+    print("  -------------------------------------------------------------");
+    print("  Benchmark       |     Performance     | Time");
+    print("  -------------------------------------------------------------");
+}
+
+function benchInt() {
+    var limit = 1000000000;
+    var start = ucoreTimer.now();
+    var i = 0;
+    while (i < limit) {
+        i = i + 1;
+    }
+    var end = ucoreTimer.now();
+    var diff = end - start;
+    if (diff == 0) {
+        diff = 0.001;
+    }
+    var sec = diff / 1000.0;
+    var ops = limit / sec;
+    print("  Integer Add     | " + ops + " ops/sec | " + sec + " s");
+}
+
+function benchDouble() {
+    var limit = 100000000;
+    var val = 0.0;
+    var start = ucoreTimer.now();
+    var j = 0;
+    while (j < limit) {
+        val = val + 1.1;
+        j = j + 1;
+    }
+    var end = ucoreTimer.now();
+    var diff = end - start;
+    if (diff == 0) {
+        diff = 0.001;
+    }
+    var sec = diff / 1000.0;
+    var ops = limit / sec;
+    print("  Double Arith    | " + ops + " ops/sec | " + sec + " s");
+}
+
+function benchString() {
+    var limit = 50000;
+    var s = "";
+    var start = ucoreTimer.now();
+    var i = 0;
+    while (i < limit) {
+        s = s + "a";
+        i = i + 1;
+    }
+    var end = ucoreTimer.now();
+    var diff = end - start;
+    if (diff == 0) {
+        diff = 0.001;
+    }
+    var sec = diff / 1000.0;
+    var ops = limit / sec;
+    print("  String Concat   | " + ops + " ops/sec | " + sec + " s");
+}
+
+function benchArray() {
+    var limit = 1000000;
+    var arr = [];
+    var start = ucoreTimer.now();
+    var k = 0;
+    while (k < limit) {
+        push(arr, k);
+        k = k + 1;
+    }
+    var end = ucoreTimer.now();
+    var diff = end - start;
+    if (diff == 0) {
+        diff = 0.001;
+    }
+    var sec = diff / 1000.0;
+    var ops = limit / sec;
+    print("  Array Push      | " + ops + " ops/sec | " + sec + " s");
+}
+
+function benchStruct() {
+    var limit = 50000000;
+    var o = Obj(0);
+    var start = ucoreTimer.now();
+    var i = 0;
+    while (i < limit) {
+        o.val = i;
+        var x = o.val;
+        i = i + 1;
+    }
+    var end = ucoreTimer.now();
+    var diff = end - start;
+    if (diff == 0) {
+        diff = 0.001;
+    }
+    var sec = diff / 1000.0;
+    var ops = limit / sec;
+    print("  Struct Access   | " + ops + " ops/sec | " + sec + " s");
+}
+
+print(">>> Unnarize Benchmark Suite <<<");
+printHeader();
+benchInt();
+benchDouble();
+benchString();
+benchArray();
+benchStruct();
+print("  -------------------------------------------------------------");
+print("");
