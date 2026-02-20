@@ -4,26 +4,22 @@
 #include "parser.h"
 #include "lexer.h"
 #include "bytecode/compiler.h"
-#include "vm.h" // For Environment
+#include "vm.h"
 #include <libgen.h>
-
-
 #include <stdio.h>
 #include <sys/time.h>
 
 /**
- * Fast Bytecode Interpreter
- * Direct threading with computed goto - GCC/Clang only
- * Zero external dependencies, maximum performance
+ * Register-Based Bytecode Interpreter
+ * Direct threading with computed goto (GCC/Clang)
+ * Each instruction word is 32-bit; operands are register indices.
  */
 
-// Get current time in microseconds
 static inline uint64_t getMicroseconds() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
-
 
 static char* readFile_internal(const char* path) {
     FILE* file = fopen(path, "rb");
@@ -40,1192 +36,677 @@ static char* readFile_internal(const char* path) {
     return buffer;
 }
 
-#define STACK_MAX 65536
+// Truthiness evaluation
+static inline bool isTruthy(Value v) {
+    if (IS_BOOL(v)) return AS_BOOL(v);
+    if (IS_NIL(v))  return false;
+    if (IS_INT(v))  return AS_INT(v) != 0;
+    if (IS_FLOAT(v)) return AS_FLOAT(v) != 0.0;
+    return true; // Objects are truthy
+}
+
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 
 uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
-    if (entryStackDepth > 0) {
-        // printf("DEBUG: executeBytecode ENTRY depth=%d current=%d codeSize=%d\n", entryStackDepth, vm->callStackTop, chunk->codeSize);
-        // disassembleChunk(chunk, "imported_module");
-    }
-    // Performance tracking
     uint64_t startTime = getMicroseconds();
-    uint64_t instructionCount = 0;
-    
-    // Stack machine (Use VM stack properties)
-    Value* sp = vm->stack + vm->stackTop;
-    Value* fp = vm->stack + vm->fp;
-    
-    // Code pointer
-    register uint8_t* ip = chunk->code;  // Instruction pointer in register
-    uint8_t argCount; // For call opcodes
-    register Value* constants = chunk->constants; // Cache constants pointer
 
+    // Register file: base pointer into vm->registers
+    Value* regs = vm->registers + vm->regBase;
 
-    
+    // Instruction pointer (32-bit words)
+    register uint32_t* ip = chunk->code;
+    register Value* constants = chunk->constants;
+
 #ifdef __GNUC__
-    // === COMPUTED GOTO DISPATCH TABLE ===
-    // Direct threading dispatch table
-    static void* dispatchTable[] = {
-        &&op_import, // NEW
-        &&op_load_imm, &&op_load_const, &&op_load_nil, &&op_load_true, &&op_load_false,
-        &&op_pop, &&op_dup,
-        &&op_load_local, &&op_store_local, &&op_load_local_0, &&op_load_local_1, &&op_load_local_2,
-        &&op_inc_local, &&op_dec_local,
-        &&op_load_global, &&op_store_global, &&op_define_global,
-        &&op_add_ii, &&op_sub_ii, &&op_mul_ii, &&op_div_ii, &&op_mod_ii, &&op_neg_i,
-        &&op_add_ff, &&op_sub_ff, &&op_mul_ff, &&op_div_ff, &&op_neg_f,
-        &&op_add, &&op_sub, &&op_mul, &&op_div, &&op_mod, &&op_neg,
-        &&op_lt_ii, &&op_le_ii, &&op_gt_ii, &&op_ge_ii, &&op_eq_ii, &&op_ne_ii,
-        &&op_lt_ff, &&op_le_ff, &&op_gt_ff, &&op_ge_ff, &&op_eq_ff, &&op_ne_ff,
-        &&op_lt, &&op_le, &&op_gt, &&op_ge, &&op_eq, &&op_ne,
-        &&op_not, &&op_and, &&op_or,
-        &&op_jump, &&op_jump_if_false, &&op_jump_if_true, &&op_loop, &&op_loop_header,
-        &&op_call, &&op_call_0, &&op_call_1, &&op_call_2, &&op_return, &&op_return_nil,
-        &&op_load_property, &&op_store_property, &&op_load_index, &&op_store_index,
-        &&op_new_array, &&op_new_map, &&op_new_object,
-        &&op_struct_def, // NEW
-        &&op_array_push, &&op_array_pop, &&op_array_len,
-
-        &&op_async_call, &&op_await,
-        &&op_print, &&op_halt, &&op_nop,
-        &&op_array_push_clean
+    // Computed goto dispatch table (must match OpCode enum order exactly)
+    static void* dispatchTable[OPCODE_COUNT] = {
+        [OP_MOVE]       = &&op_move,
+        [OP_LOADK]      = &&op_loadk,
+        [OP_LOADI]      = &&op_loadi,
+        [OP_LOADNIL]    = &&op_loadnil,
+        [OP_LOADTRUE]   = &&op_loadtrue,
+        [OP_LOADFALSE]  = &&op_loadfalse,
+        [OP_GETGLOBAL]  = &&op_getglobal,
+        [OP_SETGLOBAL]  = &&op_setglobal,
+        [OP_DEFGLOBAL]  = &&op_defglobal,
+        [OP_ADD]        = &&op_add,
+        [OP_SUB]        = &&op_sub,
+        [OP_MUL]        = &&op_mul,
+        [OP_DIV]        = &&op_div,
+        [OP_MOD]        = &&op_mod,
+        [OP_NEG]        = &&op_neg,
+        [OP_LT]         = &&op_lt,
+        [OP_LE]         = &&op_le,
+        [OP_GT]         = &&op_gt,
+        [OP_GE]         = &&op_ge,
+        [OP_EQ]         = &&op_eq,
+        [OP_NE]         = &&op_ne,
+        [OP_NOT]        = &&op_not,
+        [OP_JMP]        = &&op_jmp,
+        [OP_JMPF]       = &&op_jmpf,
+        [OP_JMPT]       = &&op_jmpt,
+        [OP_LOOP]       = &&op_loop,
+        [OP_CALL]       = &&op_call,
+        [OP_RETURN]     = &&op_return,
+        [OP_RETURNNIL]  = &&op_returnnil,
+        [OP_GETPROP]    = &&op_getprop,
+        [OP_SETPROP]    = &&op_setprop,
+        [OP_GETIDX]     = &&op_getidx,
+        [OP_SETIDX]     = &&op_setidx,
+        [OP_NEWARRAY]   = &&op_newarray,
+        [OP_NEWMAP]     = &&op_newmap,
+        [OP_NEWSTRUCT]  = &&op_newstruct,
+        [OP_STRUCTDEF]  = &&op_structdef,
+        [OP_PUSH]       = &&op_push,
+        [OP_POP]        = &&op_pop_arr,
+        [OP_LEN]        = &&op_len,
+        [OP_IMPORT]     = &&op_import,
+        [OP_ASYNC]      = &&op_async,
+        [OP_AWAIT]      = &&op_await,
+        [OP_PRINT]      = &&op_print,
+        [OP_HALT]       = &&op_halt,
+        [OP_NOP]        = &&op_nop,
+        [OP_FOREACH_PREP] = &&op_nop,
+        [OP_FOREACH_NEXT] = &&op_nop,
+        [OP_CONCAT]     = &&op_concat,
     };
-    
-    // #define TRACE_EXECUTION 1
-    #ifdef TRACE_EXECUTION
-        #define DISPATCH() do { \
-            const OpcodeInfo* info = getOpcodeInfo(*ip); \
-            printf("Exec: %s (StackDepth: %ld)\n", info ? info->name : "???", sp - vm->stack); fflush(stdout); \
-            goto *dispatchTable[*ip++]; \
-        } while(0)
-    #else
-        #define DISPATCH() do { goto *dispatchTable[*ip++]; } while(0)
-    #endif
-    #define NEXT() DISPATCH()
-    
-    DISPATCH();  // Start execution
-    
-    // === STACK OPERATIONS ===
-    op_import: {
-        uint8_t constIdx = *ip++;
-        Value nameVal = constants[constIdx];
-        char* rawPath = AS_CSTRING(nameVal);
-        
-        // 1. Resolve Path
-        char* importPath = rawPath;
-        char* resolvedPath = NULL;
-        // char* basePath = NULL;
-        
-        // Check if relative import (./ or ../)
-        if (rawPath[0] == '.') {
-            // Get current frame's module path
-             CallFrame* frame = &vm->callStack[vm->callStackTop - 1];
-             // printf("DEBUG: op_import raw='%s' frame_idx=%d func=%p path=%s\n", rawPath, vm->callStackTop-1, frame->function, frame->function ? frame->function->modulePath : "NULL_FUNC");
-             
-             if (frame->function && frame->function->modulePath) {
-                 char* tmp = strdup(frame->function->modulePath);
-                 char* dir = dirname(tmp);
-                 
-                 // manual join because standard C is barebones
-                 size_t lenDir = strlen(dir);
-                 size_t lenName = strlen(rawPath);
-                 resolvedPath = malloc(lenDir + 1 + lenName + 1);
-                 sprintf(resolvedPath, "%s/%s", dir, rawPath);
-                 
-                 // printf("DEBUG: Resolved '%s' + '%s' -> '%s'\n", dir, rawPath, resolvedPath);
-                 
-                 importPath = resolvedPath;
-                 free(tmp);
-             } else {
-                 // printf("DEBUG: No module path found for frame.\n");
-             }
-        }
-        
-        // 2. Load File
-        char* source = readFile_internal(importPath);
-        if (!source) {
-            fprintf(stderr, "Runtime Error: Could not import module '%s' (Resolved: '%s')\n", rawPath, importPath ? importPath : "null");
-            exit(1);
-        }
-        // printf("DEBUG: Loaded source for %s: len=%ld preview='%.20s...'\n", importPath, strlen(source), source);
-        
-        // 3. Compile
-        Lexer lex;
-        initLexer(&lex, source);
-        Parser p;
-        p.tokens = malloc(64 * sizeof(Token)); p.count = 0; p.capacity = 64; p.current = 0;
-        
-        while(true) {
-             Token t = scanToken(&lex);
-             if (p.count >= p.capacity) {
-                 p.capacity *= 2;
-                 p.tokens = realloc(p.tokens, p.capacity * sizeof(Token));
-             }
-             p.tokens[p.count++] = t;
-             if (t.type == TOKEN_EOF) break;
-        }
-        
-        Node* ast = parse(&p);
 
-        // 3. Create Module Environment FIRST (so compiled functions capture it)
-        Environment* oldEnv = vm->globalEnv;
-        Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
-        modEnv->enclosing = oldEnv;
-        memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
-        memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
-        
-        vm->globalEnv = modEnv; // Switch context BEFORE compilation
+    #define DISPATCH() do { \
+        uint32_t _inst = *ip; \
+        goto *dispatchTable[DECODE_OP(_inst)]; \
+    } while(0)
+    #define NEXT() do { ip++; DISPATCH(); } while(0)
+    #define FETCH() (*ip)
 
-        // 4. Compile
-        BytecodeChunk* modChunk = malloc(sizeof(BytecodeChunk));
-        initChunk(modChunk);
-        
-        // Pass the resolved path as the module path for the new chunk
-        bool success = compileToBytecode(vm, ast, modChunk, importPath);
-        if (!success) {
-             fprintf(stderr, "Import Error: Failed to compile module '%s'\n", rawPath);
-             vm->globalEnv = oldEnv; // Restore env on error
-             exit(1);
-        }
-        
-        // 5. Execute
-        // Create Function wrapper for the module script
-        Function* modFunc = ALLOCATE_OBJ(vm, Function, OBJ_FUNCTION);
-        modFunc->bytecodeChunk = modChunk;
-        modFunc->modulePath = strdup(importPath);
-        modFunc->name.start = importPath; 
-        modFunc->name.length = strlen(importPath);
-        modFunc->paramCount = 0;
-        modFunc->body = ast; // Keep AST reachable if needed, or NULL
-        modFunc->closure = NULL; // Globals are closure? No.
-        modFunc->isNative = false;
-        modFunc->moduleEnv = modEnv; // Set module env for the script execution
-        
-        // Push Function to stack (roots it and acts as slot 0)
-        *sp++ = OBJ_VAL(modFunc);
-        vm->stackTop = (int)(sp - vm->stack); // Sync stackTop
-        
-        // Push CallFrame
-        if (vm->callStackTop >= CALL_STACK_MAX) {
-            printf("Stack overflow in import.\n"); exit(1);
-        }
-        CallFrame* frame = &vm->callStack[vm->callStackTop++];
-        frame->function = modFunc;
-        frame->chunk = modChunk;
-        frame->ip = modChunk->code;
-        frame->env = vm->globalEnv; 
-        frame->fp = vm->stackTop - 1; // Points to func
-        
-        int entryDepth = vm->callStackTop - 1; // Return when we pop this frame
-        
-        executeBytecode(vm, modChunk, entryDepth);
-        
-        // Function is popped by OP_RETURN logic inside executeBytecode?
-        // Wait, OP_RETURN decrements vm->callStackTop.
-        // But does it pop the Stack (Value stack)?
-        // op_return: `Value retVal = *(--sp); ... sp = calleeFp - 1; *sp++ = retVal;`
-        // It resets SP to `calleeFp - 1` (where Function was) and pushes return value.
-        // So `modFunc` is replaced by return value (NIL usually for script).
-        
-        // Sync local SP
-        sp = vm->stack + vm->stackTop;
-        
-        // Pop the return value of the script (usually NIL)
-        sp--; // Now we are back to pre-import stack state
-        
-        // 6. Return Module Object
-        
-        // 6. Return Module Object
-        // Using OBJ_MODULE allows dot-property access via op_load_property
-        Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
-        mod->env = modEnv;
-        mod->name = strdup(importPath);
-        mod->source = NULL; // Source freed below
-        
-        // Restore Env
-        vm->globalEnv = oldEnv;
-        
-        // Cleanup
-        free(source);
-        if (resolvedPath) free(resolvedPath);
-        if (p.tokens) free(p.tokens);
-        // Do NOT free modChunk. It is owned by modFunc which is GC'd.
-        // freeChunk(modChunk);
-        // free(modChunk);
-        
-        *sp++ = OBJ_VAL(mod); // Push result
+    DISPATCH();
+
+    // ===== DATA MOVEMENT =====
+    op_move: {
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = regs[DECODE_B(inst)];
         NEXT();
     }
 
-    op_load_imm: {
-        // Load 32-bit immediate (4 bytes)
-        int32_t value = (ip[0] << 24) | (ip[1] << 16) | (ip[2] << 8) | ip[3];
-        *sp++ = INT_VAL(value);
-        ip += 4;
+    op_loadk: {
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = constants[DECODE_Bx(inst)];
         NEXT();
     }
-    
-    op_load_const: {
-        uint8_t constant = *ip++;
-        *sp++ = constants[constant];
-        NEXT();
-    }
-    
-    op_load_nil: {
-        Value nil = NIL_VAL;
-        *sp++ = nil;
-        NEXT();
-    }
-    
-    op_load_true: {
-        Value v = BOOL_VAL(true);
-        *sp++ = v;
-        NEXT();
-    }
-    
-    op_load_false: {
-        Value v = BOOL_VAL(false);
-        *sp++ = v;
-        NEXT();
-    }
-    
-    op_pop: {
-        sp--;
-        NEXT();
-    }
-    
-    op_dup: {
-        *sp = sp[-1];
-        sp++;
-        NEXT();
-    }
-    
-    // === LOCAL VARIABLES ===
-    op_load_local: {
-        uint8_t slot = *ip++;
-        *sp++ = fp[slot];
-        NEXT();
-    }
-    
-    op_store_local: {
-        uint8_t slot = *ip++;
-        fp[slot] = sp[-1]; 
-        NEXT();
-    }
-    
 
-    op_load_local_0: {
-        *sp++ = fp[0];
+    op_loadi: {
+        uint32_t inst = FETCH();
+        int val = DECODE_sBx(inst); // Signed 16-bit
+        regs[DECODE_A(inst)] = INT_VAL(val);
         NEXT();
     }
-    
-    op_load_local_1: {
-        *sp++ = fp[1];
+
+    op_loadnil: {
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = NIL_VAL;
         NEXT();
     }
-    
-    op_load_local_2: {
-        *sp++ = fp[2];
+
+    op_loadtrue: {
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = BOOL_VAL(true);
         NEXT();
     }
-    
-    // === OPTIMIZED INCREMENT/DECREMENT ===
-    op_inc_local: {
-        uint8_t slot = *ip++;
-        // Directly increment the local variable (assumes int)
-        Value v = fp[slot];
-        if (IS_INT(v)) {
-            fp[slot] = INT_VAL(AS_INT(v) + 1);
-        } else if (IS_FLOAT(v)) {
-            fp[slot] = FLOAT_VAL(AS_FLOAT(v) + 1.0);
-        }
+
+    op_loadfalse: {
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = BOOL_VAL(false);
         NEXT();
     }
-    
-    op_dec_local: {
-        uint8_t slot = *ip++;
-        Value v = fp[slot];
-        if (IS_INT(v)) {
-            fp[slot] = INT_VAL(AS_INT(v) - 1);
-        } else if (IS_FLOAT(v)) {
-            fp[slot] = FLOAT_VAL(AS_FLOAT(v) - 1.0);
-        }
-        NEXT();
-    }
-    
-    // === GLOBAL VARIABLES ===
-    op_load_global: {
-        uint8_t constIdx = *ip++;
-        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+
+    // ===== GLOBAL VARIABLES =====
+    op_getglobal: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        uint16_t bx = DECODE_Bx(inst);
+        ObjString* name = AS_STRING(constants[bx]);
         unsigned int h = name->hash % TABLE_SIZE;
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
-            if (entry->key == name->chars) {
-                *sp++ = entry->value;
-                goto global_loaded;
+            if (entry->key == name->chars ||
+                (entry->keyLength == name->length && memcmp(entry->key, name->chars, name->length) == 0)) {
+                regs[a] = entry->value;
+                goto getglobal_done;
             }
             entry = entry->next;
         }
-        // Not found
-        printf("Runtime Error: Undefined global variable '%s'\n", name->chars);
+        printf("Runtime Error: Undefined variable '%s'\n", name->chars);
         exit(1);
-
-        global_loaded:
+        getglobal_done:
         NEXT();
     }
-    
-    op_store_global: {
-        uint8_t constIdx = *ip++;
-        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+
+    op_setglobal: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        uint16_t bx = DECODE_Bx(inst);
+        ObjString* name = AS_STRING(constants[bx]);
         unsigned int h = name->hash % TABLE_SIZE;
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
-            if (entry->key == name->chars) {
-                entry->value = sp[-1]; 
-                WRITE_BARRIER(vm, vm->globalEnv); // Barrier
-                goto global_stored;
+            if (entry->key == name->chars ||
+                (entry->keyLength == name->length && memcmp(entry->key, name->chars, name->length) == 0)) {
+                entry->value = regs[a];
+                WRITE_BARRIER(vm, vm->globalEnv);
+                NEXT();
             }
             entry = entry->next;
         }
-        
         // Insert new
-        VarEntry* newEntry = malloc(sizeof(VarEntry));
-        newEntry->key = name->chars;
-        newEntry->keyString = name; // Store for GC marking
-        newEntry->keyLength = name->length;
-        newEntry->ownsKey = false;
-        newEntry->value = sp[-1];
-        newEntry->next = vm->globalEnv->buckets[h];
-        vm->globalEnv->buckets[h] = newEntry;
-        WRITE_BARRIER(vm, vm->globalEnv); // Barrier
-        
-        global_stored:
+        VarEntry* ne = malloc(sizeof(VarEntry));
+        ne->key = name->chars;
+        ne->keyString = name;
+        ne->keyLength = name->length;
+        ne->ownsKey = false;
+        ne->value = regs[a];
+        ne->next = vm->globalEnv->buckets[h];
+        vm->globalEnv->buckets[h] = ne;
+        WRITE_BARRIER(vm, vm->globalEnv);
         NEXT();
     }
-    
-    op_define_global: {
-        uint8_t constIdx = *ip++;
-        ObjString* name = AS_STRING(chunk->constants[constIdx]);
+
+    op_defglobal: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        uint16_t bx = DECODE_Bx(inst);
+        ObjString* name = AS_STRING(constants[bx]);
         unsigned int h = name->hash % TABLE_SIZE;
-        
-        // Define or Update
-        // printf("DEBUG: DEFINING GLOBAL '%s' in env %p\n", name->chars, vm->globalEnv);
+
         VarEntry* entry = vm->globalEnv->buckets[h];
         while (entry) {
-            if (entry->key == name->chars) {
-                entry->value = sp[-1];
-                WRITE_BARRIER(vm, vm->globalEnv); // Barrier
-                goto global_defined;
+            if (entry->key == name->chars ||
+                (entry->keyLength == name->length && memcmp(entry->key, name->chars, name->length) == 0)) {
+                entry->value = regs[a];
+                WRITE_BARRIER(vm, vm->globalEnv);
+                goto defglobal_done;
             }
             entry = entry->next;
         }
-
         // Insert new
-        VarEntry* newEntry = malloc(sizeof(VarEntry));
-        newEntry->key = name->chars;
-        newEntry->keyString = name; // Store for GC marking
-        newEntry->keyLength = name->length;
-        newEntry->ownsKey = false; 
-        newEntry->value = sp[-1];
-        newEntry->next = vm->globalEnv->buckets[h];
-        vm->globalEnv->buckets[h] = newEntry;
-        WRITE_BARRIER(vm, vm->globalEnv); // Barrier
-        
-        global_defined:
+        {
+            VarEntry* ne = malloc(sizeof(VarEntry));
+            ne->key = name->chars;
+            ne->keyString = name;
+            ne->keyLength = name->length;
+            ne->ownsKey = false;
+            ne->value = regs[a];
+            ne->next = vm->globalEnv->buckets[h];
+            vm->globalEnv->buckets[h] = ne;
+            WRITE_BARRIER(vm, vm->globalEnv);
+        }
+        defglobal_done:
         NEXT();
     }
-    
-    // === SPECIALIZED ARITHMETIC (INT) ===
-    op_add_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a + b);
-        NEXT();
-    }
-    
-    op_sub_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a - b);
-        NEXT();
-    }
-    
-    op_mul_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a * b);
-        NEXT();
-    }
-    
-    op_div_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a / b);
-        NEXT();
-    }
-    
-    op_mod_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = INT_VAL(a % b);
-        NEXT();
-    }
-    
-    op_neg_i: {
-        sp[-1] = INT_VAL(-AS_INT(sp[-1]));
-        NEXT();
-    }
-    
-    // === SPECIALIZED ARITHMETIC (FLOAT) ===
-    op_add_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a + b);
-        NEXT();
-    }
-    
-    op_sub_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a - b);
-        NEXT();
-    }
-    
-    op_mul_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a * b);
-        NEXT();
-    }
-    
-    op_div_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = FLOAT_VAL(a / b);
-        NEXT();
-    }
-    
-    op_neg_f: {
-        sp[-1] = FLOAT_VAL(-AS_FLOAT(sp[-1]));
-        NEXT();
-    }
-    
-    // === GENERIC ARITHMETIC (with type checks) ===
+
+    // ===== ARITHMETIC =====
     op_add: {
-        Value b = sp[-1];
-        Value a = sp[-2];
-        
-        // Int + Int
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            sp -= 2;
-            *sp++ = INT_VAL(AS_INT(a) + AS_INT(b));
-        } 
-        // Float + Float (or mixed)
-        else if (likely(IS_NUMBER(a) && IS_NUMBER(b))) {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            sp -= 2;
-            *sp++ = FLOAT_VAL(da + db);
-        }
-        // String concatenation
-        else if (IS_STRING(a) || IS_STRING(b)) {
-            // Sync stack for GC safety BEFORE any allocation
-            vm->stackTop = (int)(sp - vm->stack);
-            
-            // Operands are still on stack, so they are rooted for GC
-            char bufferA[64], bufferB[64];
-            const char* strA;
-            const char* strB;
-            
-            // Convert a to string
-            if (IS_STRING(a)) {
-                strA = AS_CSTRING(a);
-            } else if (IS_INT(a)) {
-                snprintf(bufferA, sizeof(bufferA), "%ld", (long)AS_INT(a));
-                strA = bufferA;
-            } else if (IS_FLOAT(a)) {
-                snprintf(bufferA, sizeof(bufferA), "%g", AS_FLOAT(a));
-                strA = bufferA;
-            } else if (IS_BOOL(a)) {
-                strA = AS_BOOL(a) ? "true" : "false";
-            } else if (IS_NIL(a)) {
-                strA = "nil";
-            } else if (IS_ARRAY(a)) {
-                // Convert array to string representation
-                Array* arr = (Array*)AS_OBJ(a);
-                char* arrStr = malloc(1024); // Temp buffer for array string
-                int pos = 0;
-                pos += snprintf(arrStr + pos, 1024 - pos, "[");
-                for (int i = 0; i < arr->count && pos < 1000; i++) {
-                    if (i > 0) pos += snprintf(arrStr + pos, 1024 - pos, ", ");
-                    Value item = arr->items[i];
-                    if (IS_INT(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%ld", (long)AS_INT(item));
-                    } else if (IS_STRING(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_CSTRING(item));
-                    } else if (IS_BOOL(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_BOOL(item) ? "true" : "false");
-                    }
-                }
-                snprintf(arrStr + pos, 1024 - pos, "]");
-                strA = arrStr;
-            } else {
-                strA = "[object]";
-            }
-            
-            // Convert b to string
-            if (IS_STRING(b)) {
-                strB = AS_CSTRING(b);
-            } else if (IS_INT(b)) {
-                snprintf(bufferB, sizeof(bufferB), "%ld", (long)AS_INT(b));
-                strB = bufferB;
-            } else if (IS_FLOAT(b)) {
-                snprintf(bufferB, sizeof(bufferB), "%g", AS_FLOAT(b));
-                strB = bufferB;
-            } else if (IS_BOOL(b)) {
-                strB = AS_BOOL(b) ? "true" : "false";
-            } else if (IS_NIL(b)) {
-                strB = "nil";
-            } else if (IS_ARRAY(b)) {
-                // Convert array to string representation
-                Array* arr = (Array*)AS_OBJ(b);
-                char* arrStr = malloc(1024); // Temp buffer for array string
-                int pos = 0;
-                pos += snprintf(arrStr + pos, 1024 - pos, "[");
-                for (int i = 0; i < arr->count && pos < 1000; i++) {
-                    if (i > 0) pos += snprintf(arrStr + pos, 1024 - pos, ", ");
-                    Value item = arr->items[i];
-                    if (IS_INT(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%ld", (long)AS_INT(item));
-                    } else if (IS_STRING(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_CSTRING(item));
-                    } else if (IS_BOOL(item)) {
-                        pos += snprintf(arrStr + pos, 1024 - pos, "%s", AS_BOOL(item) ? "true" : "false");
-                    }
-                }
-                snprintf(arrStr + pos, 1024 - pos, "]");
-                strB = arrStr;
-            } else {
-                strB = "[object]";
-            }
-            
-            // Concatenate
-            size_t lenA = strlen(strA);
-            size_t lenB = strlen(strB);
-            char* result = malloc(lenA + lenB + 1);
-            memcpy(result, strA, lenA);
-            memcpy(result + lenA, strB, lenB);
-            result[lenA + lenB] = '\0';
-            
-            // Intern result string
-            ObjString* str = internString(vm, result, lenA + lenB);
-            
-            // Free temp buffers if allocated
-            if (IS_ARRAY(a) && strA != bufferA) free((void*)strA);
-            if (IS_ARRAY(b) && strB != bufferB) free((void*)strB);
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+
+        if (likely(IS_INT(vb) && IS_INT(vc))) {
+            regs[a] = INT_VAL(AS_INT(vb) + AS_INT(vc));
+        } else if (IS_NUMBER(vb) && IS_NUMBER(vc)) {
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = FLOAT_VAL(db + dc);
+        } else if (IS_STRING(vb) || IS_STRING(vc)) {
+            // String concatenation
+            vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
+            char bufB[64], bufC[64];
+            const char* sB;
+            const char* sC;
+
+            if (IS_STRING(vb)) sB = AS_CSTRING(vb);
+            else if (IS_INT(vb)) { snprintf(bufB, 64, "%ld", (long)AS_INT(vb)); sB = bufB; }
+            else if (IS_FLOAT(vb)) { snprintf(bufB, 64, "%g", AS_FLOAT(vb)); sB = bufB; }
+            else if (IS_BOOL(vb)) sB = AS_BOOL(vb) ? "true" : "false";
+            else if (IS_NIL(vb)) sB = "nil";
+            else sB = "[object]";
+
+            if (IS_STRING(vc)) sC = AS_CSTRING(vc);
+            else if (IS_INT(vc)) { snprintf(bufC, 64, "%ld", (long)AS_INT(vc)); sC = bufC; }
+            else if (IS_FLOAT(vc)) { snprintf(bufC, 64, "%g", AS_FLOAT(vc)); sC = bufC; }
+            else if (IS_BOOL(vc)) sC = AS_BOOL(vc) ? "true" : "false";
+            else if (IS_NIL(vc)) sC = "nil";
+            else sC = "[object]";
+
+            size_t lenB = strlen(sB), lenC = strlen(sC);
+            char* result = malloc(lenB + lenC + 1);
+            memcpy(result, sB, lenB);
+            memcpy(result + lenB, sC, lenC);
+            result[lenB + lenC] = '\0';
+            ObjString* str = internString(vm, result, lenB + lenC);
             free(result);
-            
-            sp -= 2;
-            *sp++ = OBJ_VAL(str);
-        }
-        // Fallback: nil
-        else {
-            sp -= 2;
-            *sp++ = NIL_VAL;
+            regs[a] = OBJ_VAL(str);
+        } else {
+            regs[a] = NIL_VAL;
         }
         NEXT();
     }
-    
+
     op_sub: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = INT_VAL(AS_INT(a) - AS_INT(b));
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) {
+            regs[a] = INT_VAL(AS_INT(vb) - AS_INT(vc));
         } else {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = FLOAT_VAL(da - db);
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = FLOAT_VAL(db - dc);
         }
         NEXT();
     }
-    
+
     op_mul: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = INT_VAL(AS_INT(a) * AS_INT(b));
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) {
+            regs[a] = INT_VAL(AS_INT(vb) * AS_INT(vc));
         } else {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = FLOAT_VAL(da * db);
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = FLOAT_VAL(db * dc);
         }
         NEXT();
     }
-    
+
     op_div: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-             int ib = AS_INT(b);
-             if (unlikely(ib == 0)) {
-                 printf("Runtime Error: Division by zero.\n");
-                 exit(1);
-             }
-             *sp++ = INT_VAL(AS_INT(a) / ib);
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) {
+            int64_t ic = AS_INT(vc);
+            if (unlikely(ic == 0)) { printf("Runtime Error: Division by zero.\n"); exit(1); }
+            regs[a] = INT_VAL(AS_INT(vb) / ic);
         } else {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = FLOAT_VAL(da / db);
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = FLOAT_VAL(db / dc);
         }
         NEXT();
     }
-    
+
     op_mod: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = INT_VAL(AS_INT(a) % AS_INT(b));
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        if (IS_INT(regs[b]) && IS_INT(regs[c])) {
+            regs[a] = INT_VAL(AS_INT(regs[b]) % AS_INT(regs[c]));
         }
         NEXT();
     }
-    
+
     op_neg: {
-        if (IS_INT(sp[-1])) {
-            sp[-1] = INT_VAL(-AS_INT(sp[-1]));
-        } else if (IS_FLOAT(sp[-1])) {
-            sp[-1] = FLOAT_VAL(-AS_FLOAT(sp[-1]));
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst);
+        if (IS_INT(regs[b])) regs[a] = INT_VAL(-AS_INT(regs[b]));
+        else if (IS_FLOAT(regs[b])) regs[a] = FLOAT_VAL(-AS_FLOAT(regs[b]));
         NEXT();
     }
-    
-    // === SPECIALIZED COMPARISONS (INT) ===
-    op_lt_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a < b);
-        NEXT();
-    }
-    
-    op_le_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a <= b);
-        NEXT();
-    }
-    
-    op_gt_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a > b);
-        NEXT();
-    }
-    
-    op_ge_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a >= b);
-        NEXT();
-    }
-    
-    op_eq_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a == b);
-        NEXT();
-    }
-    
-    op_ne_ii: {
-        int64_t b = AS_INT(*(--sp));
-        int64_t a = AS_INT(*(--sp));
-        *sp++ = BOOL_VAL(a != b);
-        NEXT();
-    }
-    
-    // === FLOAT COMPARISONS ===
-    op_lt_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a < b);
-        NEXT();
-    }
-    
-    op_le_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a <= b);
-        NEXT();
-    }
-    
-    op_gt_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a > b);
-        NEXT();
-    }
-    
-    op_ge_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a >= b);
-        NEXT();
-    }
-    
-    op_eq_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a == b);
-        NEXT();
-    }
-    
-    op_ne_ff: {
-        double b = AS_FLOAT(*(--sp));
-        double a = AS_FLOAT(*(--sp));
-        *sp++ = BOOL_VAL(a != b);
-        NEXT();
-    }
-    
-    // === GENERIC COMPARISONS ===
+
+    // ===== COMPARISONS =====
     op_lt: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) < AS_INT(b));
-        } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = BOOL_VAL(da < db);
-        } else {
-            *sp++ = BOOL_VAL(false);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) { regs[a] = BOOL_VAL(AS_INT(vb) < AS_INT(vc)); }
+        else if (IS_NUMBER(vb) && IS_NUMBER(vc)) {
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = BOOL_VAL(db < dc);
+        } else regs[a] = BOOL_VAL(false);
         NEXT();
     }
-    
+
     op_le: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) <= AS_INT(b));
-        } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = BOOL_VAL(da <= db);
-        } else {
-            *sp++ = BOOL_VAL(false);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) { regs[a] = BOOL_VAL(AS_INT(vb) <= AS_INT(vc)); }
+        else if (IS_NUMBER(vb) && IS_NUMBER(vc)) {
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = BOOL_VAL(db <= dc);
+        } else regs[a] = BOOL_VAL(false);
         NEXT();
     }
-    
+
     op_gt: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) > AS_INT(b));
-        } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = BOOL_VAL(da > db);
-        } else {
-            *sp++ = BOOL_VAL(false);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) { regs[a] = BOOL_VAL(AS_INT(vb) > AS_INT(vc)); }
+        else if (IS_NUMBER(vb) && IS_NUMBER(vc)) {
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = BOOL_VAL(db > dc);
+        } else regs[a] = BOOL_VAL(false);
         NEXT();
     }
-    
+
     op_ge: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) >= AS_INT(b));
-        } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
-            double da = IS_INT(a) ? (double)AS_INT(a) : AS_FLOAT(a);
-            double db = IS_INT(b) ? (double)AS_INT(b) : AS_FLOAT(b);
-            *sp++ = BOOL_VAL(da >= db);
-        } else {
-            *sp++ = BOOL_VAL(false);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (likely(IS_INT(vb) && IS_INT(vc))) { regs[a] = BOOL_VAL(AS_INT(vb) >= AS_INT(vc)); }
+        else if (IS_NUMBER(vb) && IS_NUMBER(vc)) {
+            double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
+            double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
+            regs[a] = BOOL_VAL(db >= dc);
+        } else regs[a] = BOOL_VAL(false);
         NEXT();
     }
-    
+
     op_eq: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) == AS_INT(b));
-        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
-            *sp++ = BOOL_VAL(AS_FLOAT(a) == AS_FLOAT(b));
-        } else if (IS_BOOL(a) && IS_BOOL(b)) {
-            *sp++ = BOOL_VAL(AS_BOOL(a) == AS_BOOL(b));
-        } else if (IS_NIL(a) && IS_NIL(b)) {
-            *sp++ = BOOL_VAL(true);
-        } else if (IS_OBJ(a) && IS_OBJ(b)) {
-            *sp++ = BOOL_VAL(AS_OBJ(a) == AS_OBJ(b)); // Pointer equality (Strings are interned)
-        } else {
-            *sp++ = BOOL_VAL(false);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (IS_INT(vb) && IS_INT(vc)) { regs[a] = BOOL_VAL(AS_INT(vb) == AS_INT(vc)); }
+        else if (IS_FLOAT(vb) && IS_FLOAT(vc)) { regs[a] = BOOL_VAL(AS_FLOAT(vb) == AS_FLOAT(vc)); }
+        else if (IS_BOOL(vb) && IS_BOOL(vc)) { regs[a] = BOOL_VAL(AS_BOOL(vb) == AS_BOOL(vc)); }
+        else if (IS_NIL(vb) && IS_NIL(vc)) { regs[a] = BOOL_VAL(true); }
+        else if (IS_OBJ(vb) && IS_OBJ(vc)) { regs[a] = BOOL_VAL(AS_OBJ(vb) == AS_OBJ(vc)); }
+        else regs[a] = BOOL_VAL(false);
         NEXT();
     }
-    
+
     op_ne: {
-        Value b = *(--sp);
-        Value a = *(--sp);
-        if (likely(IS_INT(a) && IS_INT(b))) {
-            *sp++ = BOOL_VAL(AS_INT(a) != AS_INT(b));
-        } else if (IS_FLOAT(a) && IS_FLOAT(b)) {
-            *sp++ = BOOL_VAL(AS_FLOAT(a) != AS_FLOAT(b));
-        } else if (IS_BOOL(a) && IS_BOOL(b)) {
-            *sp++ = BOOL_VAL(AS_BOOL(a) != AS_BOOL(b));
-        } else if (IS_NIL(a) && IS_NIL(b)) {
-            *sp++ = BOOL_VAL(false);
-        } else {
-            *sp++ = BOOL_VAL(true);
-        }
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value vb = regs[b], vc = regs[c];
+        if (IS_INT(vb) && IS_INT(vc)) { regs[a] = BOOL_VAL(AS_INT(vb) != AS_INT(vc)); }
+        else if (IS_FLOAT(vb) && IS_FLOAT(vc)) { regs[a] = BOOL_VAL(AS_FLOAT(vb) != AS_FLOAT(vc)); }
+        else if (IS_BOOL(vb) && IS_BOOL(vc)) { regs[a] = BOOL_VAL(AS_BOOL(vb) != AS_BOOL(vc)); }
+        else if (IS_NIL(vb) && IS_NIL(vc)) { regs[a] = BOOL_VAL(false); }
+        else regs[a] = BOOL_VAL(true);
         NEXT();
     }
-    
-    // === LOGICAL ===
+
     op_not: {
-        sp[-1] = BOOL_VAL(IS_INT(sp[-1]) && AS_INT(sp[-1]) == 0);
+        uint32_t inst = FETCH();
+        regs[DECODE_A(inst)] = BOOL_VAL(!isTruthy(regs[DECODE_B(inst)]));
         NEXT();
     }
-    
-    op_and: op_or:
-        NEXT();
-    
-    // === CONTROL FLOW ===
-    op_jump: {
-        uint16_t offset = (*ip++) << 8;
-        offset |= *ip++;
-        ip += offset;
-        NEXT();
+
+    // ===== CONTROL FLOW =====
+    op_jmp: {
+        uint32_t inst = FETCH();
+        int offset = DECODE_sBx24(inst);
+        ip += offset + 1;
+        DISPATCH();
     }
-    
-    op_jump_if_false: {
-        uint16_t offset = (*ip++) << 8;
-        offset |= *ip++;
-        Value cond = sp[-1];  // Peek (compiler will emit OP_POP)
-        
-        // Truthiness: false if: int(0), bool(false), nil
-        bool isFalse = false;
-        if (IS_NIL(cond)) {
-            isFalse = true;
-        } else if (IS_BOOL(cond)) {
-            isFalse = !AS_BOOL(cond);
-        } else if (IS_INT(cond)) {
-            isFalse = (AS_INT(cond) == 0);
-        } else if (IS_FLOAT(cond)) {
-            isFalse = (AS_FLOAT(cond) == 0.0);
-        }
-        
-        if (isFalse) {
-            ip += offset;
+
+    op_jmpf: {
+        uint32_t inst = FETCH();
+        if (!isTruthy(regs[DECODE_A(inst)])) {
+            int offset = DECODE_sBx(inst);
+            ip += offset + 1;
+            DISPATCH();
         }
         NEXT();
     }
-    
-    op_jump_if_true: {
-        uint16_t offset = (*ip++) << 8;
-        offset |= *ip++;
-        Value cond = sp[-1];  // Peek (compiler will emit OP_POP)
-        
-        // Truthiness: true if: int(!=0), bool(true), any object
-        bool isTrue = false;
-        if (IS_BOOL(cond)) {
-            isTrue = AS_BOOL(cond);
-        } else if (IS_INT(cond)) {
-            isTrue = (AS_INT(cond) != 0);
-        } else if (IS_FLOAT(cond)) {
-            isTrue = (AS_FLOAT(cond) != 0.0);
-        } else if (IS_OBJ(cond)) {
-            isTrue = true;  // Objects are truthy
-        }
-        
-        if (isTrue) {
-            ip += offset;
+
+    op_jmpt: {
+        uint32_t inst = FETCH();
+        if (isTruthy(regs[DECODE_A(inst)])) {
+            int offset = DECODE_sBx(inst);
+            ip += offset + 1;
+            DISPATCH();
         }
         NEXT();
     }
-    
+
     op_loop: {
-        uint16_t offset = (ip[0] << 8) | ip[1];
-        ip += 2;
-        ip -= offset;
-        NEXT();
+        uint32_t inst = FETCH();
+        int offset = DECODE_sBx24(inst);
+        ip -= offset - 1;
+        DISPATCH();
     }
-    
-    op_loop_header: {
-        NEXT();
-    }
-    
-    // === FUNCTION CALLS (Stubs) ===
+
+    // ===== FUNCTION CALLS =====
     op_call: {
-        argCount = *ip++;
-        goto do_call;
-    }
-        
-    op_call_0: {
-        argCount = 0;
-        goto do_call;
-    }
-        
-    op_call_1: {
-        argCount = 1;
-        goto do_call;
-    }
-        
-    op_call_2: {
-        argCount = 2;
-    }
-        
-    do_call: {
-        Value funcVal = sp[-argCount - 1];
+        uint32_t inst = FETCH();
+        uint8_t funcReg = DECODE_A(inst);
+        uint8_t argCount = DECODE_B(inst);
+        // uint8_t resultCount = DECODE_C(inst); // Currently always 1
+
+        Value funcVal = regs[funcReg];
         if (!IS_OBJ(funcVal)) {
-            printf("Runtime Error: Attempt to call non-function value. (Val Type: %d, VAL_OBJ=%d)\n", getValueType(funcVal), VAL_OBJ);
+            printf("Runtime Error: Attempt to call non-function value.\n");
             exit(1);
         }
-        
+
         Obj* obj = AS_OBJ(funcVal);
         if (obj->type == OBJ_FUNCTION) {
-             Function* func = (Function*)obj;
-             if (func->isNative) {
-                 vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
-                 Value result = func->native(vm, sp - argCount, argCount);
-                 sp -= argCount + 1; 
-                 *sp++ = result;
-                 NEXT();
-             } else {
-                 if (argCount != func->paramCount) {
-                     printf("Runtime Error: Argument mismatch. Expected %d but got %d.\n", func->paramCount, argCount);
-                     exit(1);
-                 }
-                 
-                 if (unlikely(vm->callStackTop >= CALL_STACK_MAX)) {
-                     printf("Runtime Error: Stack overflow. Depth: %d\n", vm->callStackTop);
-                     exit(1);
-                 }
-                 
-                 CallFrame* frame = &vm->callStack[vm->callStackTop++];
-                 frame->ip = ip;
-                 frame->chunk = chunk;
-                 frame->fp = vm->fp; 
-                 frame->function = func; // Root the function 
-                 frame->prevGlobalEnv = vm->globalEnv; // Save current global env
-                 
-                 // Switch Global Env if function belongs to a module
-                 if (func->moduleEnv) {
-                     vm->globalEnv = func->moduleEnv;
-                 } 
-                 
-                 // Fix: Compiler expects slot 0 to be the function/receiver.
-                 // So FP must point to the Function object on stack (sp - argCount - 1).
-                 vm->fp = (int)((sp - argCount - 1) - vm->stack);
-                 fp = vm->stack + vm->fp;
-                 
-                 chunk = func->bytecodeChunk;
-                 constants = chunk->constants;
-                 ip = chunk->code;
-                 NEXT();
-             }
+            Function* func = (Function*)obj;
+            if (func->isNative) {
+                // Native call: pass args from regs[funcReg+1..funcReg+argCount]
+                vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
+                Value* args = &regs[funcReg + 1];
+                Value result = func->native(vm, args, argCount);
+                regs[funcReg] = result;
+                NEXT();
+            }
+
+            if (argCount != func->paramCount) {
+                printf("Runtime Error: Expected %d args but got %d.\n", func->paramCount, argCount);
+                exit(1);
+            }
+
+            if (unlikely(vm->callStackTop >= CALL_STACK_MAX)) {
+                printf("Runtime Error: Stack overflow.\n");
+                exit(1);
+            }
+
+            // Save current frame
+            CallFrame* frame = &vm->callStack[vm->callStackTop++];
+            frame->ip = ip + 1; // Return after this CALL instruction
+            frame->chunk = chunk;
+            frame->function = NULL;
+            frame->regBase = vm->regBase;
+            frame->resultReg = funcReg; // Caller wants result in this register
+            frame->prevGlobalEnv = vm->globalEnv;
+
+            if (func->moduleEnv) {
+                vm->globalEnv = func->moduleEnv;
+            }
+
+            // Set up callee's register window
+            int calleeBase = vm->regBase + funcReg + 1;
+            // Args are already at regs[funcReg+1..funcReg+argCount]
+            // which is registers[calleeBase..calleeBase+argCount-1]
+            // Callee sees these as its R(1)..R(paramCount)
+            // R(0) is the function itself (at registers[calleeBase-1])
+
+            // Adjust: callee expects params at R(1), but they're at absolute calleeBase
+            // Set regBase so R(0) = function slot
+            vm->regBase = vm->regBase + funcReg;
+            regs = vm->registers + vm->regBase;
+
+            chunk = func->bytecodeChunk;
+            constants = chunk->constants;
+            ip = chunk->code;
+            DISPATCH();
+
         } else if (obj->type == OBJ_STRUCT_DEF) {
-             StructDef* def = (StructDef*)obj;
-             if (argCount != def->fieldCount) {
-                 printf("Runtime Error: Struct constructor for '%s' expected %d arguments but got %d.\n", 
-                        def->name, def->fieldCount, argCount);
-                 exit(1);
-             }
-             
-             vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
-             StructInstance* inst = ALLOCATE_OBJ(vm, StructInstance, OBJ_STRUCT_INSTANCE);
-             inst->def = def;
-             inst->fields = malloc(sizeof(Value) * def->fieldCount);
-             
-             // Copy args to fields
-             // Stack: [..., func, arg0, arg1, ..., argN] (sp points after argN)
-             for (int i = 0; i < argCount; i++) {
-                 inst->fields[i] = sp[-argCount + i];
-             }
-             
-             sp -= argCount + 1; // Pop func and args
-             *sp++ = OBJ_VAL(inst);
-             NEXT();
+            StructDef* def = (StructDef*)obj;
+            if (argCount != def->fieldCount) {
+                printf("Runtime Error: Struct '%s' expected %d args but got %d.\n",
+                       def->name, def->fieldCount, argCount);
+                exit(1);
+            }
+
+            vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
+            StructInstance* inst = ALLOCATE_OBJ(vm, StructInstance, OBJ_STRUCT_INSTANCE);
+            inst->def = def;
+            inst->fields = malloc(sizeof(Value) * def->fieldCount);
+            for (int i = 0; i < argCount; i++) {
+                inst->fields[i] = regs[funcReg + 1 + i];
+            }
+            regs[funcReg] = OBJ_VAL(inst);
+            NEXT();
         } else {
-             printf("Runtime Error: Call on non-function object. (Type: %d)\n", obj->type);
-             exit(1);
+            printf("Runtime Error: Call on non-function object (type %d).\n", obj->type);
+            exit(1);
         }
     }
 
-    op_return_nil: {
-        Value val = NIL_VAL;
-        *sp++ = val;
-        goto do_return;
-    }
-        
-    op_return:
-    do_return: {
-        Value retVal = *(--sp);
-        
-        Value* calleeFp = vm->stack + vm->fp;
+    op_return: {
+        uint32_t inst = FETCH();
+        Value retVal = regs[DECODE_A(inst)];
+
         vm->callStackTop--;
         if (vm->callStackTop == entryStackDepth) {
-            return instructionCount;
+            return getMicroseconds() - startTime;
         }
-        
+
         CallFrame* frame = &vm->callStack[vm->callStackTop];
-        // Restore Global Env
-        // Note: The frame we just popped (callStackTop) has the prev env.
-        // Wait, we decremented callStackTop above. So &callStack[callStackTop] IS the frames top?
-        // No, callStackTop points to next empty slot usually, but here we decremented it.
-        // So callStack[callStackTop] IS the frame we are returning FROM.
         if (frame->prevGlobalEnv) {
             vm->globalEnv = frame->prevGlobalEnv;
         }
-        
-        vm->fp = frame->fp;
-        fp = vm->stack + vm->fp;
+
+        vm->regBase = frame->regBase;
+        regs = vm->registers + vm->regBase;
         chunk = frame->chunk;
         constants = chunk->constants;
         ip = frame->ip;
-        
-        // Reset SP to where Function object was (CalleeFP)
-        // We replace [Function, Args...] with [RetVal]
-        sp = calleeFp; 
-        *sp++ = retVal;
-        NEXT();
+
+        // Store return value in caller's result register
+        regs[frame->resultReg] = retVal;
+        DISPATCH();
     }
-    
-    
-    // === OBJECTS ===
-    op_load_property: {
-        Value nameVal = chunk->constants[*ip++];
-        ObjString* name = AS_STRING(nameVal);
-        Value objVal = sp[-1]; // Peek
-        
+
+    op_returnnil: {
+        vm->callStackTop--;
+        if (vm->callStackTop == entryStackDepth) {
+            return getMicroseconds() - startTime;
+        }
+
+        CallFrame* frame = &vm->callStack[vm->callStackTop];
+        if (frame->prevGlobalEnv) {
+            vm->globalEnv = frame->prevGlobalEnv;
+        }
+
+        vm->regBase = frame->regBase;
+        regs = vm->registers + vm->regBase;
+        chunk = frame->chunk;
+        constants = chunk->constants;
+        ip = frame->ip;
+
+        regs[frame->resultReg] = NIL_VAL;
+        DISPATCH();
+    }
+
+    // ===== PROPERTY ACCESS =====
+    op_getprop: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value objVal = regs[b];
+        ObjString* name = AS_STRING(constants[c]);
+
         if (IS_OBJ(objVal)) {
             Obj* obj = AS_OBJ(objVal);
-            
-            // Struct Instance Handling
+
             if (obj->type == OBJ_STRUCT_INSTANCE) {
-                StructInstance* inst = (StructInstance*)obj;
-                bool found = false;
-                for (int i = 0; i < inst->def->fieldCount; i++) {
-                    if (strcmp(inst->def->fields[i], name->chars) == 0) {
-                        sp[-1] = inst->fields[i]; // Replace instance with property value
-                        found = true;
-                        break;
+                StructInstance* si = (StructInstance*)obj;
+                for (int i = 0; i < si->def->fieldCount; i++) {
+                    if (strcmp(si->def->fields[i], name->chars) == 0) {
+                        regs[a] = si->fields[i];
+                        NEXT();
                     }
                 }
-                if (!found) {
-                    sp[-1] = NIL_VAL; // Property not found, replace with NIL
-                }
+                regs[a] = NIL_VAL;
                 NEXT();
             }
-            // Module Handling
             else if (obj->type == OBJ_MODULE) {
-                 Module* mod = (Module*)AS_OBJ(objVal);
-                 unsigned int h = name->hash % TABLE_SIZE;
-                 VarEntry* e = mod->env->buckets[h];
-                 while (e) {
-                     // Use strcmp for robust matching (pointer equality may fail if interning differs)
-                     if (strcmp(e->key, name->chars) == 0) {
-                         sp--; // Pop instance
-                         *sp++ = e->value;
-                         NEXT();
-                     }
-                     e = e->next;
-                 }
-                 // Property not found on module
-                 printf("Runtime Error: Undefined property '%s' in module '%s'.\n", name->chars, mod->name);
-                 exit(1);
+                Module* mod = (Module*)obj;
+                unsigned int h = name->hash % TABLE_SIZE;
+                VarEntry* e = mod->env->buckets[h];
+                while (e) {
+                    if (strcmp(e->key, name->chars) == 0) {
+                        regs[a] = e->value;
+                        NEXT();
+                    }
+                    e = e->next;
+                }
+                printf("Runtime Error: Undefined property '%s' in module '%s'.\n", name->chars, mod->name);
+                exit(1);
             }
             else if (obj->type == OBJ_STRING) {
-                 if (name->length == 6 && memcmp(name->chars, "length", 6) == 0) {
-                     sp[-1] = INT_VAL(((ObjString*)obj)->length);
-                     NEXT();
-                 }
+                if (name->length == 6 && memcmp(name->chars, "length", 6) == 0) {
+                    regs[a] = INT_VAL(((ObjString*)obj)->length);
+                    NEXT();
+                }
             }
         }
-        
-        printf("Runtime Error: Only instances and structs have properties. Type: %d, Name: %s\n", IS_OBJ(objVal) ? (int)AS_OBJ(objVal)->type : -1, name->chars);
+        printf("Runtime Error: Cannot read property '%s' on this type.\n", name->chars);
         exit(1);
     }
-    
-    op_store_property: {
-        Value val = *(--sp);      // Value to store
-        Value nameVal = chunk->constants[*ip++]; // Name
-        ObjString* name = AS_STRING(nameVal);
-        Value objVal = sp[-1];    // Target object (peek)
-        
-        if (IS_OBJ(objVal)) {
-            Obj* obj = AS_OBJ(objVal);
-            
-            if (obj->type == OBJ_STRUCT_INSTANCE) {
-                StructInstance* inst = (StructInstance*)obj;
-                int fieldIdx = -1;
-                for (int i = 0; i < inst->def->fieldCount; i++) {
-                    if (strcmp(inst->def->fields[i], name->chars) == 0) {
-                        fieldIdx = i;
-                        break;
-                    }
+
+    op_setprop: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value objVal = regs[a];
+        ObjString* name = AS_STRING(constants[b]);
+        Value val = regs[c];
+
+        if (IS_OBJ(objVal) && AS_OBJ(objVal)->type == OBJ_STRUCT_INSTANCE) {
+            StructInstance* si = (StructInstance*)AS_OBJ(objVal);
+            for (int i = 0; i < si->def->fieldCount; i++) {
+                if (strcmp(si->def->fields[i], name->chars) == 0) {
+                    si->fields[i] = val;
+                    WRITE_BARRIER(vm, si);
+                    NEXT();
                 }
-                if (fieldIdx != -1) {
-                    inst->fields[fieldIdx] = val;
-                    WRITE_BARRIER(vm, inst); // Barrier
-                } else {  printf("Runtime Error: Struct '%s' has no field '%s'.\n", inst->def->name, name->chars);
-                    exit(1);
-                }
-                sp[-1] = val; // Replace object ref with stored value (compiler emits OP_POP after)
-                NEXT();
             }
+            printf("Runtime Error: Struct '%s' has no field '%s'.\n", si->def->name, name->chars);
+            exit(1);
         }
-        printf("Runtime Error: Only instances and structs have properties.\n");
+        printf("Runtime Error: Only struct instances have settable properties.\n");
         exit(1);
     }
-    
-    op_load_index: {
-        // target[index] - read
-        Value index = *(--sp);
-        Value target = *(--sp);
-        
+
+    // ===== INDEX ACCESS =====
+    op_getidx: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value target = regs[b], index = regs[c];
+
         if (IS_ARRAY(target) && IS_INT(index)) {
             Array* arr = (Array*)AS_OBJ(target);
             int idx = (int)AS_INT(index);
-            
-            if (idx >= 0 && idx < arr->count) {
-                *sp++ = arr->items[idx];
-            } else {
-                // Out of bounds - return nil
-                *sp++ = NIL_VAL;
-            }
+            regs[a] = (idx >= 0 && idx < arr->count) ? arr->items[idx] : NIL_VAL;
         } else if (IS_MAP(target)) {
             Map* map = (Map*)AS_OBJ(target);
             if (IS_STRING(index)) {
                 ObjString* key = AS_STRING(index);
                 int bucket;
                 MapEntry* e = mapFindEntry(map, key->chars, key->length, &bucket);
-                *sp++ = e ? e->value : NIL_VAL;
+                regs[a] = e ? e->value : NIL_VAL;
             } else if (IS_INT(index)) {
-                int key = (int)AS_INT(index);
                 int bucket;
-                MapEntry* e = mapFindEntryInt(map, key, &bucket);
-                *sp++ = e ? e->value : NIL_VAL;
-            } else {
-                *sp++ = NIL_VAL;
-            }
-        } else {
-            *sp++ = NIL_VAL;
-        }
+                MapEntry* e = mapFindEntryInt(map, (int)AS_INT(index), &bucket);
+                regs[a] = e ? e->value : NIL_VAL;
+            } else regs[a] = NIL_VAL;
+        } else regs[a] = NIL_VAL;
         NEXT();
     }
-    
-    op_store_index: {
-        // target[index] = value
-        Value value = *(--sp);
-        Value index = *(--sp);
-        Value target = *(--sp);
-        
+
+    op_setidx: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        Value target = regs[a], index = regs[b], value = regs[c];
+
         if (IS_ARRAY(target) && IS_INT(index)) {
             Array* arr = (Array*)AS_OBJ(target);
             int idx = (int)AS_INT(index);
-            
-            // Auto-grow array if needed
             if (idx >= 0) {
                 if (idx >= arr->capacity) {
                     int newCap = idx + 1;
@@ -1234,278 +715,372 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
                     arr->capacity = newCap;
                 }
                 if (idx >= arr->count) {
-                    // Fill gaps with nil
-                    for (int i = arr->count; i < idx; i++) {
-                        arr->items[i] = NIL_VAL;
-                    }
+                    for (int i = arr->count; i < idx; i++) arr->items[i] = NIL_VAL;
                     arr->count = idx + 1;
                 }
                 arr->items[idx] = value;
-                WRITE_BARRIER(vm, arr); // Barrier
+                WRITE_BARRIER(vm, arr);
             }
         } else if (IS_MAP(target)) {
             Map* map = (Map*)AS_OBJ(target);
             if (IS_STRING(index)) {
                 ObjString* key = AS_STRING(index);
                 mapSetStr(map, key->chars, key->length, value);
-                WRITE_BARRIER(vm, map); // Barrier
             } else if (IS_INT(index)) {
                 mapSetInt(map, (int)AS_INT(index), value);
-                WRITE_BARRIER(vm, map); // Barrier
             }
+            WRITE_BARRIER(vm, map);
         }
-        // Map indexing handled separately
-        *sp++ = value;  // Assignment evaluates to value
         NEXT();
     }
-    
-    op_new_array: {
-        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
+
+    // ===== OBJECT CREATION =====
+    op_newarray: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
         Array* arr = newArray(vm);
-        *sp++ = OBJ_VAL(arr);
+        regs[a] = OBJ_VAL(arr);
         NEXT();
     }
-    
-    op_new_map: {
-        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
+
+    op_newmap: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
         Map* m = newMap(vm);
-        *sp++ = OBJ_VAL(m);
+        regs[a] = OBJ_VAL(m);
         NEXT();
     }
-    
-    op_new_object: {
-        // TODO: Struct instantiation
-        Value v = NIL_VAL;
-        *sp++ = v;
+
+    op_newstruct: {
+        // OP_NEWSTRUCT A B C: R(A) = new instance of StructDef R(B) with C fields
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        StructDef* def = (StructDef*)AS_OBJ(regs[b]);
+        vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
+        StructInstance* si = ALLOCATE_OBJ(vm, StructInstance, OBJ_STRUCT_INSTANCE);
+        si->def = def;
+        si->fields = malloc(sizeof(Value) * c);
+        for (int i = 0; i < c; i++) {
+            si->fields[i] = regs[a + 1 + i];
+        }
+        regs[a] = OBJ_VAL(si);
         NEXT();
     }
-    
-    op_struct_def: {
-        uint8_t fieldCount = *ip++;
-        
-        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
-        
+
+    op_structdef: {
+        uint32_t inst = FETCH();
+        uint8_t fieldCount = DECODE_A(inst);
+        uint16_t nameIdx = DECODE_Bx(inst);
+
+        vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
         StructDef* s = ALLOCATE_OBJ(vm, StructDef, OBJ_STRUCT_DEF);
         s->fieldCount = fieldCount;
         s->fields = malloc(sizeof(char*) * fieldCount);
-        
-        for (int i = fieldCount - 1; i >= 0; i--) {
-            Value fVal = *(--sp); // Pop field name
-            ObjString* fStr = AS_STRING(fVal);
+
+        ObjString* nameStr = AS_STRING(constants[nameIdx]);
+        s->name = nameStr->chars;
+
+        // Field names are in constants following nameIdx
+        // The compiler emits field names as constants, but we need to
+        // know which constants they are. For now, use nameIdx+1..nameIdx+fieldCount
+        for (int i = 0; i < fieldCount; i++) {
+            ObjString* fStr = AS_STRING(constants[nameIdx + 1 + i]);
             char* f = malloc(fStr->length + 1);
             memcpy(f, fStr->chars, fStr->length);
             f[fStr->length] = 0;
             s->fields[i] = f;
         }
-        
-        Value nameVal = *(--sp); // Pop name
-        ObjString* nameStr = AS_STRING(nameVal);
-        s->name = nameStr->chars; 
-        
-        // Push StructDef as Value
-        *sp++ = OBJ_VAL(s);
-        
-        NEXT();
-    }
-    
-    op_array_push: {
-        // Stack: [array, value] -> [] (Compiler emits OP_LOAD_NIL after this)
-        Value val = *(--sp);      // Pop value
-        Value arrVal = sp[-1];    // Peek array
-        
-        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
-        
-        if (IS_ARRAY(arrVal)) {
-            Array* arr = (Array*)AS_OBJ(arrVal);
-            arrayPush(vm, arr, val);
-            WRITE_BARRIER(vm, arr); // Barrier
+
+        // Put StructDef into a register for subsequent DEFGLOBAL
+        // The next instruction should be DEFGLOBAL
+        // Find the first register that was loaded with nameIdx
+        // Actually the compiler uses nameReg for this. We need a convention.
+        // Use a temp register approach: put into regs[0] area
+        // Actually: the compiler emits LOADK nameReg nameIdx, then STRUCTDEF fieldCount nameIdx, then DEFGLOBAL nameReg nameIdx
+        // So nameReg already has the name string. We overwrite it with the StructDef.
+        // But STRUCTDEF doesn't specify which register to put the result in!
+        // Fix: Since DEFGLOBAL follows and references nameReg, we need to overwrite nameReg.
+        // The compiler should handle this. For now, put it on a known register.
+        // Actually let's look at what the compiler does... it emits:
+        //   LOADK nameReg nameIdx
+        //   LOADK fReg1 fIdx1
+        //   ...
+        //   STRUCTDEF fieldCount nameIdx
+        //   DEFGLOBAL nameReg nameIdx
+        // So we overwrite nameReg with the struct def value.
+        // But we don't know nameReg here... We need to find it.
+        // The simplest fix: peek at the next instruction to find A of DEFGLOBAL.
+        // Or: use a convention that result goes into a known register.
+        // Let's use: look at next instruction
+        {
+            uint32_t nextInst = ip[1];
+            uint8_t nextOp = DECODE_OP(nextInst);
+            if (nextOp == OP_DEFGLOBAL || nextOp == OP_MOVE) {
+                uint8_t destReg = DECODE_A(nextInst);
+                regs[destReg] = OBJ_VAL(s);
+            }
         }
         NEXT();
     }
-    
-    op_array_push_clean: {
-        // Stack: [array, value] -> [] (Consumes both)
-        Value val = *(--sp);      // Pop value
-        Value arrVal = *(--sp);   // Pop array
-        
-        vm->stackTop = (int)(sp - vm->stack); // Sync stack for GC
-        
+
+    // ===== ARRAY BUILTINS =====
+    op_push: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst);
+        Value arrVal = regs[a], val = regs[b];
         if (IS_ARRAY(arrVal)) {
+            vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
             Array* arr = (Array*)AS_OBJ(arrVal);
             arrayPush(vm, arr, val);
-            WRITE_BARRIER(vm, arr); // Barrier
+            WRITE_BARRIER(vm, arr);
         }
         NEXT();
     }
-    
-    op_array_pop: {
-        // Stack: [array] -> [result]
-        Value arrVal = sp[-1];  // Peek array (Stack size 1 -> 1)
-        
-        // We overwrite the array slot with the result
+
+    op_pop_arr: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst);
+        Value arrVal = regs[b];
         if (IS_ARRAY(arrVal)) {
             Array* arr = (Array*)AS_OBJ(arrVal);
             Value result;
             if (arrayPop(arr, &result)) {
-                sp[-1] = result;
+                regs[a] = result;
             } else {
-                sp[-1] = NIL_VAL;
+                regs[a] = NIL_VAL;
             }
         } else {
-            sp[-1] = NIL_VAL;
+            regs[a] = NIL_VAL;
         }
         NEXT();
     }
-    
-    op_array_len: {
-        // Stack: [array] -> [int]
-        Value arrVal = sp[-1];  // Peek
+
+    op_len: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst);
+        Value v = regs[b];
         int count = 0;
-        
-        if (IS_ARRAY(arrVal)) {
-            count = ((Array*)AS_OBJ(arrVal))->count;
-        } else if (IS_STRING(arrVal)) {
-            count = ((ObjString*)AS_OBJ(arrVal))->length;
-        } else if (IS_MAP(arrVal)) {
-            Map* m = (Map*)AS_OBJ(arrVal);
+        if (IS_ARRAY(v)) count = ((Array*)AS_OBJ(v))->count;
+        else if (IS_STRING(v)) count = ((ObjString*)AS_OBJ(v))->length;
+        else if (IS_MAP(v)) {
+            Map* m = (Map*)AS_OBJ(v);
             for (int i = 0; i < TABLE_SIZE; i++) {
                 MapEntry* e = m->buckets[i];
-                while (e) {
-                    count++;
-                    e = e->next;
+                while (e) { count++; e = e->next; }
+            }
+        }
+        regs[a] = INT_VAL(count);
+        NEXT();
+    }
+
+    // ===== CONCAT =====
+    op_concat: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        // Same as string concat in op_add
+        const char* sB = AS_CSTRING(regs[b]);
+        const char* sC = AS_CSTRING(regs[c]);
+        size_t lenB = strlen(sB), lenC = strlen(sC);
+        char* result = malloc(lenB + lenC + 1);
+        memcpy(result, sB, lenB);
+        memcpy(result + lenB, sC, lenC);
+        result[lenB + lenC] = '\0';
+        ObjString* str = internString(vm, result, lenB + lenC);
+        free(result);
+        regs[a] = OBJ_VAL(str);
+        NEXT();
+    }
+
+    // ===== IMPORT =====
+    op_import: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        uint16_t bx = DECODE_Bx(inst);
+        Value nameVal = constants[bx];
+        char* rawPath = AS_CSTRING(nameVal);
+
+        char* importPath = rawPath;
+        char* resolvedPath = NULL;
+
+        if (rawPath[0] == '.') {
+            if (vm->callStackTop > 0) {
+                CallFrame* frame = &vm->callStack[vm->callStackTop - 1];
+                if (frame->function && frame->function->modulePath) {
+                    char* tmp = strdup(frame->function->modulePath);
+                    char* dir = dirname(tmp);
+                    size_t lenDir = strlen(dir);
+                    size_t lenName = strlen(rawPath);
+                    resolvedPath = malloc(lenDir + 1 + lenName + 1);
+                    sprintf(resolvedPath, "%s/%s", dir, rawPath);
+                    importPath = resolvedPath;
+                    free(tmp);
                 }
             }
         }
-        
-        sp[-1] = INT_VAL(count); // Overwrite with result
+
+        char* source = readFile_internal(importPath);
+        if (!source) {
+            fprintf(stderr, "Runtime Error: Could not import module '%s'\n", rawPath);
+            exit(1);
+        }
+
+        Lexer lex;
+        initLexer(&lex, source);
+        Parser p;
+        p.tokens = malloc(64 * sizeof(Token));
+        p.count = 0; p.capacity = 64; p.current = 0;
+        while (true) {
+            Token t = scanToken(&lex);
+            if (p.count >= p.capacity) { p.capacity *= 2; p.tokens = realloc(p.tokens, p.capacity * sizeof(Token)); }
+            p.tokens[p.count++] = t;
+            if (t.type == TOKEN_EOF) break;
+        }
+        Node* ast = parse(&p);
+
+        Environment* oldEnv = vm->globalEnv;
+        Environment* modEnv = ALLOCATE_OBJ(vm, Environment, OBJ_ENVIRONMENT);
+        modEnv->enclosing = oldEnv;
+        memset(modEnv->buckets, 0, sizeof(modEnv->buckets));
+        memset(modEnv->funcBuckets, 0, sizeof(modEnv->funcBuckets));
+        vm->globalEnv = modEnv;
+
+        BytecodeChunk* modChunk = malloc(sizeof(BytecodeChunk));
+        initChunk(modChunk);
+        compileToBytecode(vm, ast, modChunk, importPath);
+
+        Function* modFunc = malloc(sizeof(Function));
+        modFunc->obj.type = OBJ_FUNCTION;
+        modFunc->obj.isMarked = false;
+        modFunc->obj.isPermanent = false;
+        modFunc->obj.generation = 0;
+        modFunc->obj.next = vm->objects;
+        vm->objects = (Obj*)modFunc;
+        modFunc->name = (Token){0};
+        modFunc->params = NULL;
+        modFunc->paramCount = 0;
+        modFunc->isNative = false;
+        modFunc->isAsync = false;
+        modFunc->bytecodeChunk = modChunk;
+        modFunc->modulePath = importPath ? strdup(importPath) : NULL;
+        modFunc->moduleEnv = modEnv;
+        modFunc->closure = NULL;
+        modFunc->native = NULL;
+        modFunc->body = NULL;
+
+        // Execute module
+        if (vm->callStackTop >= CALL_STACK_MAX) {
+            printf("Runtime Error: Stack overflow during import\n");
+            exit(1);
+        }
+        CallFrame* frame = &vm->callStack[vm->callStackTop++];
+        frame->ip = ip + 1;
+        frame->chunk = chunk;
+        frame->function = modFunc;
+        frame->regBase = vm->regBase;
+        frame->resultReg = a;
+        frame->prevGlobalEnv = oldEnv;
+
+        // Allocate register window for module
+        int modBase = vm->regBase + chunk->maxRegs + 1;
+        vm->regBase = modBase;
+        regs = vm->registers + vm->regBase;
+
+        int modEntryDepth = vm->callStackTop - 1;
+        executeBytecode(vm, modChunk, modEntryDepth);
+
+        // Restore
+        vm->regBase = frame->regBase;
+        regs = vm->registers + vm->regBase;
+        vm->globalEnv = oldEnv;
+        chunk = frame->chunk;
+        constants = chunk->constants;
+        ip = frame->ip;
+        vm->callStackTop--;
+
+        // Create module object
+        Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
+        mod->env = modEnv;
+        mod->name = strdup(importPath);
+        mod->source = NULL;
+        regs[a] = OBJ_VAL(mod);
+
+        free(source);
+        if (resolvedPath) free(resolvedPath);
+        if (p.tokens) free(p.tokens);
+
         NEXT();
     }
-    
-    // === ASYNC OPERATIONS ===
-    op_async_call: {
-        // Call an async function - execute immediately but wrap result in Future
-        uint8_t argCount = *ip++;
-        
-        // Get function from stack
-        Value* funcSlot = sp - 1 - argCount;
-        Value funcVal = *funcSlot;
-        
+
+    // ===== ASYNC =====
+    op_async: {
+        // Simplified: execute synchronously, wrap in Future
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
+        // b = function reg, c = arg count
+        Value funcVal = regs[b];
         if (!IS_OBJ(funcVal) || AS_OBJ(funcVal)->type != OBJ_FUNCTION) {
-            printf("Runtime Error: Async call on non-function\n");
-            goto done;
+            printf("Runtime Error: Async call on non-function\n"); exit(1);
         }
-        
         Function* func = (Function*)AS_OBJ(funcVal);
-        
-        // Create Future object
-        vm->stackTop = (int)(sp - vm->stack);
+
+        vm->regTop = vm->regBase + (int)(chunk->maxRegs + 1);
         Future* future = ALLOCATE_OBJ(vm, Future, OBJ_FUTURE);
         future->done = false;
         future->result = NIL_VAL;
         pthread_mutex_init(&future->mu, NULL);
         pthread_cond_init(&future->cv, NULL);
-        
-        // Execute the function immediately (synchronous for now)
-        // Save current frame
-        CallFrame* callerFrame = (vm->callStackTop > 0) ? &vm->callStack[vm->callStackTop - 1] : NULL;
-        if (callerFrame) {
-            callerFrame->ip = ip;
-            callerFrame->chunk = chunk;
-        }
-        
-        // Push new call frame for async function
-        if (vm->callStackTop >= CALL_STACK_MAX) {
-            printf("Stack overflow in async call\n");
-            goto done;
-        }
-        
-        CallFrame* frame = &vm->callStack[vm->callStackTop++];
-        frame->function = func;
-        frame->chunk = func->bytecodeChunk;
-        frame->ip = func->bytecodeChunk->code;
-        frame->env = vm->globalEnv;
-        frame->fp = (int)(funcSlot - vm->stack);
-        
-        // Execute async function's bytecode
-        int asyncEntryDepth = vm->callStackTop - 1;
-        Value result = NIL_VAL;
-        
-        // Replace function slot with Future first (for caller to receive)
-        *funcSlot = OBJ_VAL(future);
-        sp = funcSlot + 1;  // Adjust stack: function+args replaced by Future
-        vm->stackTop = (int)(sp - vm->stack);
-        
-        // Execute and get result
-        executeBytecode(vm, func->bytecodeChunk, asyncEntryDepth);
-        
-        // The return value is stored in the frame
-        if (vm->callStackTop > asyncEntryDepth) {
-            // Function returned, get result from stack
-            result = vm->stack[vm->stackTop - 1];
-            vm->stackTop--; // Pop return value
-        }
-        
-        // Mark future as done with result
+
+        // Execute synchronously
+        Value result = callFunction(vm, func, &regs[b + 1], c);
+
         pthread_mutex_lock(&future->mu);
         future->result = result;
         future->done = true;
         pthread_cond_broadcast(&future->cv);
         pthread_mutex_unlock(&future->mu);
-        
-        // Restore sp
-        sp = vm->stack + vm->stackTop;
-        NEXT();
-    }
-    
-    op_await: {
-        // Pop Future, wait for result, push result
-        Value futureVal = *(--sp);
-        
-        if (!IS_OBJ(futureVal) || AS_OBJ(futureVal)->type != OBJ_FUTURE) {
-            // Not a Future, just return the value as-is
-            *sp++ = futureVal;
-            NEXT();
-        }
-        
-        Future* f = (Future*)AS_OBJ(futureVal);
-        
-        // Wait for completion
-        pthread_mutex_lock(&f->mu);
-        while (!f->done) {
-            pthread_cond_wait(&f->cv, &f->mu);
-        }
-        Value result = f->result;
-        pthread_mutex_unlock(&f->mu);
-        
-        *sp++ = result;
+
+        regs[a] = OBJ_VAL(future);
         NEXT();
     }
 
-    
-    // === SPECIAL ===
+    op_await: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst), b = DECODE_B(inst);
+        Value v = regs[b];
+        if (!IS_OBJ(v) || AS_OBJ(v)->type != OBJ_FUTURE) {
+            regs[a] = v;
+            NEXT();
+        }
+        Future* f = (Future*)AS_OBJ(v);
+        pthread_mutex_lock(&f->mu);
+        while (!f->done) pthread_cond_wait(&f->cv, &f->mu);
+        regs[a] = f->result;
+        pthread_mutex_unlock(&f->mu);
+        NEXT();
+    }
+
+    // ===== SPECIAL =====
     op_print: {
-        Value val = *(--sp);
-        printValue(val);
+        uint32_t inst = FETCH();
+        printValue(regs[DECODE_A(inst)]);
         printf("\n");
         NEXT();
     }
-    
+
     op_halt: {
         goto done;
     }
-    
+
     op_nop: {
         NEXT();
     }
-    
+
 #else
     #error "Computed goto not supported. Use GCC or Clang."
 #endif
-    
+
 done:
-    uint64_t elapsed = getMicroseconds() - startTime;
-    
-    // Performance stats removed - use ucoreTimer for benchmarking
-    
-    return elapsed;
+    return getMicroseconds() - startTime;
 }
