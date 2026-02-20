@@ -1,0 +1,682 @@
+Unnarize Execution & Benchmark Report
+Generated on: Sat Feb 21 06:35:12 AM WIB 2026
+--------------------------------------
+SYSTEM SPECIFICATIONS:
+  OS:  Ubuntu 24.04.4 LTS
+  CPU: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz
+  RAM: 7637.09 MB
+--------------------------------------
+x] examples/basics/01_variables.unna: PASS
+    Output Details:
+      Tokenized 107 tokens successfully.
+      === Variables & Data Types ===
+      Integer: 25
+      Float: 19.99
+      Negative: -42
+      String: Hello
+      Concatenation: Hello, Unnarize!
+      Boolean true: 1
+      Boolean false: 0
+      === Complete ===
+--------------------------------------
+x] examples/basics/02_operators.unna: PASS
+    Output Details:
+      Tokenized 176 tokens successfully.
+      === Operators ===
+      a = 20, b = 6
+      a + b = 26
+      a - b = 14
+      a * b = 120
+      a / b = 3
+      a % b = 2
+      a > b: 1
+      a < b: 0
+      a >= b: 1
+      a == b: 0
+      a != b: 1
+      a + b * 2 = 32
+      (a + b) * 2 = 52
+      === Complete ===
+--------------------------------------
+x] examples/basics/03_arrays.unna: PASS
+    Output Details:
+      Tokenized 156 tokens successfully.
+      === Arrays ===
+      Numbers: [object]
+      Names: [object]
+      Mixed: [object]
+      First number: 1
+      Second name: Bob
+      Last number: 5
+      After modification: [object]
+      Matrix: [object]
+      matrix[1][0] = 3
+      === Complete ===
+--------------------------------------
+x] examples/basics/04_structs.unna: PASS
+    Output Details:
+      Tokenized 179 tokens successfully.
+      === Structs ===
+      Point 1: (10, 20)
+      Point 2: (30, 40)
+      Modified Point 1: (15, 25)
+      Person: Alice, Age: 30
+      Person: Bob, Age: 25
+      Alice's new age: 31
+      === Complete ===
+--------------------------------------
+x] examples/basics/05_control_if.unna: PASS
+    Output Details:
+      Tokenized 160 tokens successfully.
+      === If-Else Statements ===
+      x is greater than 5
+      Score: 75
+      Grade: C - Satisfactory
+      Level: 5, Has Key: 1
+      Access granted!
+      === Complete ===
+--------------------------------------
+x] examples/basics/06_control_while.unna: PASS
+    Output Details:
+      Tokenized 132 tokens successfully.
+      === While Loops ===
+      Counting 0 to 4:
+        i = 0
+        i = 1
+        i = 2
+        i = 3
+        i = 4
+      Sum of 1 to 10: 55
+      2^8 = 256
+      === Complete ===
+--------------------------------------
+x] examples/basics/07_control_for.unna: PASS
+    Output Details:
+      Tokenized 159 tokens successfully.
+      === For Loops ===
+      Counting 1 to 5:
+        i = 1
+        i = 2
+        i = 3
+        i = 4
+        i = 5
+      Squares of 1 to 5:
+        1^2 = 1
+        2^2 = 4
+        3^2 = 9
+        4^2 = 16
+        5^2 = 25
+      Countdown:
+        5...
+        4...
+        3...
+        2...
+        1...
+        Liftoff!
+      5! = 120
+      === Complete ===
+--------------------------------------
+x] examples/basics/08_control_foreach.unna: PASS
+    Output Details:
+      Tokenized 140 tokens successfully.
+      === Foreach Loops ===
+      Fruit list:
+        - Apple
+        - Banana
+        - Cherry
+        - Date
+      Scores: [object]
+      Total: 438
+      Average: 87
+      Inventory check:
+        Found: sword
+        Found: shield
+        Found: potion
+      === Complete ===
+--------------------------------------
+x] examples/basics/09_functions.unna: PASS
+    Output Details:
+      Tokenized 226 tokens successfully.
+      === Functions ===
+      Hello, World!
+      add(5, 3) = 8
+      multiply(4, 7) = 28
+      max(10, 25) = 25
+      min(10, 25) = 10
+      clamp(150, 0, 100) = 100
+      clamp(-20, 0, 100) = 0
+      clamp(50, 0, 100) = 50
+      === Complete ===
+--------------------------------------
+x] examples/basics/10_recursion.unna: PASS
+    Output Details:
+      Tokenized 138 tokens successfully.
+      === Recursion ===
+      Factorial calculations:
+        3! = 6
+        5! = 120
+        7! = 5040
+      Fibonacci sequence:
+        fib(5) = 5
+        fib(8) = 21
+        fib(10) = 55
+      === Complete ===
+--------------------------------------
+x] examples/basics/11_async.unna: PASS
+    Output Details:
+      Tokenized 120 tokens successfully.
+      === Async/Await ===
+      Workflow started
+        Fetching from API...
+        Fetching from Database...
+        Got: Data:API
+        Got: Data:Database
+      Workflow finished
+      === Complete ===
+--------------------------------------
+x] examples/benchmark/benchmark.unna: PASS
+    Output Details:
+      Tokenized 291 tokens successfully.
+      ========================================
+            UNNARIZE PERFORMANCE TEST
+      ========================================
+      
+      [ TEST 1 ] Recursive Fibonacci
+      Target: fib(30)
+      Result: 832040
+      Time  : 98.0709 ms
+      
+      [ TEST 2 ] Heavy Loop
+      Target: 10000000 iterations
+      Result: 10000000
+      Time  : 117.644 ms
+      ----------------------------------------
+      Speed : 255.006 M ops/sec
+      ----------------------------------------
+      
+      ========================================
+--------------------------------------
+ ] examples/corelib/http/advanced_demo.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+ ] examples/corelib/http/api_server.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+x] examples/corelib/http/client.unna: PASS
+    Output Details:
+      Tokenized 86 tokens successfully.
+      === ucoreHttp Client Demo ===
+      
+      --- JSON Serialization ---
+      JSON output: {"active":1,"name":"Unnarize","version":"1.0"}
+      
+      Done!
+      
+      To test HTTP requests, uncomment the GET/POST sections
+      and run with network access.
+--------------------------------------
+x] examples/corelib/http/server.unna: PASS
+    Output Details:
+      bind failed: Address already in use
+      Tokenized 197 tokens successfully.
+      === ucoreHttp Server Demo ===
+      
+      Routes registered:
+        GET  /      -> handleIndex
+        GET  /api   -> handleApi
+        POST /echo  -> handleEcho
+      
+      Starting server on port 8080...
+      Press Ctrl+C to stop
+--------------------------------------
+x] examples/corelib/json/benchmark.unna: PASS
+    Output Details:
+      Tokenized 194 tokens successfully.
+      === ucoreJson Benchmark ===
+      Iterations: 10000
+      Parse Time: 40.361 ms
+      Stringify Time: 19.3741 ms
+      Parse Speed: ~247764 ops/sec
+      Stringify Speed: ~516152 ops/sec
+      === Benchmark Complete ===
+--------------------------------------
+x] examples/corelib/json/demo.unna: PASS
+    Output Details:
+      Tokenized 266 tokens successfully.
+      Original JSON: {"name": "Unnarize", "version": 1, "features": ["GC", "Async", "JSON"]}
+      Parsed Name: Unnarize
+      Parsed Version: 1
+      Features Count: 3
+      Feature 1: GC
+      Stringified: {"features":["GC","Async","JSON"],"name":"Unnarize","version":1,"newField":"Dynamic Add"}
+      Back newField: Dynamic Add
+      Expected: Dynamic Add
+      VERIFICATION PASSED: Round-trip successful
+      Writing database...
+      Write success.
+      Reading database...
+      Read verification FAILED.
+      Deleting database...
+      Delete success.
+--------------------------------------
+x] examples/corelib/json/stress_test.unna: PASS
+    Output Details:
+      Tokenized 106 tokens successfully.
+      100 iterations: PASS
+      500 iterations: PASS
+      1000 iterations: PASS
+      All tests passed!
+--------------------------------------
+ ] examples/corelib/scraper/benchmark.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+x] examples/corelib/scraper/demo.unna: PASS
+    Output Details:
+      Tokenized 474 tokens successfully.
+      === ucoreScraper Demo ===
+      Parsing HTML...
+      ---------------------------------------------------
+      Selecting '#main'...
+      Found ID main! Tag: div
+      Class: container
+      Selecting '.container'...
+      Containers found: 1
+      Selecting 'h1'...
+      Header text: Hello Scraper
+      Selecting 'img'...
+      Image Src: logo.png
+      
+      --- parseFile (local file) ---
+      Links from file: 2 found
+        - Link 1 -> page1.html
+        - Link 2 -> page2.html
+      
+      --- fetch (network request) ---
+      Fetching https://example.com ...
+      Fetched 528 bytes
+      Page title: nil
+      
+      --- download (save to file) ---
+      Downloaded to examples/corelib/scraper/downloads/example_downloaded.html
+      Downloaded file size: 528 bytes
+      Cleaned up downloaded file.
+      ---------------------------------------------------
+      Done.
+--------------------------------------
+x] examples/corelib/scraper/local_demo.unna: PASS
+    Output Details:
+      Tokenized 177 tokens successfully.
+      === ucoreScraper Local File Demo ===
+      Created 'product.html'. Parsing...
+      Found Product!
+      Tag: div
+      === Done ===
+--------------------------------------
+x] examples/corelib/scraper/offline_workflow_demo.unna: PASS
+    Output Details:
+      Tokenized 151 tokens successfully.
+      === ucoreScraper Offline Workflow Demo ===
+      1. Downloading 'https://en.wikipedia.org/wiki/Data_mining' to 'downloads/data_mining.html'...
+         Download successful!
+      2. Processing local file offline...
+         Page Title: Data mining - Wikipedia
+         Main Subject: Data mining
+      3. Done. File is kept at 'downloads/data_mining.html' for future use.
+      === Done ===
+--------------------------------------
+x] examples/corelib/scraper/stress_test.unna: PASS
+    Output Details:
+      Tokenized 290 tokens successfully.
+      === ucoreScraper Stress Test (Real-World HTML) ===
+      Downloading: https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)
+      Download finished in 675.942ms
+      
+      Parsing and selecting table rows...
+      Found 253 table rows.
+      Parse + Select time: 4.75861ms
+      
+      Selecting anchor tags (links)...
+      Found 1139 links.
+      Parse + Select time: 3804.82ms
+      
+      Selecting paragraphs...
+      Found 2 paragraphs.
+      Parse + Select time: 13.0852ms
+      
+      === Summary ===
+      Total elements processed: 1394
+      All operations completed successfully!
+      === Done ===
+--------------------------------------
+x] examples/corelib/scraper/wiki_demo.unna: PASS
+    Output Details:
+      Tokenized 161 tokens successfully.
+      === ucoreScraper Wikipedia Demo (Standalone) ===
+      Fetching Wikipedia page for 'Web scraping'...
+      Download finished. Length: 165308
+      Parsing...
+      Page Title: Web scraping - Wikipedia
+      Main Heading: Web scraping
+      Found 7 subsections.
+      === Done ===
+--------------------------------------
+x] examples/corelib/string/benchmark.unna: PASS
+    Output Details:
+      Tokenized 480 tokens successfully.
+      === ucoreString Benchmark ===
+      Test string length: 14336 chars
+      
+      --- split() ---
+      Iterations: 100
+      Total time: 7.5974ms
+      Ops/sec: 13162.4
+      
+      --- replace() ---
+      Iterations: 100
+      Total time: 2.72383ms
+      Ops/sec: 36713
+      
+      --- toLower() ---
+      Iterations: 100
+      Total time: 2.92937ms
+      Ops/sec: 34137
+      
+      --- contains() ---
+      Iterations: 10000
+      Total time: 0.515969ms
+      Ops/sec: 1.9381e+07
+      
+      --- extract() (regex) ---
+      Iterations: 50
+      Total time: 15.1935ms
+      Ops/sec: 3290.88
+      
+      === Benchmark Complete ===
+--------------------------------------
+x] examples/corelib/string/demo.unna: PASS
+    Output Details:
+      Tokenized 331 tokens successfully.
+      === ucoreString Demo ===
+      Split result: 3 items
+      Item [0]: apple
+      Item [1]: banana
+      Joined: apple | banana | cherry
+      Replace: hello unnarize unnarize
+      Trimmed: 'trim me please' (len: 14)
+      Lower: hello unnarizen
+      Upper: HELLO UNNARIZEN
+      Contains 'Na': 1
+      Contains 'X': 0
+      
+      --- Regex Match ---
+      'test@example.com' contains @ symbol
+      Text starts with 'Hello'
+      Text contains numbers
+      
+      --- Regex Extract ---
+      Extracted numbers from log: 8 matches
+        - 404
+        - 10
+        - 23
+        - 45
+        - 500
+        - 11
+        - 00
+        - 00
+      
+      === Done ===
+--------------------------------------
+x] examples/corelib/string/regex_demo.unna: PASS
+    Output Details:
+      Tokenized 188 tokens successfully.
+      === ucoreString Regex Demo ===
+      Is 'Unnarize' in text? 1
+      Text starts with 'Hello' (Regex)
+      Extracting emails from log...
+      Found 2 emails:
+      - support@example.com
+      - sales@unnarize.org
+      Extracting dates...
+      - 2026-01-15
+      - 2026-02-28
+      === Done ===
+--------------------------------------
+x] examples/corelib/string/stress_test.unna: PASS
+    Output Details:
+      Tokenized 370 tokens successfully.
+      === ucoreString Stress Test (Real-World Text) ===
+      Downloading: https://en.wikipedia.org/wiki/History_of_the_Internet
+      Download complete.
+      
+      Extracting paragraph text...
+      Found 158 paragraphs.
+      Total text length: 87702 characters
+      
+      --- Testing replace() ---
+      Replace finished in: 0.117331ms
+      
+      --- Testing split() ---
+      Split finished in: 13.9439ms
+      Word count: 12522
+      
+      --- Testing regex extract() ---
+      Regex finished in: 0.821083ms
+      Years found: 280
+      Sample years: 1950, 1960, 1965, 1969, 1970
+      
+      === Stress Test Complete ===
+      === Done ===
+--------------------------------------
+x] examples/corelib/system/demo.unna: PASS
+    Output Details:
+      Sat Feb 21 06:35:50 AM WIB 2026
+      total 84
+      drwxrwxr-x 10 user user  4096 Feb 21 06:35 .
+      drwxrwxr-x  6 user user  4096 Feb 21 06:13 ..
+      drwxrwxr-x  2 user user  4096 Feb 21 06:35 bin
+      drwxrwxr-x  5 user user  4096 Feb 21 06:30 core
+      Tokenized 383 tokens successfully.
+      === ucoreSystem Demo ===
+      
+      --- Command Line Arguments ---
+      Script: ./bin/unnarize
+      Total args: 2
+      Extra args:
+        [1] examples/corelib/system/demo.unna
+      
+      --- Environment Variables ---
+      HOME: /home/user
+      USER: user
+      PATH length: 408 chars
+      
+      --- File Existence Check ---
+      [NOT FOUND] README.md
+      [NOT FOUND] Makefile
+      [NOT FOUND] nonexistent.txt
+      [NOT FOUND] src/main.c
+      
+      --- File I/O (writeFile / readFile) ---
+      Writing to test_output.txt...
+      Write successful!
+      Reading from test_output.txt...
+      Content: Hello from ucoreSystem.writeFile()!
+      Line 2 here.
+      Cleaned up test file.
+      
+      --- Shell Execution (exec) ---
+      Current date: 0
+      Directory listing (first 5 lines):
+      0
+      
+      Done!
+--------------------------------------
+x] examples/corelib/timer/demo.unna: PASS
+    Output Details:
+      Tokenized 266 tokens successfully.
+      === ucoreTimer Demo ===
+      
+      Start time (ms): 2.23846e+08
+      
+      Running loop...
+      Sum: 704982704
+      Elapsed: 2.20955 ms
+      
+      Sleeping for 500ms...
+      Slept for: 500.069 ms
+      
+      === Benchmark ===
+      100K iterations: 1.399ms (7.14795e+07 ops/sec)
+      1M iterations: 14.8853ms (6.71802e+07 ops/sec)
+      
+      Done!
+--------------------------------------
+ ] examples/corelib/tui/demo.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+ ] examples/corelib/tui/test_input.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+ ] examples/corelib/tui/warehouse.unna: FAIL (Timeout)
+    Error Details: Execution timed out after 10s
+--------------------------------------
+x] examples/corelib/uon/demo.unna: PASS
+    Output Details:
+      Tokenized 691 tokens successfully.
+      === ucoreUon Practical Demo ===
+      
+      sample.uon not found, creating with ucoreUon.generate()...
+      
+      Created sample.uon successfully!
+      
+      Generated content:
+      ------------------
+      @schema {
+          products: [id, name, price, stock],
+          users: [id, name, email, role]
+      }
+      
+      @flow {
+          products: [
+              { id: 101, name: "Laptop Pro", stock: 50, price: 999 },
+              { id: 102, name: "SmartPhone X", stock: 100, price: 599 },
+              { id: 103, name: "Wireless Headset", stock: 200, price: 89 }
+          ],
+          users: [
+              { id: 1, name: "Alice", role: "admin", email: "alice@example.com" },
+              { id: 2, name: "Bob", role: "user", email: "bob@example.com" },
+              { id: 3, name: "Carol", role: "user", email: "carol@example.com" },
+              { id: 4, name: "Dave", role: "moderator", email: "dave@example.com" }
+          ]
+      }
+      
+      
+      Loading sample.uon...
+      File loaded successfully!
+      
+      --- Users Table ---
+      [1] Alice <alice@example.com> (admin)
+      [2] Bob <bob@example.com> (user)
+      [3] Carol <carol@example.com> (user)
+      [4] Dave <dave@example.com> (moderator)
+      
+      --- Products Table ---
+      [101] Laptop Pro - $999 (Stock: 50)
+      [102] SmartPhone X - $599 (Stock: 100)
+      [103] Wireless Headset - $89 (Stock: 200)
+      
+      Done!
+--------------------------------------
+x] examples/garbagecollection/benchmark.unna: PASS
+    Output Details:
+      Tokenized 224 tokens successfully.
+      === GC Benchmark ===
+      
+      Test 1: 10,000 Array Allocations
+        PASSED
+      
+      Test 2: 5,000 Map Allocations
+        PASSED
+      
+      Test 3: 5,000 String Concatenations
+        PASSED
+      
+      Test 4: 50,000 Array Allocations
+        PASSED
+      
+      === All Benchmarks Passed ===
+      GC handles heavy allocation loads!
+--------------------------------------
+x] examples/garbagecollection/long_running.unna: PASS
+    Output Details:
+      Tokenized 243 tokens successfully.
+      === GC Long Running Simulation ===
+      
+      Simulating 300 batches of 50 requests...
+      
+        Progress: 100/300 batches
+        Progress: 200/300 batches
+      
+      === Results ===
+      Total allocations: 15000
+      Total batches: 300
+      
+      Memory stable - GC working correctly!
+--------------------------------------
+x] examples/garbagecollection/stress_test.unna: PASS
+    Output Details:
+      Tokenized 329 tokens successfully.
+      === GC Stress Test ===
+      
+      Test 1: Massive Array Allocation (500 x 100)
+        PASSED: Created 50,000 total items
+      
+      Test 2: String Concatenation (300 x 10)
+        PASSED: Created 3,000 string concatenations
+      
+      Test 3: Map Allocation (500 maps)
+        PASSED: Created 500 maps with 3 entries each
+      
+      Test 4: Mixed Allocation (100 nested structures)
+        PASSED: Created 100 complex nested structures
+      
+      === ALL TESTS PASSED ===
+      GC stress test completed successfully!
+--------------------------------------
+ ] examples/testcase/main.unna: FAIL (Exit Code: 1)
+    Error Details:
+      Runtime Error: Could not import module './models/customer.unna'
+      Tokenized 519 tokens successfully.
+--------------------------------------
+x] examples/testcase/models/customer.unna: PASS
+    Output Details:
+      Tokenized 229 tokens successfully.
+--------------------------------------
+x] examples/testcase/models/order.unna: PASS
+    Output Details:
+      Tokenized 194 tokens successfully.
+--------------------------------------
+x] examples/testcase/models/product.unna: PASS
+    Output Details:
+      Tokenized 141 tokens successfully.
+--------------------------------------
+ ] examples/testcase/services/inventory.unna: FAIL (Exit Code: 139)
+    Error Details:
+      timeout: the monitored command dumped core
+--------------------------------------
+ ] examples/testcase/services/reporting.unna: FAIL (Exit Code: 139)
+    Error Details:
+      timeout: the monitored command dumped core
+--------------------------------------
+ ] examples/testcase/services/sales.unna: FAIL (Exit Code: 1)
+    Error Details:
+      Runtime Error: Could not import module '../models/customer.unna'
+      Tokenized 162 tokens successfully.
+--------------------------------------
+x] examples/testcase/utils/logger.unna: PASS
+    Output Details:
+      Tokenized 155 tokens successfully.
+--------------------------------------
+x] examples/testcase/utils/validator.unna: PASS
+    Output Details:
+      Tokenized 134 tokens successfully.
+--------------------------------------
