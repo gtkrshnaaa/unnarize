@@ -470,9 +470,13 @@ void collectGarbage(VM* vm) {
         vm->nextGC = vm->bytesAllocated * 2;
     }
     
-    // Minimum threshold to avoid too frequent GC
-    if (vm->nextGC < 1024 * 256) {
-        vm->nextGC = 1024 * 256;  // Minimum 256KB
+    // Minimum threshold
+    if (vm->nextGC < 1024 * 32) {
+        vm->nextGC = 1024 * 32;  // 32KB minimum
+    }
+    // Maximum threshold: cap growth to prevent unbounded heap
+    if (vm->nextGC > 1024 * 1024 * 4) {
+        vm->nextGC = 1024 * 1024 * 4;  // 4MB maximum
     }
 }
 
@@ -515,9 +519,8 @@ bool collectGarbageIncremental(VM* vm, int workUnits) {
         
         // Adaptive threshold
         vm->nextGC = vm->bytesAllocated * 2;
-        if (vm->nextGC < 1024 * 256) {
-            vm->nextGC = 1024 * 256;
-        }
+        if (vm->nextGC < 1024 * 32) vm->nextGC = 1024 * 32;
+        if (vm->nextGC > 1024 * 1024 * 4) vm->nextGC = 1024 * 1024 * 4;
         
         return true;  // Collection complete
     }
@@ -608,7 +611,8 @@ static void* concurrentMarkWorker(void* arg) {
     
     // Adaptive threshold
     vm->nextGC = vm->bytesAllocated * 2;
-    if (vm->nextGC < 1024 * 256) vm->nextGC = 1024 * 256;
+    if (vm->nextGC < 1024 * 32) vm->nextGC = 1024 * 32;
+    if (vm->nextGC > 1024 * 1024 * 4) vm->nextGC = 1024 * 1024 * 4;
     
     gcConcurrentActive = 0;
     pthread_mutex_unlock(&gcMutex);

@@ -266,11 +266,23 @@ static unsigned int hashPointer(const void* ptr) {
 
 ObjString* internString(VM* vm, const char* str, int length) {
     if (!str) return NULL;
-    // Special handling for empty string
     if (length <= 0) length = 0;
-    
+
+    // Long strings are NOT interned: they live only on the GC heap and are
+    // collected as soon as they become unreachable. This prevents the pool
+    // from pinning megabytes of intermediate concatenation results.
+    if (length > 256) {
+        ObjString* strObj = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
+        strObj->length = length;
+        strObj->hash   = hash(str, length);
+        strObj->chars  = malloc(length + 1);
+        memcpy(strObj->chars, str, length);
+        strObj->chars[length] = '\0';
+        return strObj;
+    }
+
     unsigned int h = hash(str, length);
-    
+
     // Step 1: Find existing match (Lock)
     pthread_mutex_lock(&vm->stringPool.lock);
     for (int i = 0; i < vm->stringPool.count; i++) {
@@ -298,16 +310,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
         ObjString* existing = (ObjString*)vm->stringPool.strings[i];
          if (existing->hash == h && existing->length == length && memcmp(existing->chars, str, length) == 0) {
              pthread_mutex_unlock(&vm->stringPool.lock);
-             // Lost the race, free our duplicate
-             free(strObj->chars);
-             free(strObj); // Note: this is a manual free, bypassing GC since it's not reachable yet? 
-                           // Wait, ALLOCATE_OBJ adds to vm->objects list!
-                           // If we free(strObj), we have a dangling pointer in vm->objects list!
-                           // FIX: We cannot just free(strObj). It is in the linked list.
-                           // We must mark it as dead or let GC collect it later.
-                           // But if we return 'existing', 'strObj' is unreachable (except from vm->objects).
-                           // GC will collect it eventually.
-                           // So we DON'T free(strObj). We just abandon it.
+             // Lost the race — abandon our duplicate; GC will collect it.
              return existing;
          }
     }
@@ -319,13 +322,14 @@ ObjString* internString(VM* vm, const char* str, int length) {
         vm->stringPool.hashes = (unsigned int*)realloc(vm->stringPool.hashes, sizeof(unsigned int) * vm->stringPool.capacity);
         if (!vm->stringPool.strings || !vm->stringPool.hashes) error("Memory allocation failed for string pool.", 0);
     }
-    vm->stringPool.strings[vm->stringPool.count] = (char*)strObj; // Hack cast
-    vm->stringPool.hashes[vm->stringPool.count] = h; // Keep hashes array updated
+    vm->stringPool.strings[vm->stringPool.count] = (char*)strObj;
+    vm->stringPool.hashes[vm->stringPool.count] = h;
     vm->stringPool.count++;
     pthread_mutex_unlock(&vm->stringPool.lock);
     
     return strObj;
 }
+
 
 // Basic helper to intern a token's valid string range
 static void internToken(VM* vm, Token* token) {
