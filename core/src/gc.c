@@ -190,11 +190,46 @@ static void blackenObject(VM* vm, Obj* object) {
             break;
         }
 
+        case OBJ_STRUCT_DEF: {
+            // StructDef string is interned, no nested GC objects
+            break;
+        }
+
+        case OBJ_STRUCT_INSTANCE: {
+            StructInstance* inst = (StructInstance*)object;
+            markObject(vm, (Obj*)inst->def);
+            if (inst->fields) {
+                for (int i = 0; i < inst->def->fieldCount; i++) {
+                    markValue(vm, inst->fields[i]);
+                }
+            }
+            break;
+        }
+
         default: break;
     }
 }
 
 static void markRoots(VM* vm) {
+    // Mark current active register window
+    if (vm->regTop > vm->regBase) {
+        for (int i = vm->regBase; i < vm->regTop; i++) {
+            markValue(vm, vm->registers[i]);
+        }
+    }
+
+    // Mark all suspended caller frames' registers
+    for (int i = 0; i < vm->callStackTop; i++) {
+        CallFrame* frame = &vm->callStack[i];
+        if (frame->chunk) {
+            int end = frame->regBase + frame->chunk->maxRegs + 1;
+            for (int r = frame->regBase; r < end; r++) {
+                markValue(vm, vm->registers[r]);
+            }
+        }
+    }
+
+    // Mark legacy stack (AST walker compatibility)
     for (Value* slot = vm->stack; slot < vm->stack + vm->stackTop; slot++) {
         markValue(vm, *slot);
     }
@@ -262,6 +297,8 @@ void freeObject(VM* vm, Obj* object) {
         }
         case OBJ_FUNCTION: {
             Function* func = (Function*)object;
+            // Debugging output for unwanted function freeing
+            // if (func->name.length > 0) { ...
             // Free bytecode chunk if it exists
             if (func->bytecodeChunk) {
                 freeChunk(func->bytecodeChunk);
@@ -278,8 +315,9 @@ void freeObject(VM* vm, Obj* object) {
         }
         case OBJ_STRUCT_DEF: {
             StructDef* def = (StructDef*)object;
-            free(def->fields); 
-            free(object);
+            for (int i = 0; i < def->fieldCount; i++) free(def->fields[i]);
+            free(def->fields);
+            free(def);
             break;
         }
         case OBJ_STRUCT_INSTANCE: {
@@ -447,6 +485,13 @@ void collectGarbage(VM* vm) {
     size_t freedBytes = sweep(vm, &vm->objects);
     vm->gcPhase = 0;  // GC_IDLE
     
+    // Decrement bytesAllocated to reflect freed memory
+    if (freedBytes > vm->bytesAllocated) {
+        vm->bytesAllocated = 0;
+    } else {
+        vm->bytesAllocated -= freedBytes;
+    }
+    
     // Update statistics
     uint64_t pauseTime = getCurrentTimeUs() - startTime;
     vm->gcCollectCount++;
@@ -512,6 +557,13 @@ bool collectGarbageIncremental(VM* vm, int workUnits) {
         pruneStringPool(vm);
         size_t freedBytes = sweep(vm, &vm->objects);
         vm->gcPhase = 0;  // GC_IDLE
+        
+        // Decrement bytesAllocated to reflect freed memory
+        if (freedBytes > vm->bytesAllocated) {
+            vm->bytesAllocated = 0;
+        } else {
+            vm->bytesAllocated -= freedBytes;
+        }
         
         // Update statistics
         vm->gcCollectCount++;
@@ -605,6 +657,12 @@ static void* concurrentMarkWorker(void* arg) {
     size_t freedBytes = sweep(vm, &vm->objects);
     vm->gcPhase = 0;
     
+    if (freedBytes > vm->bytesAllocated) {
+        vm->bytesAllocated = 0; // Guard against underflow due to estimations
+    } else {
+        vm->bytesAllocated -= freedBytes;
+    }
+
     vm->gcCollectCount++;
     vm->gcTotalFreed += freedBytes;
     vm->gcLastCollectTime = getCurrentTimeUs();

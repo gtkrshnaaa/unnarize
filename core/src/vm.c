@@ -276,6 +276,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
         strObj->length = length;
         strObj->hash   = hash(str, length);
         strObj->chars  = malloc(length + 1);
+        vm->bytesAllocated += (length + 1);
         memcpy(strObj->chars, str, length);
         strObj->chars[length] = '\0';
         return strObj;
@@ -299,6 +300,7 @@ ObjString* internString(VM* vm, const char* str, int length) {
     strObj->length = length;
     strObj->hash = h;
     strObj->chars = malloc(length + 1);
+    vm->bytesAllocated += (length + 1);
     memcpy(strObj->chars, str, length);
     strObj->chars[length] = '\0';
     
@@ -837,7 +839,7 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     
     CallFrame* frame = &vm->callStack[vm->callStackTop++];
     frame->env = vm->env;
-    frame->fp = vm->fp;
+    frame->regBase = vm->fp;
     frame->hasReturned = false;
     frame->returnValue = NIL_VAL;
     frame->function = func; // Root the function
@@ -880,7 +882,7 @@ Value callFunction(VM* vm, Function* func, Value* args, int argCount) {
     
     // Restore frame
     vm->env = frame->env;
-    vm->fp = frame->fp;
+    vm->fp = frame->regBase;
     vm->stackTop = oldStackTop; // Pop args/locals
     vm->callStackTop--;
     
@@ -1568,6 +1570,8 @@ static Value evaluate(VM* vm, Node* node) {
 void initVM(VM* vm) {
     // Initialize GC State FIRST
     vm->objects = NULL;
+    vm->nursery = NULL;
+    vm->nurseryCount = 0;
     vm->grayStack = NULL;
     vm->grayCount = 0;
     vm->grayCapacity = 0;
@@ -1578,6 +1582,14 @@ void initVM(VM* vm) {
     vm->stackTop = 0;
     vm->callStackTop = 0;
     vm->fp = 0;
+    vm->regBase = 0;
+    vm->regTop = 0;
+
+    // Initialize entire register file to NIL_VAL to prevent GC from scanning garbage
+    for (int i = 0; i < STACK_MAX; i++) {
+        vm->registers[i] = NIL_VAL;
+    }
+
     vm->argc = 0;
     vm->argv = NULL;
     
@@ -1640,8 +1652,6 @@ void initVM(VM* vm) {
     vm->gcBytesAllocSinceGC = 0;
     
     // Generational GC
-    vm->nursery = NULL;
-    vm->nurseryCount = 0;
     vm->nurseryThreshold = 1000;  // Minor GC after 1000 young objects
 
 }

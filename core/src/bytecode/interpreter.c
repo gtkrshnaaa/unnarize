@@ -475,7 +475,6 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         uint32_t inst = FETCH();
         uint8_t funcReg = DECODE_A(inst);
         uint8_t argCount = DECODE_B(inst);
-        // uint8_t resultCount = DECODE_C(inst); // Currently always 1
 
         Value funcVal = regs[funcReg];
         if (!IS_OBJ(funcVal)) {
@@ -484,6 +483,11 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         }
 
         Obj* obj = AS_OBJ(funcVal);
+        if (obj->type != OBJ_FUNCTION && obj->type != OBJ_STRUCT_DEF) {
+             printf("Runtime Error: Attempt to call non-function object.\n");
+             exit(1);
+        }
+
         if (obj->type == OBJ_FUNCTION) {
             Function* func = (Function*)obj;
             if (func->isNative) {
@@ -519,14 +523,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
             }
 
             // Set up callee's register window
-            int calleeBase = vm->regBase + funcReg + 1;
-            // Args are already at regs[funcReg+1..funcReg+argCount]
-            // which is registers[calleeBase..calleeBase+argCount-1]
-            // Callee sees these as its R(1)..R(paramCount)
-            // R(0) is the function itself (at registers[calleeBase-1])
-
-            // Adjust: callee expects params at R(1), but they're at absolute calleeBase
-            // Set regBase so R(0) = function slot
+            // Args are at regs[funcReg+1..funcReg+argCount].
+            // Callee sees R(0)=function, R(1..N)=params.
+            // Set regBase so R(0) starts at the function slot.
             vm->regBase = vm->regBase + funcReg;
             regs = vm->registers + vm->regBase;
 
