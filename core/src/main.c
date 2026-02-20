@@ -308,7 +308,7 @@ int main(int argc, char** argv) {
     Node* ast = parse(&parser);
 
     // VM
-    VM vm;
+    static VM vm;  // Static: too large for stack (~576KB)
     initVM(&vm);
     vm.argc = argc;
     vm.argv = argv;
@@ -365,7 +365,7 @@ int main(int argc, char** argv) {
             frame->chunk = chunk;
             frame->ip = chunk->code;
             frame->env = vm.globalEnv; // Bind global env
-            frame->fp = 0;
+            frame->regBase = 0;
         }
         
         // Execute VM
