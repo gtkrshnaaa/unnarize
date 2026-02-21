@@ -62,6 +62,11 @@ Tests performed on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** with 8GB R
 | `select` (in-memory) | 370 KB | 128 |
 | `parseFile` (links) | 370 KB | 83 |
 
+### Benchmark Validation
+To ensure high transparency and prevent overclaiming, every performance metric is backed by a verifiable benchmark execution.
+*   **Proof of Work**: Latest validation run can be found in [languagebench/battle_report.txt](languagebench/battle_report.txt).
+*   **Verification Hash**: Results are validated as of commit [`0c81196`](https://github.com/gtkrshnaaa/unnarize/blob/0c8119608447b5d49a42c623fd1b1d4cfd986f20/languagebench/battle_report.txt).
+
 ---
 
 ## Quick Start
