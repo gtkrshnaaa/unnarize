@@ -157,6 +157,23 @@ static void compileNode(Compiler* c, Node* node);
 static void compileExpr(Compiler* c, Node* node, int dest);
 static void compileStmt(Compiler* c, Node* node);
 
+// Helper to get register without forcing a MOVE if it's a local variable.
+static int getOperandReg(Compiler* c, Node* node, bool* isTemp) {
+    if (node->type == NODE_EXPR_VAR) {
+        int local = resolveLocal(c, node->var.name.start, node->var.name.length);
+        if (local != -1) {
+            *isTemp = false;
+            return local;
+        }
+    }
+    // Optimization for literal booleans without moves
+    /*if (node->type == NODE_EXPR_LITERAL) { ... }*/
+    int reg = allocReg(c);
+    compileExpr(c, node, reg);
+    *isTemp = true;
+    return reg;
+}
+
 /**
  * Compile expression, result goes into register 'dest'
  */
@@ -217,10 +234,9 @@ static void compileExpr(Compiler* c, Node* node, int dest) {
         }
 
         case NODE_EXPR_BINARY: {
-            int regB = allocReg(c);
-            int regC = allocReg(c);
-            compileExpr(c, node->binary.left, regB);
-            compileExpr(c, node->binary.right, regC);
+            bool tempB, tempC;
+            int regB = getOperandReg(c, node->binary.left, &tempB);
+            int regC = getOperandReg(c, node->binary.right, &tempC);
 
             switch (node->binary.op.type) {
                 case TOKEN_PLUS:          emit(c, ENCODE_ABC(OP_ADD, dest, regB, regC), line); break;
@@ -236,19 +252,20 @@ static void compileExpr(Compiler* c, Node* node, int dest) {
                 case TOKEN_BANG_EQUAL:    emit(c, ENCODE_ABC(OP_NE,  dest, regB, regC), line); break;
                 default: break;
             }
-            freeRegsTo(c, regB);
+            if (tempC) freeRegsTo(c, regC);
+            if (tempB) freeRegsTo(c, regB);
             break;
         }
 
         case NODE_EXPR_UNARY: {
-            int regB = allocReg(c);
-            compileExpr(c, node->unary.expr, regB);
+            bool tempB;
+            int regB = getOperandReg(c, node->unary.expr, &tempB);
             if (node->unary.op.type == TOKEN_MINUS) {
                 emit(c, ENCODE_ABC(OP_NEG, dest, regB, 0), line);
             } else if (node->unary.op.type == TOKEN_BANG) {
                 emit(c, ENCODE_ABC(OP_NOT, dest, regB, 0), line);
             }
-            freeRegsTo(c, regB);
+            if (tempB) freeRegsTo(c, regB);
             break;
         }
 
@@ -456,9 +473,32 @@ static void compileStmt(Compiler* c, Node* node) {
                     Token leftName = bin->binary.left->var.name;
                     if (leftName.length == name.length &&
                         memcmp(leftName.start, name.start, name.length) == 0) {
+                        // Fast path: i = i + 1/i = i - 1 with integer literal
+                        if (bin->binary.right && bin->binary.right->type == NODE_EXPR_LITERAL) {
+                            Token tok = bin->binary.right->literal.token;
+                            if (tok.type == TOKEN_NUMBER) {
+                                char* str = strndup(tok.start, tok.length);
+                                if (!strchr(str, '.')) {
+                                    int64_t val = atoll(str);
+                                    if (val >= -32767 && val <= 32767) {
+                                        if (bin->binary.op.type == TOKEN_PLUS) {
+                                            emit(c, ENCODE_AsBx(OP_ADDI, local, (int)val), line);
+                                            free(str);
+                                            break;
+                                        } else if (bin->binary.op.type == TOKEN_MINUS) {
+                                            emit(c, ENCODE_AsBx(OP_SUBI, local, (int)val), line);
+                                            free(str);
+                                            break;
+                                        }
+                                    }
+                                }
+                                free(str);
+                            }
+                        }
+
                         // i = i OP expr
-                        int regC = allocReg(c);
-                        compileExpr(c, bin->binary.right, regC);
+                        bool tempC;
+                        int regC = getOperandReg(c, bin->binary.right, &tempC);
                         switch (bin->binary.op.type) {
                             case TOKEN_PLUS:  emit(c, ENCODE_ABC(OP_ADD, local, local, regC), line); break;
                             case TOKEN_MINUS: emit(c, ENCODE_ABC(OP_SUB, local, local, regC), line); break;
@@ -466,7 +506,7 @@ static void compileStmt(Compiler* c, Node* node) {
                             case TOKEN_SLASH: emit(c, ENCODE_ABC(OP_DIV, local, local, regC), line); break;
                             default: goto fallback_assign;
                         }
-                        freeRegsTo(c, regC);
+                        if (tempC) freeRegsTo(c, regC);
                         break;
                     }
                 }

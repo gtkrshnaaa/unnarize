@@ -32,7 +32,9 @@ typedef enum {
 
     // === Arithmetic ===
     OP_ADD,             // ABC:  R(A) = R(B) + R(C)
+    OP_ADDI,            // ABx:  R(A) = R(A) + K(Bx) OR R(A) = R(B) + int16_t(sBx)  (Actually, AsBx: R(A) = R(B) + sBx)
     OP_SUB,             // ABC:  R(A) = R(B) - R(C)
+    OP_SUBI,            // AsBx: R(A) = R(B) - sBx
     OP_MUL,             // ABC:  R(A) = R(B) * R(C)
     OP_DIV,             // ABC:  R(A) = R(B) / R(C)
     OP_MOD,             // ABC:  R(A) = R(B) % R(C)

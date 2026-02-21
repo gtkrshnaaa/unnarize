@@ -22,7 +22,9 @@ static const OpcodeInfo OPCODE_TABLE[] = {
 
     // Arithmetic
     [OP_ADD]        = {"ADD",        0, false},
+    [OP_ADDI]       = {"ADDI",       2, false},
     [OP_SUB]        = {"SUB",        0, false},
+    [OP_SUBI]       = {"SUBI",       2, false},
     [OP_MUL]        = {"MUL",        0, false},
     [OP_DIV]        = {"DIV",        0, false},
     [OP_MOD]        = {"MOD",        0, false},

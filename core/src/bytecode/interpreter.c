@@ -71,7 +71,9 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         [OP_SETGLOBAL]  = &&op_setglobal,
         [OP_DEFGLOBAL]  = &&op_defglobal,
         [OP_ADD]        = &&op_add,
+        [OP_ADDI]       = &&op_addi,
         [OP_SUB]        = &&op_sub,
+        [OP_SUBI]       = &&op_subi,
         [OP_MUL]        = &&op_mul,
         [OP_DIV]        = &&op_div,
         [OP_MOD]        = &&op_mod,
@@ -290,6 +292,22 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         NEXT();
     }
 
+    op_addi: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        int val = DECODE_sBx(inst);
+        Value vb = regs[a]; // For ADDI, we usually accumulate to R(A), wait, format is AsBx?
+        // Let's use AsBx format: R(A) = R(A) + sBx
+        if (likely(IS_INT(vb))) {
+            regs[a] = INT_VAL(AS_INT(vb) + val);
+        } else if (IS_FLOAT(vb)) {
+            regs[a] = FLOAT_VAL(AS_FLOAT(vb) + (double)val);
+        } else {
+            // Unlikely string fallback
+        }
+        NEXT();
+    }
+
     op_sub: {
         uint32_t inst = FETCH();
         uint8_t a = DECODE_A(inst), b = DECODE_B(inst), c = DECODE_C(inst);
@@ -300,6 +318,21 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
             double db = IS_INT(vb) ? (double)AS_INT(vb) : AS_FLOAT(vb);
             double dc = IS_INT(vc) ? (double)AS_INT(vc) : AS_FLOAT(vc);
             regs[a] = FLOAT_VAL(db - dc);
+        }
+        NEXT();
+    }
+
+    op_subi: {
+        uint32_t inst = FETCH();
+        uint8_t a = DECODE_A(inst);
+        int val = DECODE_sBx(inst);
+        Value vb = regs[a]; // R(A) = R(A) - sBx
+        if (likely(IS_INT(vb))) {
+            regs[a] = INT_VAL(AS_INT(vb) - val);
+        } else if (IS_FLOAT(vb)) {
+            regs[a] = FLOAT_VAL(AS_FLOAT(vb) - (double)val);
+        } else {
+            // Unlikely string fallback
         }
         NEXT();
     }
