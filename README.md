@@ -32,17 +32,18 @@
 Tests performed on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** with 8GB RAM (Ubuntu 24.04).
 
 ### VM Compute Throughput
-| Benchmark | Result | Note |
-|-----------|--------|------|
-| **Integer Arithmetic** | **~117 M ops/sec** | `Integer Add` throughput |
-| **Double Arithmetic** | **~96 M ops/sec** | `Double Arith` throughput |
-| **Array Operations** | **~57 M ops/sec** | `Array Push` throughput |
-| **Struct Access** | **~46 M ops/sec** | `Struct Access` throughput |
+| Benchmark | Performance | Resource |
+|-----------|-------------|----------|
+| **Integer Arithmetic** | **~100 M ops/sec** | **Peak RAM:** ~11,460 KB |
+| **Double Arithmetic** | **~90 M ops/sec** | |
+| **String Concatenation** | **~30 K ops/sec** | |
+| **Array Operations** | **~50 M ops/sec** | |
+| **Struct Access** | **~40 M ops/sec** | |
 
 ### GC Stress Test
 | Scenario | Load | Result |
 |----------|------|--------|
-| **Massive Allocation** | 50,000 Arrays | **Stable** |
+| **Massive Allocation** | 50,000 Arrays | **Stable** (~11.4 MB) |
 | **Long Running** | 15,000 Requests | **<10ms Pause** |
 
 ### ucoreString (Text Processing)

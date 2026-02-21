@@ -113,7 +113,7 @@
             <div class="features">
                 <div class="feature">
                     <div class="feature-title">High Performance</div>
-                    <div class="feature-desc">Achieves ~117 million ops/sec on arithmetic benchmarks. Optimized bytecode VM with specialized opcodes for common operations.</div>
+                    <div class="feature-desc">Achieves ~100 million ops/sec on arithmetic benchmarks with minimal memory footprint (~11MB). Optimized bytecode VM.</div>
                 </div>
                 <div class="feature">
                     <div class="feature-title">Gapless GC</div>
@@ -166,16 +166,38 @@ unnarize -v  <span class="token-comment"># unnarize 0.1.6-beta</span></code></pr
             <h2>Performance Benchmarks</h2>
             <p>Tested on 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz with 8GB RAM (Ubuntu 24.04):</p>
             
-<pre><code>>>> Unnarize Benchmark Suite <<<
-  -------------------------------------------------------------
-  Benchmark       |     Performance     | Time
-  -------------------------------------------------------------
-  Integer Add     | 116993705.00068 ops/sec | 8.5474684299827 s
-  Double Arith    | 96250239.847295 ops/sec | 1.0389584499598 s
-  String Concat   | 36147.76982235 ops/sec | 1.3832111979723 s
-  Array Push      | 57543193.350042 ops/sec | 0.017378250002861 s
-  Struct Access   | 46239578.999158 ops/sec | 1.0813247240186 s
-  -------------------------------------------------------------</code></pre>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Benchmark</th>
+                        <th>Performance</th>
+                        <th>Resource</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Integer Arithmetic</td>
+                        <td>~100 M ops/sec</td>
+                        <td rowspan="5"><strong>Peak RAM:</strong> ~11,460 KB</td>
+                    </tr>
+                    <tr>
+                        <td>Double Arithmetic</td>
+                        <td>~90 M ops/sec</td>
+                    </tr>
+                    <tr>
+                        <td>String Concatenation</td>
+                        <td>~30 K ops/sec</td>
+                    </tr>
+                    <tr>
+                        <td>Array Operations (Push)</td>
+                        <td>~50 M ops/sec</td>
+                    </tr>
+                    <tr>
+                        <td>Struct Access</td>
+                        <td>~40 M ops/sec</td>
+                    </tr>
+                </tbody>
+            </table>
 
             <p class="benchmark-validation">
                 <strong>Verification:</strong> Results are validated as of commit 
