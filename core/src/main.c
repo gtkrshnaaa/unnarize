@@ -371,7 +371,7 @@ int main(int argc, char** argv) {
         // Execute VM
         executeBytecode(&vm, chunk, 0);
         
-        vm.callStackTop--; // Pop frame
+        // vm.callStackTop-- is handled by the return instruction
     } else {
         fprintf(stderr, "Bytecode compilation failed.\n");
         exit(1);
