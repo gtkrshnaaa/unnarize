@@ -996,7 +996,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         chunk = frame->chunk;
         constants = chunk->constants;
         ip = frame->ip;
-        vm->callStackTop--;
+        // vm->callStackTop-- is already done by return instruction inside executeBytecode
 
         // Create module object
         Module* mod = ALLOCATE_OBJ(vm, Module, OBJ_MODULE);
@@ -1009,7 +1009,7 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
         if (resolvedPath) free(resolvedPath);
         if (p.tokens) free(p.tokens);
 
-        NEXT();
+        DISPATCH();
     }
 
     // ===== ASYNC =====
