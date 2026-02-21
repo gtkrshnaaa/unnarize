@@ -113,7 +113,7 @@
             <div class="features">
                 <div class="feature">
                     <div class="feature-title">High Performance</div>
-                    <div class="feature-desc">Achieves ~275 million ops/sec on loop benchmarks. Optimized bytecode VM with specialized opcodes for common operations.</div>
+                    <div class="feature-desc">Achieves ~117 million ops/sec on arithmetic benchmarks. Optimized bytecode VM with specialized opcodes for common operations.</div>
                 </div>
                 <div class="feature">
                     <div class="feature-title">Gapless GC</div>
@@ -164,7 +164,7 @@ sudo make install
 unnarize -v  <span class="token-comment"># unnarize 0.1.6-beta</span></code></pre>
             
             <h2>Performance Benchmarks</h2>
-            <p>Tested on Intel Core i5-1135G7 @ 4.20GHz with 8GB RAM:</p>
+            <p>Tested on 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz with 8GB RAM (Ubuntu 24.04):</p>
             <table>
                 <thead>
                     <tr>
@@ -174,27 +174,31 @@ unnarize -v  <span class="token-comment"># unnarize 0.1.6-beta</span></code></pr
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Heavy Loop (10M iterations)</td>
-                        <td><strong>~275 M ops/sec</strong></td>
+                        <td>Integer Arithmetic</td>
+                        <td><strong>~117 M ops/sec</strong></td>
                     </tr>
                     <tr>
-                        <td>Fibonacci(30) Recursive</td>
-                        <td>~70 ms</td>
+                        <td>Double Arithmetic</td>
+                        <td>~96 M ops/sec</td>
                     </tr>
                     <tr>
-                        <td>GC Stress (50K allocations)</td>
-                        <td>Stable, &lt;10ms pause</td>
+                        <td>Array Operations (Push)</td>
+                        <td>~57 M ops/sec</td>
+                    </tr>
+                    <tr>
+                        <td>Struct Access</td>
+                        <td>~46 M ops/sec</td>
                     </tr>
                     <tr>
                         <td>String contains (14KB)</td>
-                        <td>24.5 M ops/sec</td>
-                    </tr>
-                    <tr>
-                        <td>HTML parseFile (370KB)</td>
-                        <td>~340 ops/sec</td>
+                        <td>~36 K ops/sec</td>
                     </tr>
                 </tbody>
             </table>
+            <p class="benchmark-validation">
+                <strong>Verification:</strong> Results are validated as of commit 
+                <a href="https://github.com/gtkrshnaaa/unnarize/blob/0c8119608447b5d49a42c623fd1b1d4cfd986f20/languagebench/battle_report.txt" target="_blank"><code>0c81196</code></a>.
+            </p>
             
             <h2>Core Libraries</h2>
             <table>
