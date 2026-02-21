@@ -29,13 +29,15 @@
 
 ## Performance Benchmarks
 
-Tests performed on **Intel Core i5-1135G7 @ 4.20GHz** with 8GB RAM.
+Tests performed on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** with 8GB RAM (Ubuntu 24.04).
 
 ### VM Compute Throughput
 | Benchmark | Result | Note |
 |-----------|--------|------|
-| **Heavy Loop** | **~275 M ops/sec** | `while` loop increment |
-| **Fibonacci(30)** | **~70 ms** | Recursive function calls |
+| **Integer Arithmetic** | **~117 M ops/sec** | `Integer Add` throughput |
+| **Double Arithmetic** | **~96 M ops/sec** | `Double Arith` throughput |
+| **Array Operations** | **~57 M ops/sec** | `Array Push` throughput |
+| **Struct Access** | **~46 M ops/sec** | `Struct Access` throughput |
 
 ### GC Stress Test
 | Scenario | Load | Result |
