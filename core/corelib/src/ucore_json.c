@@ -430,7 +430,7 @@ static void stringifyValue(JsonHeader* header, Value val) {
         jsonAppend(header, buf, len);
     } else if (IS_FLOAT(val)) {
         char buf[32];
-        int len = snprintf(buf, sizeof(buf), "%g", AS_FLOAT(val));
+        int len = snprintf(buf, sizeof(buf), "%.14g", AS_FLOAT(val));
         jsonAppend(header, buf, len);
     } else if (IS_STRING(val)) {
         ObjString* s = AS_STRING(val);

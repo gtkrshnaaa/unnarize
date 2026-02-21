@@ -906,7 +906,7 @@ void printValue(Value val) {
     switch (getValueType(val)) {
         case VAL_BOOL: printf(AS_BOOL(val) ? "true" : "false"); break;
         case VAL_INT: printf("%ld", (long)AS_INT(val)); break;
-        case VAL_FLOAT: printf("%.6g", AS_FLOAT(val)); break;
+        case VAL_FLOAT: printf("%.14g", AS_FLOAT(val)); break;
         case VAL_OBJ: {
             Obj* o = AS_OBJ(val);
             if (IS_STRING(val)) {
@@ -1865,7 +1865,7 @@ Value vm_concatenate(VM* vm, Value a, Value b) {
         snprintf(bufferA, sizeof(bufferA), "%ld", (long)AS_INT(a));
         strA = bufferA;
     } else if (IS_FLOAT(a)) {
-        snprintf(bufferA, sizeof(bufferA), "%g", AS_FLOAT(a));
+        snprintf(bufferA, sizeof(bufferA), "%.14g", AS_FLOAT(a));
         strA = bufferA;
     } else if (IS_BOOL(a)) {
         strA = AS_BOOL(a) ? "true" : "false";
@@ -1882,7 +1882,7 @@ Value vm_concatenate(VM* vm, Value a, Value b) {
         snprintf(bufferB, sizeof(bufferB), "%ld", (long)AS_INT(b));
         strB = bufferB;
     } else if (IS_FLOAT(b)) {
-        snprintf(bufferB, sizeof(bufferB), "%g", AS_FLOAT(b));
+        snprintf(bufferB, sizeof(bufferB), "%.14g", AS_FLOAT(b));
         strB = bufferB;
     } else if (IS_BOOL(b)) {
         strB = AS_BOOL(b) ? "true" : "false";

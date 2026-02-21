@@ -264,14 +264,14 @@ uint64_t executeBytecode(VM* vm, BytecodeChunk* chunk, int entryStackDepth) {
 
             if (IS_STRING(vb)) sB = AS_CSTRING(vb);
             else if (IS_INT(vb)) { snprintf(bufB, 64, "%ld", (long)AS_INT(vb)); sB = bufB; }
-            else if (IS_FLOAT(vb)) { snprintf(bufB, 64, "%g", AS_FLOAT(vb)); sB = bufB; }
+            else if (IS_FLOAT(vb)) { snprintf(bufB, 64, "%.14g", AS_FLOAT(vb)); sB = bufB; }
             else if (IS_BOOL(vb)) sB = AS_BOOL(vb) ? "true" : "false";
             else if (IS_NIL(vb)) sB = "nil";
             else sB = "[object]";
 
             if (IS_STRING(vc)) sC = AS_CSTRING(vc);
             else if (IS_INT(vc)) { snprintf(bufC, 64, "%ld", (long)AS_INT(vc)); sC = bufC; }
-            else if (IS_FLOAT(vc)) { snprintf(bufC, 64, "%g", AS_FLOAT(vc)); sC = bufC; }
+            else if (IS_FLOAT(vc)) { snprintf(bufC, 64, "%.14g", AS_FLOAT(vc)); sC = bufC; }
             else if (IS_BOOL(vc)) sC = AS_BOOL(vc) ? "true" : "false";
             else if (IS_NIL(vc)) sC = "nil";
             else sC = "[object]";
