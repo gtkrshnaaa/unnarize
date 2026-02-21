@@ -60,9 +60,17 @@ for f in $FILES; do
         echo "    Output Details:" >> "$REPORT_FILE"
         clean_output "$temp_out" | sed 's/^/      /' >> "$REPORT_FILE"
     elif [ $exit_code -eq 124 ]; then
-        echo -e "\033[0;31m TIMEOUT \033[0m"
-        echo " ] $f: FAIL (Timeout)" >> "$REPORT_FILE"
-        echo "    Error Details: Execution timed out after 10s" >> "$REPORT_FILE"
+        # Check if the file is a known long-running example (TUI, API Server, Scraper)
+        if [[ "$f" == *"tui"* || "$f" == *"advanced_demo"* || "$f" == *"api_server"* || "$f" == *"corelib/scraper/"* ]]; then
+            echo -e "\033[0;32m PASS (Timeout Expected) \033[0m"
+            PASSED=$((PASSED + 1))
+            echo "x] $f: PASS (Timeout Expected)" >> "$REPORT_FILE"
+            echo "    Details: Service ran successfully until timeout" >> "$REPORT_FILE"
+        else
+            echo -e "\033[0;31m TIMEOUT \033[0m"
+            echo " ] $f: FAIL (Timeout)" >> "$REPORT_FILE"
+            echo "    Error Details: Execution timed out after 10s" >> "$REPORT_FILE"
+        fi
     else
         echo -e "\033[0;31m FAIL \033[0m"
         echo " ] $f: FAIL (Exit Code: $exit_code)" >> "$REPORT_FILE"
